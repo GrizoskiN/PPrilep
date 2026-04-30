@@ -1,0 +1,57 @@
+'use client'
+
+import { useRef, useState } from 'react'
+import { ThumbsUp } from 'lucide-react'
+import { createClient } from '../../lib/supabase/client'
+import { formatDays, cn } from '../../lib/utils'
+import AvatarInitials from '../ui/AvatarInitials'
+import type { Idea } from '../../lib/types/database'
+import { toast } from 'sonner'
+
+interface Props {
+  idea: Idea
+  userId?: string
+}
+
+export default function IdeaCard({ idea, userId }: Props) {
+  const supabase = useRef(createClient()).current
+  const [upvotes, setUpvotes] = useState(idea.upvotes)
+  const [voted, setVoted] = useState(false)
+
+  async function upvote() {
+    if (!userId) { toast.error('Најавете се за да гласате'); return }
+    if (voted) return
+    setUpvotes(u => u + 1)
+    setVoted(true)
+    await supabase.from('ideas').update({ upvotes: upvotes + 1 }).eq('id', idea.id)
+  }
+
+  return (
+    <div className="bg-white border border-zinc-200 rounded-lg p-4 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-medium">{idea.title}</h3>
+          {idea.body && <p className="text-xs text-zinc-500 mt-0.5 line-clamp-3">{idea.body}</p>}
+        </div>
+        <button
+          onClick={upvote}
+          className={cn(
+            'flex flex-col items-center gap-0.5 px-2 py-1.5 rounded border text-xs font-semibold transition-colors shrink-0',
+            voted ? 'border-black bg-black text-white' : 'border-zinc-200 text-zinc-600 hover:border-black'
+          )}
+        >
+          <ThumbsUp size={12} />
+          {upvotes}
+        </button>
+      </div>
+      <div className="flex items-center gap-1.5">
+        {idea.profiles && (
+          <AvatarInitials name={idea.profiles.full_name} size="sm" />
+        )}
+        <span className="text-[11px] text-zinc-400">
+          {idea.profiles?.full_name ?? 'Анонимно'} · {formatDays(idea.created_at)}
+        </span>
+      </div>
+    </div>
+  )
+}
