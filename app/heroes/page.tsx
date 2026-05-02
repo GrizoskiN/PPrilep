@@ -26,7 +26,7 @@ export default async function HeroesPage() {
     <Shell>
       <div className="p-4 space-y-4">
         <div>
-          <h1 className="text-base font-semibold">Херои на заедницата</h1>
+          <h1 className="text-base font-semibold">Херои на заедницата!</h1>
           <p className="text-xs text-zinc-500">Граѓани кои се пријавија да помогнат во решавање на проблеми</p>
         </div>
 

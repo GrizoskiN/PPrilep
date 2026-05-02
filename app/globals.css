@@ -2,26 +2,66 @@
 
 @theme inline {
   --font-sans: var(--font-inter);
-  --color-primary: #0d9488;      /* teal-600 */
-  --color-primary-light: #99f6e4; /* teal-200 */
+  --color-primary: #2aa99d;
+  --color-primary-light: #d8f4ef;
 }
 
-* { box-sizing: border-box; }
-html, body { height: 100%; }
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+}
+html {
+  background: #fff;
+}
+
+body {
+  margin: 0;
+
+  color: #132238;
+}
+
+::selection {
+  background: rgba(42, 169, 157, 0.2);
+}
 
 /* Marquee scroll animation */
 @keyframes marquee {
-  0%   { transform: translateX(20vw); }
-  100% { transform: translateX(-100%); }
+  0% {
+    transform: translateX(20vw);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
 }
 .animate-marquee {
   display: inline-block;
   animation: marquee 100s linear infinite;
   white-space: nowrap;
 }
-.animate-marquee:hover { animation-play-state: paused; }
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
 
 /* Ensure all interactive elements show pointer */
-button, [role="button"], a, select, label[for] {
+button,
+[role="button"],
+a,
+select,
+label[for] {
   cursor: pointer;
+}
+
+/* Hide scrollbar while keeping scroll behavior */
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }

@@ -1,55 +1,211 @@
-'use client'
+"use client";
 
-import { MapPin, AlertCircle, Star, Banknote, Lightbulb, Users, Droplets, Trash2, Zap } from 'lucide-react'
-import NavItem from '../ui/NavItem'
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import {
+  faHouse,
+  faTriangleExclamation,
+  faMedal,
+  faHandHoldingHeart,
+  faLightbulb,
+  faUsers,
+  faDroplet,
+  faTrashCan,
+  faPlug,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import NavItem from "../ui/NavItem";
+import { cn } from "../../lib/utils";
+import { createClient } from "../../lib/supabase/client";
 
 const districts = [
-  { value: 'all',      label: 'Прилеп'    },
-  { value: 'Center',   label: 'Центар'    },
-  { value: 'Varoš',    label: 'Варош'     },
-  { value: 'Trizla',   label: 'Тризла'    },
-  { value: 'Točila',   label: 'Точила'    },
-  { value: 'Rid',      label: 'Рид'       },
-  { value: 'Tri Bari', label: 'Типски'  },
-] as const
+  { value: "all", label: "Прилеп" },
+  { value: "Center", label: "Центар" },
+  { value: "Varoš", label: "Варош" },
+  { value: "Trizla", label: "Тризла" },
+  { value: "Točila", label: "Точила" },
+  { value: "Rid", label: "Рид" },
+  { value: "Tri Bari", label: "Типски" },
+] as const;
 
 export default function LeftNav() {
+  const searchParams = useSearchParams();
+  const activeDistrict = searchParams.get("district") ?? "all";
+  const [activeIssuesCount, setActiveIssuesCount] = useState<number>(0);
+
+  useEffect(() => {
+    let mounted = true;
+    const supabase = createClient();
+
+    async function loadActiveIssuesCount() {
+      const { count } = await supabase
+        .from("issues")
+        .select("id", { count: "exact", head: true })
+        .neq("status", "resolved");
+
+      if (mounted) setActiveIssuesCount(count ?? 0);
+    }
+
+    loadActiveIssuesCount();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
-    <nav className="overflow-y-auto border-r border-zinc-200 py-3 px-2 flex flex-col gap-4 bg-white">
+    <nav className="scrollbar-hidden flex h-full min-h-0 flex-col gap-5 overflow-y-auto bg-white px-4 py-4">
       <section>
-        <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider px-3 mb-1">Платформа</p>
-        <div className="flex flex-col gap-0.5">
-          <NavItem href="/"            label="Почетна"    icon={MapPin}      exact />
-          <NavItem href="/issues"      label="Пријави"    icon={AlertCircle} />
-          <NavItem href="/heroes"      label="Херои"      icon={Star} />
-          <NavItem href="/fund"        label="Фонд"       icon={Banknote} />
-          <NavItem href="/ideas"       label="Идеи"       icon={Lightbulb} />
-          <NavItem href="/communities" label="Населби"    icon={Users} />
+        <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          Платформа
+        </p>
+        <div className="flex flex-col gap-1 ">
+          <NavItem
+            href="/"
+            label="Почетна"
+            iconNode={<FontAwesomeIcon icon={faHouse} className="h-4 w-4 " />}
+            exact
+          />
+          <NavItem
+            href="/issues"
+            label="Пријави"
+            badge={String(activeIssuesCount)}
+            iconNode={
+              <FontAwesomeIcon
+                icon={faTriangleExclamation}
+                className="h-4 w-4"
+              />
+            }
+          />
+          <NavItem
+            href="/heroes"
+            label="Херои"
+            iconNode={<FontAwesomeIcon icon={faMedal} className="h-4 w-4" />}
+          />
+          <NavItem
+            href="/fund"
+            label="Фонд"
+            iconNode={
+              <FontAwesomeIcon icon={faHandHoldingHeart} className="h-4 w-4" />
+            }
+          />
+          <NavItem
+            href="/ideas"
+            label="Идеи"
+            iconNode={
+              <FontAwesomeIcon icon={faLightbulb} className="h-4 w-4" />
+            }
+          />
+          <NavItem
+            href="/communities"
+            label="Населби"
+            iconNode={<FontAwesomeIcon icon={faUsers} className="h-4 w-4" />}
+          />
         </div>
       </section>
 
       <section>
-        <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider px-3 mb-1">Комунални</p>
-        <div className="flex flex-col gap-0.5">
-          <NavItem href="/utility/water"   label="Водовод"    icon={Droplets} />
-          <NavItem href="/utility/garbage" label="Комунален"  icon={Trash2} />
-          <NavItem href="/utility/power"   label="Електрична" icon={Zap} />
+        <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          Комунални
+        </p>
+        <div className="flex flex-col gap-1">
+          <NavItem
+            href="/utility/water"
+            label="Водовод"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faDroplet}
+                className="h-4 w-4 text-blue-500"
+              />
+            }
+          />
+          <NavItem
+            href="/utility/garbage"
+            label="Комунален"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faTrashCan}
+                className="h-4 w-4 text-slate-500"
+              />
+            }
+          />
+          <NavItem
+            href="/utility/power"
+            label="Електрична"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faPlug}
+                className="h-4 w-4 text-amber-500"
+              />
+            }
+          />
         </div>
       </section>
-
+      {/* 
       <section>
-        <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider px-3 mb-1">Населби</p>
-        <div className="flex flex-col gap-0.5">
-          {districts.map(d => (
+        <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          Населби
+        </p>
+        <div className="flex flex-col gap-1">
+          {districts.map((d) => (
             <NavItem
               key={d.value}
-              href={d.value === 'all' ? '/issues' : `/issues?district=${d.value}`}
+              href={
+                d.value === "all" ? "/issues" : `/issues?district=${d.value}`
+              }
               label={d.label}
-              exact={d.value === 'all'}
+              exact={d.value === "all"}
+              requireNoSearchParams={d.value === "all"}
             />
           ))}
         </div>
+      </section> */}
+
+      <section className=" rounded-3xl p-3 ">
+        <div className="mb-3 flex items-center justify-between px-1">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Филтер по мапа
+          </p>
+          <Link
+            href="/issues"
+            className="text-[9px] font-semibold text-primary hover:text-primary/80">
+            Ресет
+          </Link>
+        </div>
+
+        <div className="">
+          <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-semibold text-slate-500">
+            {districts.map((d) => (
+              <Link
+                key={d.value}
+                href={
+                  d.value === "all"
+                    ? "/issues"
+                    : `/issues?district=${encodeURIComponent(d.value)}`
+                }
+                className={cn(
+                  "rounded-xl border px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition-colors",
+                  activeDistrict === d.value
+                    ? "border-[#bfe3db] bg-[#eef8f5] text-primary"
+                    : "border-[#dde7e3] bg-white hover:border-[#cfe0da] hover:bg-[#fcfefd]",
+                )}>
+                {d.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* <div className="mt-3">
+          <p className="mb-2 px-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Активен избор
+          </p>
+          <div className="rounded-2xl border border-[#dde7e3] bg-[#fcfefd] px-3 py-2 text-sm font-medium text-slate-600">
+            {districts.find((district) => district.value === activeDistrict)
+              ?.label ?? "Прилеп"}
+          </div>
+        </div> */}
       </section>
     </nav>
-  )
+  );
 }

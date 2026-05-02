@@ -12,7 +12,7 @@ const full = [...ALERTS, ...ALERTS].map((a) => `${a.icon}  ${a.text}`).join('   
 
 export default function MarqueeBanner() {
   return (
-    <div className="bg-zinc-900 text-zinc-100 h-11 flex items-center overflow-hidden border-b border-zinc-700 shrink-0">
+    <div className="bg-red-600 text-zinc-100 h-11 flex items-center overflow-hidden border-b border-zinc-700 shrink-0 ">
       <span className="text-[10px] font-bold uppercase tracking-widest px-3 text-teal-400 shrink-0 border-r border-zinc-700 mr-3 h-full flex items-center">
         LIVE
       </span>

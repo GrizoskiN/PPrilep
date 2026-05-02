@@ -39,6 +39,14 @@ create table issue_helpers (
   primary key (issue_id, user_id)
 );
 
+create table issue_comments (
+  id bigserial primary key,
+  issue_id bigint not null references issues(id) on delete cascade,
+  user_id uuid not null references profiles(id) on delete cascade,
+  body text not null,
+  created_at timestamptz default now()
+);
+
 -- ── Fund campaigns ────────────────────────────────────────────────────
 create table fund_campaigns (
   id bigserial primary key,
@@ -77,6 +85,7 @@ alter table profiles enable row level security;
 alter table issues enable row level security;
 alter table issue_affected enable row level security;
 alter table issue_helpers enable row level security;
+alter table issue_comments enable row level security;
 alter table fund_campaigns enable row level security;
 alter table ideas enable row level security;
 alter table utility_posts enable row level security;
@@ -89,10 +98,17 @@ create policy "Own profile" on profiles for update using (auth.uid() = id);
 create policy "Public issues" on issues for select using (true);
 create policy "Auth insert issue" on issues for insert with check (auth.role() = 'authenticated');
 create policy "Own update issue" on issues for update using (auth.uid() = reported_by);
+create policy "Own delete issue" on issues for delete using (auth.uid() = reported_by);
 
 -- Affected / helpers
 create policy "Auth affected" on issue_affected for all using (auth.role() = 'authenticated');
 create policy "Auth helpers" on issue_helpers for all using (auth.role() = 'authenticated');
+
+-- Comments
+create policy "Public comments" on issue_comments for select using (true);
+create policy "Auth insert comment" on issue_comments for insert with check (auth.role() = 'authenticated' and auth.uid() = user_id);
+create policy "Own update comment" on issue_comments for update using (auth.uid() = user_id);
+create policy "Own delete comment" on issue_comments for delete using (auth.uid() = user_id);
 
 -- Fund campaigns
 create policy "Public campaigns" on fund_campaigns for select using (true);
