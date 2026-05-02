@@ -267,7 +267,7 @@ export default function AccountPage() {
                   Е-пошта
                 </label>
                 <input
-                  value={user.email ?? ""}
+                  value={user?.email ?? ""}
                   disabled
                   className="mt-1 w-full rounded-xl border border-[#dce6e2] bg-slate-50 px-3 py-2.5 text-sm text-slate-500"
                 />
