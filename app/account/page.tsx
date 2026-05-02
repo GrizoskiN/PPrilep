@@ -62,6 +62,7 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!user) return;
+    const userId = user.id;
 
     let mounted = true;
 
@@ -72,7 +73,7 @@ export default function AccountPage() {
         supabase
           .from("issues")
           .select("*")
-          .eq("reported_by", user.id)
+          .eq("reported_by", userId)
           .order("created_at", { ascending: false })
           .limit(30),
         supabase
@@ -80,11 +81,11 @@ export default function AccountPage() {
           .select(
             "issue_id, note, issues(id, title, district, status, created_at)",
           )
-          .eq("user_id", user.id),
+          .eq("user_id", userId),
         supabase
           .from("issue_affected")
           .select("issue_id, issues(id, title, district, status, created_at)")
-          .eq("user_id", user.id),
+          .eq("user_id", userId),
       ]);
 
       if (!mounted) return;
