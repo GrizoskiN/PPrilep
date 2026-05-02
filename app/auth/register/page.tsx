@@ -19,6 +19,7 @@ type Fields = z.infer<typeof schema>
 export default function RegisterPage() {
   const supabase = useRef(createClient()).current
   const [done, setDone] = useState(false)
+  const [oauthLoading, setOauthLoading] = useState(false)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Fields>({
     resolver: zodResolver(schema),
@@ -32,6 +33,20 @@ export default function RegisterPage() {
     })
     if (error) { toast.error(error.message); return }
     setDone(true)
+  }
+
+  async function signUpWithGoogle() {
+    setOauthLoading(true)
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${location.origin}/auth/callback`,
+      },
+    })
+    if (error) {
+      setOauthLoading(false)
+      toast.error(error.message)
+    }
   }
 
   if (done) {
@@ -71,6 +86,18 @@ export default function RegisterPage() {
           </div>
           <Button type="submit" disabled={isSubmitting} className="w-full">
             {isSubmitting ? 'Се создава…' : 'Создај сметка'}
+          </Button>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-100" /></div>
+            <div className="relative flex justify-center"><span className="bg-white px-2 text-[11px] text-zinc-400">или</span></div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={signUpWithGoogle}
+            disabled={isSubmitting || oauthLoading}>
+            {oauthLoading ? 'Се пренасочува…' : 'Продолжи со Google'}
           </Button>
         </form>
         <p className="text-xs text-zinc-500 text-center mt-4">

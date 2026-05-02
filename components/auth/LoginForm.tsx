@@ -22,6 +22,7 @@ export default function LoginForm() {
   const next = params.get('next') ?? '/'
   const [magicSent, setMagicSent] = useState(false)
   const [magicEmail, setMagicEmail] = useState('')
+  const [oauthLoading, setOauthLoading] = useState(false)
 
   const { register, handleSubmit, getValues, formState: { errors, isSubmitting } } = useForm<Fields>({
     resolver: zodResolver(schema),
@@ -42,6 +43,19 @@ export default function LoginForm() {
     setMagicEmail(email)
     setMagicSent(true)
     toast.success('Магичниот линк е испратен!')
+  }
+
+  async function signInWithGoogle() {
+    setOauthLoading(true)
+    const redirectTo = `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    })
+    if (error) {
+      setOauthLoading(false)
+      toast.error(error.message)
+    }
   }
 
   if (magicSent) {
@@ -85,6 +99,14 @@ export default function LoginForm() {
       </div>
       <Button type="button" variant="outline" className="w-full" onClick={sendMagicLink}>
         Испрати магичен линк
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        onClick={signInWithGoogle}
+        disabled={isSubmitting || oauthLoading}>
+        {oauthLoading ? 'Се пренасочува…' : 'Најава со Google'}
       </Button>
     </form>
   )
