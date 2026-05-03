@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { ThumbsUp } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "../../lib/supabase/client";
+import { createNotification } from "../../lib/notifications";
 import { formatDays, cn } from "../../lib/utils";
 import AvatarInitials from "../ui/AvatarInitials";
 import type { Idea } from "../../lib/types/database";
@@ -32,10 +33,25 @@ export default function IdeaCard({ idea, userId }: Props) {
     if (voted) return;
     setUpvotes((u) => u + 1);
     setVoted(true);
-    await supabase
+    const { error } = await supabase
       .from("ideas")
       .update({ upvotes: upvotes + 1 })
       .eq("id", idea.id);
+    if (error) {
+      setUpvotes((u) => Math.max(0, u - 1));
+      setVoted(false);
+      toast.error(error.message);
+      return;
+    }
+
+    await createNotification(supabase, {
+      recipientUserId: idea.created_by,
+      actorUserId: userId,
+      type: "idea_upvote",
+      title: idea.title,
+      body: "ја лајкна вашата идеја",
+      link: `/ideas/${idea.id}`,
+    });
   }
 
   return (

@@ -143,7 +143,11 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
                 <Button size="sm" variant="teal" onClick={handleReportClick}>
                   <Plus size={13} /> Пријави проблем
                 </Button>
-                <UserMenu profile={profile} onSignOut={signOut} />
+                <UserMenu
+                  userId={user.id}
+                  profile={profile}
+                  onSignOut={signOut}
+                />
               </>
             ) : (
               <>

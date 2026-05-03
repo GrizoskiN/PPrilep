@@ -80,6 +80,19 @@ create table utility_posts (
   posted_at timestamptz default now()
 );
 
+-- ── Notifications ─────────────────────────────────────────────────────
+create table notifications (
+  id bigserial primary key,
+  recipient_user_id uuid not null references profiles(id) on delete cascade,
+  actor_user_id uuid not null references profiles(id) on delete cascade,
+  type text not null check (type in ('issue_comment','issue_affected','issue_helper','issue_help_comment','issue_help_vote','idea_upvote')),
+  title text not null,
+  body text not null,
+  link text not null,
+  read_at timestamptz,
+  created_at timestamptz default now()
+);
+
 -- ── Row Level Security ────────────────────────────────────────────────
 alter table profiles enable row level security;
 alter table issues enable row level security;
@@ -89,6 +102,7 @@ alter table issue_comments enable row level security;
 alter table fund_campaigns enable row level security;
 alter table ideas enable row level security;
 alter table utility_posts enable row level security;
+alter table notifications enable row level security;
 
 -- Profiles
 create policy "Public profiles" on profiles for select using (true);
@@ -127,6 +141,11 @@ create policy "Auth idea upvote" on ideas for update using (auth.role() = 'authe
 
 -- Utility posts
 create policy "Public utility" on utility_posts for select using (true);
+
+-- Notifications
+create policy "Own read notifications" on notifications for select using (auth.uid() = recipient_user_id);
+create policy "Actor insert notifications" on notifications for insert with check (auth.role() = 'authenticated' and auth.uid() = actor_user_id);
+create policy "Own update notifications" on notifications for update using (auth.uid() = recipient_user_id);
 
 -- ── Auto-create profile on signup ─────────────────────────────────────
 create or replace function public.handle_new_user()

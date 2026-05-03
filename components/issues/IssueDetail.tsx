@@ -141,6 +141,7 @@ export default function IssueDetail({
     typeof window !== "undefined"
       ? `${location.origin}${getIssuePath(currentIssue.id, currentIssue.title)}`
       : "";
+  const issuePath = getIssuePath(currentIssue.id, currentIssue.title);
 
   async function loadComments() {
     setLoadingComments(true);
