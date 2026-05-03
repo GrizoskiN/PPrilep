@@ -7,7 +7,12 @@ import Link from "next/link";
 import Shell from "../../components/layout/Shell";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { createClient } from "../../lib/supabase/client";
-import { DISTRICT_LABELS, STATUS_LABELS, formatDays } from "../../lib/utils";
+import {
+  DISTRICT_LABELS,
+  STATUS_LABELS,
+  formatDays,
+  getIssuePath,
+} from "../../lib/utils";
 import AvatarInitials from "../../components/ui/AvatarInitials";
 import Button from "../../components/ui/Button";
 import { toast } from "sonner";
@@ -304,7 +309,7 @@ export default function AccountPage() {
               {myIssues.map((issue) => (
                 <Link
                   key={issue.id}
-                  href={`/issues/${issue.id}`}
+                  href={getIssuePath(issue.id, issue.title)}
                   className="block rounded-2xl border border-[#e4ece8] px-3 py-2 hover:border-[#cfe0da]">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold text-slate-800">
@@ -343,7 +348,10 @@ export default function AccountPage() {
               {helperActivity.map((item) => (
                 <Link
                   key={`helper-${item.issue_id}`}
-                  href={`/issues/${item.issue_id}`}
+                  href={getIssuePath(
+                    item.issue_id,
+                    item.issues?.title ?? `issue-${item.issue_id}`,
+                  )}
                   className="block rounded-2xl border border-[#d9f0e9] bg-[#f6fdfb] px-3 py-2 hover:border-[#bfe3db]">
                   <p className="text-sm font-semibold text-slate-800">
                     Помош: {item.issues?.title ?? `Пријава #${item.issue_id}`}
@@ -359,7 +367,10 @@ export default function AccountPage() {
               {affectedActivity.map((item) => (
                 <Link
                   key={`affected-${item.issue_id}`}
-                  href={`/issues/${item.issue_id}`}
+                  href={getIssuePath(
+                    item.issue_id,
+                    item.issues?.title ?? `issue-${item.issue_id}`,
+                  )}
                   className="block rounded-2xl border border-[#e3e8f3] bg-[#f8faff] px-3 py-2 hover:border-[#cfd7ea]">
                   <p className="text-sm font-semibold text-slate-800">
                     Засегнат/а:{" "}

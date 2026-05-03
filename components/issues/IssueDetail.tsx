@@ -12,6 +12,7 @@ import {
   cn,
   DISTRICT_LABELS,
   CATEGORY_LABELS,
+  getIssuePath,
 } from "../../lib/utils";
 import type { Issue } from "../../lib/types/database";
 import { toast } from "sonner";
@@ -94,6 +95,11 @@ export default function IssueDetail({
 }: Props) {
   const supabase = useMemo(() => createClient(), []);
 
+  function redirectToAuth() {
+    const next = `${location.pathname}${location.search}`;
+    location.href = `/auth/login?next=${encodeURIComponent(next)}`;
+  }
+
   const [currentIssue, setCurrentIssue] = useState<Issue>(issue);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(issue.title);
@@ -133,7 +139,7 @@ export default function IssueDetail({
 
   const shareUrl =
     typeof window !== "undefined"
-      ? `${location.origin}/issues/${currentIssue.id}`
+      ? `${location.origin}${getIssuePath(currentIssue.id, currentIssue.title)}`
       : "";
 
   async function loadComments() {
@@ -296,7 +302,7 @@ export default function IssueDetail({
 
   async function toggleOfferVote(offer: HelpOffer) {
     if (!userId) {
-      toast.error("Најавете се за да гласате за датум");
+      redirectToAuth();
       return;
     }
     if (!offer.service_date) {
@@ -335,7 +341,7 @@ export default function IssueDetail({
   async function submitOfferComment(offerId: number) {
     const body = (offerCommentDrafts[offerId] ?? "").trim();
     if (!userId) {
-      toast.error("Најавете се за да коментирате");
+      redirectToAuth();
       return;
     }
     if (!body) return;
@@ -459,7 +465,7 @@ export default function IssueDetail({
   async function submitComment() {
     const body = commentText.trim();
     if (!userId) {
-      toast.error("Најавете се за да коментирате");
+      redirectToAuth();
       return;
     }
     if (!body) return;
@@ -523,9 +529,11 @@ export default function IssueDetail({
           </button>
         </div>
       ) : (
-        <p className="mb-3 text-xs text-zinc-500">
-          Најавете се за да додадете коментар.
-        </p>
+        <button
+          onClick={redirectToAuth}
+          className="mb-3 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:border-teal-300 hover:text-teal-700">
+          Најавете се за да додадете коментар
+        </button>
       )}
 
       <div className="space-y-2">
@@ -729,9 +737,11 @@ export default function IssueDetail({
                   </button>
                 </div>
               ) : (
-                <p className="text-[11px] text-zinc-500">
-                  Најавете се за да коментирате како ќе помогнете.
-                </p>
+                <button
+                  onClick={redirectToAuth}
+                  className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs font-semibold text-zinc-700 hover:border-teal-300 hover:text-teal-700">
+                  Најавете се за да коментирате како ќе помогнете
+                </button>
               )}
             </div>
           </div>

@@ -101,8 +101,14 @@ create policy "Own update issue" on issues for update using (auth.uid() = report
 create policy "Own delete issue" on issues for delete using (auth.uid() = reported_by);
 
 -- Affected / helpers
-create policy "Auth affected" on issue_affected for all using (auth.role() = 'authenticated');
-create policy "Auth helpers" on issue_helpers for all using (auth.role() = 'authenticated');
+create policy "Public read issue affected" on issue_affected for select using (true);
+create policy "Auth insert own issue affected" on issue_affected for insert with check (auth.role() = 'authenticated' and auth.uid() = user_id);
+create policy "Own delete issue affected" on issue_affected for delete using (auth.uid() = user_id);
+
+create policy "Public read issue helpers" on issue_helpers for select using (true);
+create policy "Auth insert own issue helper" on issue_helpers for insert with check (auth.role() = 'authenticated' and auth.uid() = user_id);
+create policy "Own update issue helper" on issue_helpers for update using (auth.uid() = user_id);
+create policy "Own delete issue helper" on issue_helpers for delete using (auth.uid() = user_id);
 
 -- Comments
 create policy "Public comments" on issue_comments for select using (true);

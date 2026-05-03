@@ -15,12 +15,23 @@ body {
 }
 html {
   background: #fff;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
 
   color: #132238;
+}
+
+/* Prevent iOS Safari from auto-zooming on focused form controls */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+    line-height: 1.35;
+  }
 }
 
 ::selection {

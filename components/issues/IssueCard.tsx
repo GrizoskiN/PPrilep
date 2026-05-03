@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Share2,
   AlertTriangle,
@@ -18,6 +19,7 @@ import {
   cn,
   DISTRICT_LABELS,
   CATEGORY_LABELS,
+  getIssuePath,
 } from "../../lib/utils";
 import type { Issue } from "../../lib/types/database";
 import { toast } from "sonner";
@@ -49,17 +51,23 @@ export default function IssueCard({
   const [isHelper, setIsHelper] = useState(issue.is_helper ?? false);
   const [helperOpen, setHelperOpen] = useState(false);
   const [loadingAff, setLoadingAff] = useState(false);
+  const issuePath = getIssuePath(issue.id, issue.title);
+
+  function redirectToAuth() {
+    const next = `${location.pathname}${location.search}`;
+    location.href = `/auth/login?next=${encodeURIComponent(next)}`;
+  }
 
   function share(e: React.MouseEvent) {
     e.stopPropagation();
-    navigator.clipboard.writeText(`${location.origin}/issues/${issue.id}`);
+    navigator.clipboard.writeText(`${location.origin}${issuePath}`);
     toast.success("Линкот е копиран!");
   }
 
   async function toggleAffected(e: React.MouseEvent) {
     e.stopPropagation();
     if (!userId) {
-      toast.error("Најавете се за да се означите како засегнати");
+      redirectToAuth();
       return;
     }
     if (loadingAff) return;
@@ -96,7 +104,7 @@ export default function IssueCard({
   function openHelper(e: React.MouseEvent) {
     e.stopPropagation();
     if (!userId) {
-      toast.error("Најавете се за да понудите помош");
+      redirectToAuth();
       return;
     }
     if (isHelper) return; // already helping — detail view handles removal
@@ -165,7 +173,12 @@ export default function IssueCard({
           <div className="min-w-0 flex-1">
             <div className="mb-0.5 flex items-start justify-between gap-2">
               <h3 className="text-sm font-semibold leading-snug line-clamp-2">
-                {issue.title}
+                <Link
+                  href={issuePath}
+                  onClick={(e) => e.stopPropagation()}
+                  className="hover:underline">
+                  {issue.title}
+                </Link>
               </h3>
               <span className="shrink-0 text-[11px] text-zinc-400">
                 {formatDays(issue.created_at)}

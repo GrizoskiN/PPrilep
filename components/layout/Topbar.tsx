@@ -77,6 +77,15 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
     onOpenMobileMenu?.();
   }
 
+  function handleReportClick() {
+    if (!user) {
+      const next = `${pathname ?? "/"}`;
+      window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
+      return;
+    }
+    setReportOpen(true);
+  }
+
   return (
     <>
       <header className="col-span-3 z-30 flex h-18 items-center justify-between border-b border-[#e4ece8] bg-white px-2 lg:px-7">
@@ -104,7 +113,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 lg:hidden">
             <button
-              onClick={() => setReportOpen(true)}
+              onClick={handleReportClick}
               className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white shadow-sm transition-colors hover:bg-primary/90"
               aria-label="Пријави проблем">
               <Plus size={16} />
@@ -131,10 +140,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
 
             {user ? (
               <>
-                <Button
-                  size="sm"
-                  variant="teal"
-                  onClick={() => setReportOpen(true)}>
+                <Button size="sm" variant="teal" onClick={handleReportClick}>
                   <Plus size={13} /> Пријави проблем
                 </Button>
                 <UserMenu profile={profile} onSignOut={signOut} />
@@ -146,10 +152,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
                     Најава
                   </Button>
                 </Link>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => setReportOpen(true)}>
+                <Button size="sm" variant="primary" onClick={handleReportClick}>
                   <Plus size={13} /> Пријави проблем
                 </Button>
               </>

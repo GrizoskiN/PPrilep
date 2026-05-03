@@ -75,6 +75,11 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
     defaultValues: { district: "Center", category: "road" },
   });
 
+  function redirectToAuth() {
+    const next = `${location.pathname}${location.search}`;
+    window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
+  }
+
   function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -84,7 +89,7 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
 
   async function onSubmit(values: Fields) {
     if (!userId) {
-      toast.error("Мора да сте најавени");
+      redirectToAuth();
       return;
     }
 
