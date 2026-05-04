@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import Topbar from "./Topbar";
 import LeftNav from "./LeftNav";
 import RightPanel from "./RightPanel";
+import BottomNav from "./BottomNav";
 import MarqueeBanner from "../ui/MarqueeBanner";
 import { useAuth } from "../../lib/hooks/useAuth";
 
@@ -47,7 +48,7 @@ export default function Shell({ children, rightPanel }: Props) {
                 <LeftNav />
               </Suspense>
             </div>
-            <main className="scrollbar-hidden min-h-0 overflow-y-auto bg-white">
+            <main className="scrollbar-hidden min-h-0 overflow-y-auto bg-white pb-16 lg:pb-0">
               {children}
             </main>
             <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block lg:border-l lg:border-[#e4ece8]">
@@ -56,6 +57,8 @@ export default function Shell({ children, rightPanel }: Props) {
           </div>
         </div>
       </div>
+
+      <BottomNav />
 
       {menuOpen && (
         <button

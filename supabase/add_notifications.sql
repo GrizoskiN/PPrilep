@@ -56,6 +56,8 @@ create or replace function public.insert_issue_notification(
 )
 returns void
 language plpgsql
+security definer
+set search_path = public
 as $$
 declare
   target_issue record;
