@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Menu, Plus } from "lucide-react";
 import Button from "../ui/Button";
 import UserMenu from "../auth/UserMenu";
+import NotificationBell from "../auth/NotificationBell";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -143,8 +144,8 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
                 <Button size="sm" variant="teal" onClick={handleReportClick}>
                   <Plus size={13} /> Пријави проблем
                 </Button>
+                <NotificationBell userId={user.id} />
                 <UserMenu
-                  userId={user.id}
                   profile={profile}
                   onSignOut={signOut}
                 />

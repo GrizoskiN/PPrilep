@@ -48,6 +48,66 @@ drop policy if exists "Own update notifications" on public.notifications;
 create policy "Own update notifications" on public.notifications
 for update using (auth.uid() = recipient_user_id);
 
+-- Mirrors transliterateToLatin() + slugify() + getIssuePath() from lib/utils.ts
+-- so notification links are identical to what the JS generates.
+create or replace function public.make_issue_path(issue_id bigint, issue_title text)
+returns text
+language plpgsql
+immutable
+security definer
+set search_path = public
+as $$
+declare
+  result text;
+begin
+  result := lower(issue_title);
+
+  -- Multi-char Macedonian digraphs first (order matters)
+  result := replace(result, 'ѓ', 'gj');
+  result := replace(result, 'ѕ', 'dz');
+  result := replace(result, 'љ', 'lj');
+  result := replace(result, 'њ', 'nj');
+  result := replace(result, 'ќ', 'kj');
+  result := replace(result, 'џ', 'dj');
+  result := replace(result, 'ж', 'zh');
+  result := replace(result, 'ч', 'ch');
+  result := replace(result, 'ш', 'sh');
+
+  -- Single-char Macedonian Cyrillic
+  result := replace(result, 'а', 'a');
+  result := replace(result, 'б', 'b');
+  result := replace(result, 'в', 'v');
+  result := replace(result, 'г', 'g');
+  result := replace(result, 'д', 'd');
+  result := replace(result, 'е', 'e');
+  result := replace(result, 'з', 'z');
+  result := replace(result, 'и', 'i');
+  result := replace(result, 'ј', 'j');
+  result := replace(result, 'к', 'k');
+  result := replace(result, 'л', 'l');
+  result := replace(result, 'м', 'm');
+  result := replace(result, 'н', 'n');
+  result := replace(result, 'о', 'o');
+  result := replace(result, 'п', 'p');
+  result := replace(result, 'р', 'r');
+  result := replace(result, 'с', 's');
+  result := replace(result, 'т', 't');
+  result := replace(result, 'у', 'u');
+  result := replace(result, 'ф', 'f');
+  result := replace(result, 'х', 'h');
+  result := replace(result, 'ц', 'c');
+
+  -- Slugify: remove non-alphanumeric, collapse dashes, trim
+  result := regexp_replace(result, '[^a-z0-9]+', '-', 'g');
+  result := regexp_replace(result, '^-+|-+$', '', 'g');
+  result := regexp_replace(result, '-{2,}', '-', 'g');
+
+  if result = '' then result := 'issue'; end if;
+
+  return '/issues/' || result || '-' || issue_id::text;
+end;
+$$;
+
 create or replace function public.insert_issue_notification(
   target_issue_id bigint,
   notification_actor_user_id uuid,
@@ -89,7 +149,7 @@ begin
     notification_type,
     target_issue.title,
     notification_body,
-    '/issues/' || target_issue.id
+    public.make_issue_path(target_issue.id, target_issue.title)
   );
 end;
 $$;

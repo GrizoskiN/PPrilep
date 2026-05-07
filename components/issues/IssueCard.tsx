@@ -159,6 +159,7 @@ export default function IssueCard({
                 alt="Фотографија"
                 width={640}
                 height={640}
+                unoptimized
                 loading={eagerImage ? "eager" : "lazy"}
                 priority={eagerImage}
                 sizes="(max-width: 767px) 100vw, 160px"

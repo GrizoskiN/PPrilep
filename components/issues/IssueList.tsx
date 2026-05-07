@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { useIssues } from "../../lib/hooks/useIssues";
 import { useAuth } from "../../lib/hooks/useAuth";
 import IssueCard from "./IssueCard";
+import IssueCardSkeleton from "./IssueCardSkeleton";
 import IssueDetail from "./IssueDetail";
 import {
   DISTRICT_LABELS,
@@ -61,8 +62,8 @@ export default function IssueList({
     () => false,
   );
 
-  const { issues, loading, error } = useIssues({ district, category, status });
   const { user } = useAuth();
+  const { issues, loading, loadingMore, hasMore, error, fetchMore } = useIssues({ district, category, status, userId: user?.id });
 
   return (
     <div className="">
@@ -150,7 +151,11 @@ export default function IssueList({
       <div className="flex min-h-0 gap-0">
         <div className="w-full space-y-3 overflow-y-auto px-2 lg:px-6 py-5">
           {loading && (
-            <p className="text-xs text-zinc-400">Се вчитуваат пријави…</p>
+            <>
+              <IssueCardSkeleton />
+              <IssueCardSkeleton />
+              <IssueCardSkeleton />
+            </>
           )}
           {error && (
             <div className="text-xs text-red-600 border border-red-200 rounded p-3 bg-red-50">
@@ -166,11 +171,11 @@ export default function IssueList({
               <div
                 className={`overflow-hidden rounded-xl transition-colors shadow-[0_6px_16px_rgba(15,23,42,0.12)] ${
                   selectedId === issue.id
-                    ? " shadow-[0_6px_16px_rgba(15,23,42,0.22)]"
+                    ? "shadow-[0_6px_16px_rgba(15,23,42,0.22)]"
                     : "bg-white"
                 }`}>
                 <IssueCard
-                  eagerImage={index === 0}
+                  eagerImage={index < 2}
                   issue={issue}
                   userId={user?.id}
                   embeddedMobile
@@ -180,7 +185,6 @@ export default function IssueList({
                     )
                   }
                 />
-
                 {selectedId === issue.id && (
                   <div className="border-t border-zinc-200/80">
                     <IssueDetail
@@ -193,6 +197,22 @@ export default function IssueList({
               </div>
             </div>
           ))}
+
+          {/* Load more */}
+          {!loading && hasMore && (
+            <button
+              onClick={fetchMore}
+              disabled={loadingMore}
+              className="w-full rounded-xl border border-[#dce6e2] bg-white py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-zinc-50 disabled:opacity-50">
+              {loadingMore ? "Се вчитува…" : "Вчитај повеќе"}
+            </button>
+          )}
+          {loadingMore && (
+            <>
+              <IssueCardSkeleton />
+              <IssueCardSkeleton />
+            </>
+          )}
         </div>
       </div>
     </div>

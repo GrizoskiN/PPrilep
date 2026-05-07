@@ -24,6 +24,13 @@ export default function LoginForm() {
   const [magicEmail, setMagicEmail] = useState('')
   const [oauthLoading, setOauthLoading] = useState(false)
 
+  function getAuthRedirectOrigin() {
+    const envOrigin = process.env.NEXT_PUBLIC_AUTH_REDIRECT_ORIGIN?.trim()
+    if (envOrigin) return envOrigin.replace(/\/$/, '')
+    if (process.env.NODE_ENV !== 'production') return 'http://localhost:3000'
+    return location.origin
+  }
+
   const { register, handleSubmit, getValues, formState: { errors, isSubmitting } } = useForm<Fields>({
     resolver: zodResolver(schema),
   })
@@ -38,7 +45,8 @@ export default function LoginForm() {
   async function sendMagicLink() {
     const email = getValues('email')
     if (!email) { toast.error('Прво внесете е-пошта'); return }
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${location.origin}/auth/callback` } })
+    const authOrigin = getAuthRedirectOrigin()
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${authOrigin}/auth/callback` } })
     if (error) { toast.error(error.message); return }
     setMagicEmail(email)
     setMagicSent(true)
@@ -47,11 +55,24 @@ export default function LoginForm() {
 
   async function signInWithGoogle() {
     setOauthLoading(true)
-    const redirectTo = `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`
-    const { error } = await supabase.auth.signInWithOAuth({
+    const authOrigin = getAuthRedirectOrigin()
+    const redirectTo = `${authOrigin}/auth/callback?next=${encodeURIComponent(next)}`
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[auth] Google OAuth redirectTo', {
+        redirectTo,
+        origin: location.origin,
+        authOrigin,
+        next,
+      })
+    }
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
     })
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[auth] Google OAuth provider URL', data?.url)
+    }
     if (error) {
       setOauthLoading(false)
       toast.error(error.message)

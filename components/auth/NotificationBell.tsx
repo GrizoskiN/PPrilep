@@ -1,0 +1,184 @@
+"use client";
+
+import { useState, useRef, useEffect, useMemo } from "react";
+import Link from "next/link";
+import { Bell } from "lucide-react";
+import { createClient } from "../../lib/supabase/client";
+import { isMissingNotificationsTableError } from "../../lib/notifications";
+import { formatDays, getIssuePath, parseIssueIdFromSegment } from "../../lib/utils";
+import type { AppNotification, Profile } from "../../lib/types/database";
+
+function resolveNotifLink(link: string, title: string): string {
+  const segment = link.startsWith("/issues/") ? link.slice("/issues/".length) : null;
+  if (!segment) return link;
+  const id = parseIssueIdFromSegment(segment);
+  if (!id) return link;
+  return getIssuePath(id, title);
+}
+
+interface Props {
+  userId: string;
+}
+
+export default function NotificationBell({ userId }: Props) {
+  const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const supabase = useMemo(() => createClient(), []);
+
+  async function loadUnreadCount() {
+    const { count, error } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("recipient_user_id", userId)
+      .is("read_at", null);
+    if (!error && !isMissingNotificationsTableError(error)) {
+      setUnreadCount(count ?? 0);
+    }
+  }
+
+  async function loadNotifications() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("notifications")
+      .select(
+        "id, recipient_user_id, actor_user_id, type, title, body, link, read_at, created_at",
+      )
+      .eq("recipient_user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(8);
+
+    if (error) {
+      setLoading(false);
+      return;
+    }
+
+    const rows = (data ?? []) as AppNotification[];
+    const actorIds = [...new Set(rows.map((n) => n.actor_user_id))];
+    let actorMap = new Map<string, Profile>();
+
+    if (actorIds.length > 0) {
+      const { data: actors } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url, username, points, created_at")
+        .in("id", actorIds);
+      actorMap = new Map((actors ?? []).map((a) => [a.id, a as Profile]));
+    }
+
+    setNotifications(
+      rows.map((n) => ({ ...n, actor: actorMap.get(n.actor_user_id) ?? null })),
+    );
+    setLoading(false);
+
+    if (unreadCount > 0) {
+      const now = new Date().toISOString();
+      const { error: markErr } = await supabase
+        .from("notifications")
+        .update({ read_at: now })
+        .eq("recipient_user_id", userId)
+        .is("read_at", null);
+      if (!markErr) {
+        setUnreadCount(0);
+        setNotifications((prev) => prev.map((n) => ({ ...n, read_at: now })));
+      }
+    }
+  }
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  useEffect(() => {
+    loadUnreadCount();
+    const channel = supabase
+      .channel(`notif-bell-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_user_id=eq.${userId}`,
+        },
+        () => {
+          loadUnreadCount();
+          if (open) loadNotifications();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, open]);
+
+  useEffect(() => {
+    if (open) loadNotifications();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="relative flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-zinc-100 hover:text-slate-700">
+        <Bell size={17} />
+        {unreadCount > 0 && (
+          <span className="absolute -right-1 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg">
+          <div className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2.5">
+            <Bell size={13} className="text-zinc-400" />
+            <p className="text-xs font-semibold text-zinc-700">Известувања</p>
+          </div>
+          <div className="max-h-[340px] overflow-y-auto">
+            <div className="p-2 space-y-1">
+              {loading && (
+                <p className="py-5 text-center text-xs text-zinc-400">
+                  Се вчитуваат...
+                </p>
+              )}
+              {!loading && notifications.length === 0 && (
+                <p className="py-5 text-center text-xs text-zinc-400">
+                  Нема известувања.
+                </p>
+              )}
+              {notifications.map((n) => (
+                <Link
+                  key={n.id}
+                  href={resolveNotifLink(n.link, n.title)}
+                  onClick={() => setOpen(false)}
+                  className={`block rounded-lg px-2.5 py-2 transition-colors hover:bg-zinc-50 ${
+                    !n.read_at ? "bg-teal-50" : ""
+                  }`}>
+                  <p className="text-xs font-semibold text-zinc-800">
+                    {n.actor?.full_name ?? n.actor?.username ?? "Некој"}{" "}
+                    <span className="font-normal text-zinc-600">{n.body}</span>
+                  </p>
+                  <p className="mt-0.5 line-clamp-1 text-[11px] text-zinc-500">
+                    {n.title}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-zinc-400">
+                    {formatDays(n.created_at)}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
