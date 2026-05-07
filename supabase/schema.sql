@@ -76,6 +76,7 @@ create table utility_posts (
   provider text check (provider in ('water','garbage','power')),
   title text not null,
   body text,
+  source_url text,
   status text check (status in ('open','progress','resolved')),
   posted_at timestamptz default now()
 );

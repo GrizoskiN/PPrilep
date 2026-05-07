@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { X, Share2, MapPin, MessageCircle, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { X, Share2, MapPin, MessageCircle, Pencil, Trash2, AlertTriangle, HandHelping } from "lucide-react";
 import StatusPill from "../ui/StatusPill";
 import AvatarInitials from "../ui/AvatarInitials";
 import {
@@ -116,6 +117,10 @@ export default function IssueDetail({
   const [loadingComments, setLoadingComments] = useState(true);
   const [savingComment, setSavingComment] = useState(false);
   const [commentsUnavailable, setCommentsUnavailable] = useState(false);
+  const [affectedUsers, setAffectedUsers] = useState<{ user_id: string; profiles?: { full_name: string | null; avatar_url: string | null; username: string | null } | null }[]>([]);
+  const [helperUsers, setHelperUsers] = useState<{ user_id: string; profiles?: { full_name: string | null; avatar_url: string | null; username: string | null } | null }[]>([]);
+  const [showAffectedPopup, setShowAffectedPopup] = useState(false);
+  const [showHelperPopup, setShowHelperPopup] = useState(false);
   const [helpOffers, setHelpOffers] = useState<HelpOffer[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(true);
   const [offersUnavailable, setOffersUnavailable] = useState(false);
@@ -182,6 +187,26 @@ export default function IssueDetail({
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIssue.id]);
+
+  async function loadPeopleStats() {
+    const [{ data: affected }, { data: helpers }] = await Promise.all([
+      supabase
+        .from("issue_affected")
+        .select("user_id, profiles:user_id(full_name, avatar_url, username)")
+        .eq("issue_id", currentIssue.id),
+      supabase
+        .from("issue_helpers")
+        .select("user_id, profiles:user_id(full_name, avatar_url, username)")
+        .eq("issue_id", currentIssue.id),
+    ]);
+    setAffectedUsers((affected ?? []).map((r) => ({ ...r, profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles })));
+    setHelperUsers((helpers ?? []).map((r) => ({ ...r, profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles })));
+  }
+
+  useEffect(() => {
+    loadPeopleStats();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIssue.id]);
 
   async function loadHelpOffers() {
@@ -615,6 +640,91 @@ export default function IssueDetail({
     </div>
   );
 
+  const PEOPLE_PREVIEW = 5;
+
+  function UserChip({
+    u,
+    accentColor,
+  }: {
+    u: { user_id: string; profiles?: { full_name: string | null; avatar_url: string | null; username: string | null } | null };
+    accentColor: "slate" | "teal";
+  }) {
+    const name = u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
+    const href = u.profiles?.username
+      ? `/u/${u.profiles.username}`
+      : `/u/${u.user_id}`;
+
+    return (
+      <Link
+        href={href}
+        onClick={(e) => e.stopPropagation()}
+        className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 cursor-pointer transition-colors ${
+          accentColor === "teal"
+            ? "bg-teal-50 border-teal-100 hover:border-teal-300"
+            : "bg-zinc-50 border-zinc-100 hover:border-zinc-300"
+        }`}>
+        <AvatarInitials
+          name={name}
+          avatarUrl={u.profiles?.avatar_url ?? null}
+          size="sm"
+        />
+        <span className={`text-xs ${accentColor === "teal" ? "text-teal-700" : "text-zinc-700"}`}>
+          {name}
+        </span>
+      </Link>
+    );
+  }
+
+  const peopleSection = (affectedUsers.length > 0 || helperUsers.length > 0) && (
+    <div className="rounded-xl border border-zinc-200 bg-white p-3 space-y-3">
+      {affectedUsers.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1.5 mb-2">
+            <AlertTriangle size={12} className="text-slate-500" />
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              Засегнати ({affectedUsers.length})
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {affectedUsers.slice(0, PEOPLE_PREVIEW).map((u) => (
+              <UserChip key={u.user_id} u={u} accentColor="slate" />
+            ))}
+            {affectedUsers.length > PEOPLE_PREVIEW && (
+              <button
+                onClick={() => setShowAffectedPopup(true)}
+                className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 transition-colors">
+                +{affectedUsers.length - PEOPLE_PREVIEW} повеќе
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {helperUsers.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1.5 mb-2">
+            <HandHelping size={12} className="text-teal-600" />
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              Сакаат да помогнат ({helperUsers.length})
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {helperUsers.slice(0, PEOPLE_PREVIEW).map((u) => (
+              <UserChip key={u.user_id} u={u} accentColor="teal" />
+            ))}
+            {helperUsers.length > PEOPLE_PREVIEW && (
+              <button
+                onClick={() => setShowHelperPopup(true)}
+                className="flex items-center gap-1 rounded-lg border border-teal-100 bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-600 hover:border-teal-300 transition-colors">
+                +{helperUsers.length - PEOPLE_PREVIEW} повеќе
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   const helpPlanningSection = (
     <div className="rounded-xl border border-zinc-200 bg-white p-3">
       <div className="mb-2 flex items-center gap-1.5">
@@ -751,6 +861,71 @@ export default function IssueDetail({
     </div>
   );
 
+  // ── people popup ────────────────────────────────────────────────────────────
+  function PeoplePopup({
+    title,
+    icon,
+    users,
+    accentColor,
+    onClose,
+  }: {
+    title: string;
+    icon: React.ReactNode;
+    users: typeof affectedUsers;
+    accentColor: "slate" | "teal";
+    onClose: () => void;
+  }) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+        style={{ backgroundColor: "rgba(255,255,255,0.72)", backdropFilter: "blur(4px)" }}
+        onClick={onClose}>
+        <div
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[60vh] flex flex-col overflow-hidden"
+          onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              {icon}
+              {title}
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                accentColor === "teal" ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-700"
+              }`}>
+                {users.length}
+              </span>
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-zinc-400 hover:text-zinc-700 p-1 rounded-lg hover:bg-zinc-100 transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+          <div className="overflow-y-auto divide-y divide-zinc-50 px-4 py-2">
+            {users.map((u) => {
+              const name = u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
+              const href = u.profiles?.username
+                ? `/u/${u.profiles.username}`
+                : `/u/${u.user_id}`;
+              return (
+                <Link
+                  key={u.user_id}
+                  href={href}
+                  onClick={onClose}
+                  className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-zinc-50 -mx-4 px-4 transition-colors">
+                  <AvatarInitials
+                    name={name}
+                    avatarUrl={u.profiles?.avatar_url ?? null}
+                    size="sm"
+                  />
+                  <span className="text-sm text-zinc-800">{name}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (variant === "engagement") {
     return (
       <div className="space-y-3 p-3">
@@ -807,9 +982,29 @@ export default function IssueDetail({
           </div>
         )}
 
+        {peopleSection}
         {helpPlanningSection}
         {shareSection}
         {commentsSection}
+
+        {showAffectedPopup && (
+          <PeoplePopup
+            title="Засегнати"
+            icon={<AlertTriangle size={14} className="text-slate-600" />}
+            users={affectedUsers}
+            accentColor="slate"
+            onClose={() => setShowAffectedPopup(false)}
+          />
+        )}
+        {showHelperPopup && (
+          <PeoplePopup
+            title="Сакаат да помогнат"
+            icon={<HandHelping size={14} className="text-teal-600" />}
+            users={helperUsers}
+            accentColor="teal"
+            onClose={() => setShowHelperPopup(false)}
+          />
+        )}
       </div>
     );
   }
@@ -916,6 +1111,7 @@ export default function IssueDetail({
             alt="Фотографија"
             width={1200}
             height={720}
+            unoptimized
             loading={variant === "full" ? "eager" : "lazy"}
             priority={variant === "full"}
             sizes="(max-width: 1024px) 100vw, 40vw"
@@ -939,11 +1135,31 @@ export default function IssueDetail({
         </div>
 
         <div className="space-y-3 border-t border-zinc-100 pt-3">
+          {peopleSection}
           {helpPlanningSection}
           {shareSection}
           {commentsSection}
         </div>
       </div>
+
+      {showAffectedPopup && (
+        <PeoplePopup
+          title="Засегнати"
+          icon={<AlertTriangle size={14} className="text-slate-600" />}
+          users={affectedUsers}
+          accentColor="slate"
+          onClose={() => setShowAffectedPopup(false)}
+        />
+      )}
+      {showHelperPopup && (
+        <PeoplePopup
+          title="Сакаат да помогнат"
+          icon={<HandHelping size={14} className="text-teal-600" />}
+          users={helperUsers}
+          accentColor="teal"
+          onClose={() => setShowHelperPopup(false)}
+        />
+      )}
     </>
   );
 }

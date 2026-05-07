@@ -100,6 +100,7 @@ export interface UtilityPost {
   provider: Provider | null;
   title: string;
   body: string | null;
+  source_url: string | null;
   status: IssueStatus | null;
   posted_at: string;
 }
