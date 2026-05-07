@@ -148,26 +148,71 @@ export default function IssueCard({
           className={cn(
             embeddedMobile ? "block" : "md:flex md:items-start md:gap-3",
           )}>
-          {issue.photo_url && (
+          {(issue.photo_url || issue.after_photo_url) && (
             <div
               className={cn(
-                "mb-3 w-full overflow-hidden rounded-lg border border-zinc-200",
+                "mb-3 w-full",
                 !embeddedMobile && "md:mb-0 md:w-60 md:shrink-0",
               )}>
-              <Image
-                src={issue.photo_url}
-                alt="Фотографија"
-                width={640}
-                height={640}
-                unoptimized
-                loading={eagerImage ? "eager" : "lazy"}
-                priority={eagerImage}
-                sizes="(max-width: 767px) 100vw, 160px"
-                className={cn(
-                  "h-52 w-full object-cover",
-                  !embeddedMobile && "md:h-60",
-                )}
-              />
+              {issue.photo_url && issue.after_photo_url ? (
+                <div className="grid grid-cols-2 gap-1">
+                  <div className="relative overflow-hidden rounded-lg border border-zinc-200">
+                    <Image
+                      src={issue.photo_url}
+                      alt="Пред"
+                      width={640}
+                      height={640}
+                      unoptimized
+                      loading={eagerImage ? "eager" : "lazy"}
+                      priority={eagerImage}
+                      sizes="(max-width: 767px) 50vw, 80px"
+                      className={cn(
+                        "h-52 w-full object-cover",
+                        !embeddedMobile && "md:h-60",
+                      )}
+                    />
+                    <span className="absolute top-1 left-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                      Пред
+                    </span>
+                  </div>
+                  <div className="relative overflow-hidden rounded-lg border border-teal-200">
+                    <Image
+                      src={issue.after_photo_url}
+                      alt="После"
+                      width={640}
+                      height={640}
+                      unoptimized
+                      loading={eagerImage ? "eager" : "lazy"}
+                      priority={eagerImage}
+                      sizes="(max-width: 767px) 50vw, 80px"
+                      className={cn(
+                        "h-52 w-full object-cover",
+                        !embeddedMobile && "md:h-60",
+                      )}
+                    />
+                    <span className="absolute top-1 left-1 rounded-md bg-teal-600/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                      После
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-zinc-200">
+                  <Image
+                    src={(issue.photo_url ?? issue.after_photo_url)!}
+                    alt="Фотографија"
+                    width={640}
+                    height={640}
+                    unoptimized
+                    loading={eagerImage ? "eager" : "lazy"}
+                    priority={eagerImage}
+                    sizes="(max-width: 767px) 100vw, 160px"
+                    className={cn(
+                      "h-52 w-full object-cover",
+                      !embeddedMobile && "md:h-60",
+                    )}
+                  />
+                </div>
+              )}
             </div>
           )}
 
