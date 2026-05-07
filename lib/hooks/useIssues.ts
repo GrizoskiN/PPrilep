@@ -27,7 +27,7 @@ export function useIssues(opts: UseIssuesOptions = {}) {
     if (data.length === 0) return [];
     const ids = data.map((i) => i.id);
 
-    const queries: Promise<unknown>[] = [
+    const queries = [
       supabase.from("issue_affected").select("issue_id").in("issue_id", ids),
       supabase.from("issue_helpers").select("issue_id").in("issue_id", ids),
     ];
