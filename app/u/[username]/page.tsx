@@ -64,13 +64,13 @@ export default async function PublicProfilePage({ params }: Props) {
 
   type IssueRef = { id: number; title: string; district: string; status: string; created_at: string } | null;
 
-  const helperActivity = (helpersRes.data ?? []) as Array<{
+  const helperActivity = (helpersRes.data ?? []) as unknown as Array<{
     issue_id: number;
     note: string | null;
     issues: IssueRef;
   }>;
 
-  const affectedActivity = (affectedRes.data ?? []) as Array<{
+  const affectedActivity = (affectedRes.data ?? []) as unknown as Array<{
     issue_id: number;
     issues: IssueRef;
   }>;

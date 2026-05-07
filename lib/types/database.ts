@@ -49,6 +49,7 @@ export interface Issue {
   category: Category;
   status: IssueStatus;
   photo_url: string | null;
+  after_photo_url?: string | null;
   reported_by: string | null;
   created_at: string;
   updated_at: string;

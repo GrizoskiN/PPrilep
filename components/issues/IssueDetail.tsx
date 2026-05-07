@@ -15,7 +15,7 @@ import {
   CATEGORY_LABELS,
   getIssuePath,
 } from "../../lib/utils";
-import type { Issue } from "../../lib/types/database";
+import type { Issue, IssueStatus } from "../../lib/types/database";
 import { toast } from "sonner";
 import { createClient } from "../../lib/supabase/client";
 
@@ -67,6 +67,17 @@ interface HelpOffer {
   voted_by_me: boolean;
   comments: HelpOfferComment[];
 }
+
+type ChangeRequest = {
+  id: number;
+  issue_id: number;
+  requester_user_id: string;
+  type: "status_change";
+  payload: { status: "progress" | "resolved"; description: string; after_photo_url?: string | null };
+  status: "pending" | "approved" | "rejected";
+  created_at?: string;
+  profiles?: { full_name: string | null; avatar_url: string | null; username: string | null } | null;
+};
 
 type HelpOfferCommentRow = {
   id: number;
@@ -131,8 +142,43 @@ export default function IssueDetail({
     number | null
   >(null);
   const [votingForOffer, setVotingForOffer] = useState<number | null>(null);
+  const [uploadingAfter, setUploadingAfter] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<ChangeRequest[]>([]);
+  const [approvingId, setApprovingId] = useState<number | null>(null);
+  // proposal modal
+  const [showProposeModal, setShowProposeModal] = useState(false);
+  const [proposeStatus, setProposeStatus] = useState<"progress" | "resolved" | null>(null);
+  const [proposeDesc, setProposeDesc] = useState("");
+  const [proposeFile, setProposeFile] = useState<File | null>(null);
+  const [proposePreview, setProposePreview] = useState<string | null>(null);
+  const [proposing, setProposing] = useState(false);
+  // direct helper check (for full-page where is_helper may not be pre-loaded)
+  const [isHelperDirect, setIsHelperDirect] = useState(Boolean(currentIssue.is_helper));
 
   const isOwner = Boolean(userId && currentIssue.reported_by === userId);
+  const isHelper = Boolean(
+    userId && (
+      isHelperDirect ||
+      currentIssue.is_helper ||
+      helperUsers.some((h) => h.user_id === userId)
+    )
+  );
+
+  // Ensure isHelperDirect is set for any authenticated user who has already
+  // registered as a helper (catches the case where is_helper wasn't pre-loaded)
+  useEffect(() => {
+    if (!userId || isHelperDirect) return;
+    supabase
+      .from("issue_helpers")
+      .select("user_id")
+      .eq("issue_id", currentIssue.id)
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setIsHelperDirect(true);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIssue.id, userId]);
 
   useEffect(() => {
     setCurrentIssue(issue);
@@ -208,6 +254,32 @@ export default function IssueDetail({
     loadPeopleStats();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIssue.id]);
+
+  async function loadChangeRequests() {
+    // Use a SECURITY DEFINER RPC so the issue owner can always read pending
+    // requests on their issue, regardless of RLS on issue_change_requests.
+    const { data, error } = await supabase.rpc("get_pending_change_requests", {
+      p_issue_id: currentIssue.id,
+    });
+    if (error) {
+      console.error(
+        "loadChangeRequests error:",
+        error.message,
+        error.details,
+        error.hint,
+        error.code,
+        JSON.stringify(error),
+      );
+      return;
+    }
+    setPendingRequests((data ?? []) as ChangeRequest[]);
+  }
+
+  useEffect(() => {
+    if (!isOwner) return;
+    loadChangeRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIssue.id, isOwner]);
 
   async function loadHelpOffers() {
     setLoadingOffers(true);
@@ -419,6 +491,67 @@ export default function IssueDetail({
     toast.message(
       "Линкот е копиран. Вметнете го во Instagram порака или story.",
     );
+  }
+
+  const [changingStatus, setChangingStatus] = useState(false);
+
+  async function changeStatus(newStatus: "open" | "progress" | "resolved") {
+    if (!isOwner || !userId || changingStatus) return;
+    if (newStatus === currentIssue.status) return;
+    setChangingStatus(true);
+    const { error } = await supabase
+      .from("issues")
+      .update({ status: newStatus })
+      .eq("id", currentIssue.id)
+      .eq("reported_by", userId);
+    if (error) toast.error(error.message);
+    else { setCurrentIssue((prev) => ({ ...prev, status: newStatus })); toast.success("Статусот е променет"); }
+    setChangingStatus(false);
+  }
+
+  async function uploadAfterPhoto(file: File) {
+    if (!isOwner || !userId) return;
+    if (!file.type.startsWith("image/")) { toast.error("Избери слика (jpg/png/webp)"); return; }
+    if (file.size > 8 * 1024 * 1024) { toast.error("Сликата е преголема (макс 8MB)"); return; }
+    setUploadingAfter(true);
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const { data, error } = await supabase.storage
+      .from("issue-photos")
+      .upload(`${currentIssue.id}/after-${Date.now()}.${ext}`, file, { contentType: file.type, upsert: true });
+    if (error) { toast.error(error.message); setUploadingAfter(false); return; }
+    const { data: { publicUrl } } = supabase.storage.from("issue-photos").getPublicUrl(data.path);
+    const { error: upd } = await supabase.from("issues").update({ after_photo_url: publicUrl }).eq("id", currentIssue.id);
+    if (upd) { toast.error(upd.message); setUploadingAfter(false); return; }
+    setCurrentIssue((prev) => ({ ...prev, after_photo_url: publicUrl }));
+    toast.success("Фотографијата е прикачена");
+    setUploadingAfter(false);
+  }
+
+  async function submitProposal() {
+    if (!userId || !proposeStatus || !proposeDesc.trim() || proposing) return;
+    setProposing(true);
+    let afterPhotoUrl: string | null = null;
+    if (proposeFile) {
+      const ext = proposeFile.name.split(".").pop() ?? "jpg";
+      const { data, error } = await supabase.storage
+        .from("issue-photos")
+        .upload(`${userId}/proposals/${currentIssue.id}-${Date.now()}.${ext}`, proposeFile, { contentType: proposeFile.type, upsert: true });
+      if (error) { toast.error(error.message); setProposing(false); return; }
+      const { data: { publicUrl } } = supabase.storage.from("issue-photos").getPublicUrl(data.path);
+      afterPhotoUrl = publicUrl;
+    }
+    const { error } = await supabase.rpc("submit_change_request", {
+      p_issue_id: currentIssue.id,
+      p_payload: { status: proposeStatus, description: proposeDesc.trim(), after_photo_url: afterPhotoUrl },
+    });
+    if (error) { toast.error(error.message); setProposing(false); return; }
+    toast.success("Барањето е испратено до авторот за одобрување");
+    setShowProposeModal(false);
+    setProposeStatus(null);
+    setProposeDesc("");
+    setProposeFile(null);
+    setProposePreview(null);
+    setProposing(false);
   }
 
   async function saveIssueEdits() {
@@ -926,6 +1059,212 @@ export default function IssueDetail({
     );
   }
 
+  async function approveRequest(req: ChangeRequest) {
+    if (!isOwner || !userId || approvingId) return;
+    setApprovingId(req.id);
+    const { error } = await supabase.rpc("approve_change_request", { p_id: req.id });
+    if (error) { toast.error(error.message); setApprovingId(null); return; }
+    setCurrentIssue((prev) => ({
+      ...prev,
+      status: req.payload.status as IssueStatus,
+      ...(req.payload.after_photo_url ? { after_photo_url: req.payload.after_photo_url } : {}),
+    }));
+    toast.success("Одобрено — статусот е променет");
+    setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
+    setApprovingId(null);
+  }
+
+  async function rejectRequest(req: ChangeRequest) {
+    if (!isOwner || approvingId) return;
+    setApprovingId(req.id);
+    const { error } = await supabase.rpc("reject_change_request", { p_id: req.id });
+    if (error) { toast.error(error.message); setApprovingId(null); return; }
+    toast.success("Одбиено");
+    setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
+    setApprovingId(null);
+  }
+
+  const STATUS_LABEL: Record<string, string> = { progress: "Во тек", resolved: "Завршено" };
+
+  const pendingRequestsSection = isOwner && pendingRequests.length > 0 && (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+      <p className="text-[11px] font-semibold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
+        🔔 Барања за одобрување ({pendingRequests.length})
+      </p>
+      {pendingRequests.map((req) => {
+        const name = req.profiles?.full_name ?? req.profiles?.username ?? "Помошник";
+        return (
+          <div key={req.id} className="rounded-lg bg-white border border-amber-100 p-2.5 space-y-2">
+            <div className="flex items-start gap-2">
+              <AvatarInitials name={name} avatarUrl={req.profiles?.avatar_url ?? null} size="sm" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-zinc-800">{name}</p>
+                <p className="text-xs text-zinc-500">
+                  Предлага статус: <span className="font-semibold text-teal-700">{STATUS_LABEL[req.payload.status] ?? req.payload.status}</span>
+                </p>
+                <p className="text-xs text-zinc-600 mt-0.5 leading-relaxed">{req.payload.description}</p>
+                {req.payload.after_photo_url && (
+                  <img src={req.payload.after_photo_url} alt="После" className="mt-1.5 w-full max-h-36 object-cover rounded-lg border border-zinc-200" />
+                )}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => approveRequest(req)}
+                disabled={approvingId === req.id}
+                className="flex-1 rounded-lg bg-teal-600 text-white text-xs font-semibold py-1.5 hover:bg-teal-700 disabled:opacity-60 transition-colors">
+                ✓ Одобри
+              </button>
+              <button
+                onClick={() => rejectRequest(req)}
+                disabled={approvingId === req.id}
+                className="flex-1 rounded-lg border border-red-200 text-red-600 text-xs font-semibold py-1.5 hover:bg-red-50 disabled:opacity-60 transition-colors">
+                ✕ Одбиј
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const helperProposalButton = userId && !isOwner && (
+    <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3">
+      <button
+        onClick={() => setShowProposeModal(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3b9f95] hover:bg-[#338c84] text-white text-xs font-semibold py-2.5 transition-colors">
+        <HandHelping size={13} /> Предложи промена на статус
+      </button>
+    </div>
+  );
+
+  const proposeModal = showProposeModal && (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(255,255,255,0.72)", backdropFilter: "blur(4px)" }}
+      onClick={() => { if (!proposing) { setShowProposeModal(false); } }}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+        onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <HandHelping size={14} className="text-teal-600" />
+            Предложи промена на статус
+          </h3>
+          <button onClick={() => setShowProposeModal(false)} className="text-zinc-400 hover:text-zinc-700 p-1 rounded-lg hover:bg-zinc-100">
+            <X size={14} />
+          </button>
+        </div>
+        <div className="p-4 space-y-3">
+          {/* Status choice */}
+          <div>
+            <p className="text-xs font-semibold text-zinc-600 mb-1.5">Нов статус *</p>
+            <div className="flex gap-2">
+              {(["progress", "resolved"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setProposeStatus(s)}
+                  className={cn(
+                    "flex-1 rounded-lg border py-2 text-xs font-semibold transition-colors",
+                    proposeStatus === s
+                      ? s === "resolved" ? "bg-teal-600 border-teal-600 text-white" : "bg-amber-500 border-amber-500 text-white"
+                      : s === "resolved" ? "border-teal-200 text-teal-700 hover:bg-teal-50" : "border-amber-200 text-amber-700 hover:bg-amber-50",
+                  )}>
+                  {STATUS_LABEL[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Description */}
+          <div>
+            <p className="text-xs font-semibold text-zinc-600 mb-1.5">Опис / Порака *</p>
+            <textarea
+              value={proposeDesc}
+              onChange={(e) => setProposeDesc(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="Опиши ги извршените работи, кој поправил, кога..."
+              className="w-full resize-none rounded-lg border border-zinc-200 px-2.5 py-2 text-xs text-zinc-700 outline-none focus:border-teal-400"
+            />
+          </div>
+          {/* Photo */}
+          <div>
+            <p className="text-xs font-semibold text-zinc-600 mb-1.5">Фотографија после (опционално)</p>
+            {proposePreview ? (
+              <div className="relative">
+                <img src={proposePreview} alt="preview" className="w-full max-h-36 object-cover rounded-lg border border-zinc-200" />
+                <button
+                  onClick={() => { setProposeFile(null); setProposePreview(null); }}
+                  className="absolute top-1.5 right-1.5 bg-black/50 text-white rounded-full p-0.5 hover:bg-black/70">
+                  <X size={12} />
+                </button>
+              </div>
+            ) : (
+              <label className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-zinc-300 px-3 py-2.5 text-xs font-semibold text-zinc-500 hover:border-teal-400 hover:text-teal-600 transition-colors">
+                + Додади слика
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) { setProposeFile(f); setProposePreview(URL.createObjectURL(f)); }
+                }} />
+              </label>
+            )}
+          </div>
+          <button
+            onClick={submitProposal}
+            disabled={!proposeStatus || !proposeDesc.trim() || proposing}
+            className="w-full rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-semibold py-2.5 transition-colors">
+            {proposing ? "Се испраќа..." : "Испрати барање"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const statusOptions: { value: "open" | "progress" | "resolved"; label: string; classes: string }[] = [
+    { value: "open",     label: "Отворено", classes: "border-zinc-200 text-zinc-600 hover:border-zinc-400" },
+    { value: "progress", label: "Во тек",   classes: "border-amber-200 text-amber-700 hover:border-amber-400" },
+    { value: "resolved", label: "Завршено", classes: "border-teal-200 text-teal-700 hover:border-teal-400" },
+  ];
+
+  const statusSelector = (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide mr-0.5">Статус:</span>
+        {statusOptions.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => changeStatus(opt.value)}
+            disabled={changingStatus}
+            className={cn(
+              "px-2.5 py-1 rounded-lg border text-xs font-semibold transition-colors disabled:opacity-60",
+              currentIssue.status === opt.value
+                ? "bg-zinc-900 border-zinc-900 text-white"
+                : `bg-white ${opt.classes}`,
+            )}>
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      {/* After photo upload */}
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Фото После:</span>
+        {currentIssue.after_photo_url ? (
+          <span className="text-[11px] text-teal-600 font-medium">✓ Прикачено</span>
+        ) : null}
+        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-zinc-300 px-2.5 py-1 text-xs font-semibold text-zinc-600 hover:border-teal-400 hover:text-teal-700 transition-colors">
+          {uploadingAfter ? "Се прикачува..." : currentIssue.after_photo_url ? "Замени" : "+ Додади слика"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={uploadingAfter}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAfterPhoto(f); }}
+          />
+        </label>
+      </div>
+    </div>
+  );
+
   if (variant === "engagement") {
     return (
       <div className="space-y-3 p-3">
@@ -949,6 +1288,8 @@ export default function IssueDetail({
                 <Trash2 size={12} /> {deletingIssue ? "Се брише..." : "Избриши"}
               </button>
             </div>
+            {statusSelector}
+            {pendingRequestsSection}
 
             {isEditing && (
               <div className="space-y-2">
@@ -982,6 +1323,54 @@ export default function IssueDetail({
           </div>
         )}
 
+        {currentIssue.after_photo_url && (
+          <div className="rounded-xl border border-zinc-200 bg-white p-3">
+            <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide mb-2">
+              Споредба
+            </p>
+            {currentIssue.photo_url ? (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1">
+                    Пред
+                  </p>
+                  <Image
+                    src={currentIssue.photo_url}
+                    alt="Пред"
+                    width={640}
+                    height={480}
+                    unoptimized
+                    className="w-full rounded-lg object-cover max-h-44 border border-zinc-200"
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide mb-1">
+                    После
+                  </p>
+                  <Image
+                    src={currentIssue.after_photo_url}
+                    alt="После"
+                    width={640}
+                    height={480}
+                    unoptimized
+                    className="w-full rounded-lg object-cover max-h-44 border border-teal-200"
+                  />
+                </div>
+              </div>
+            ) : (
+              <Image
+                src={currentIssue.after_photo_url}
+                alt="После"
+                width={1200}
+                height={720}
+                unoptimized
+                className="w-full rounded-lg object-cover max-h-56 border border-teal-200"
+              />
+            )}
+          </div>
+        )}
+
+        {helperProposalButton}
         {peopleSection}
         {helpPlanningSection}
         {shareSection}
@@ -1005,6 +1394,7 @@ export default function IssueDetail({
             onClose={() => setShowHelperPopup(false)}
           />
         )}
+        {proposeModal}
       </div>
     );
   }
@@ -1038,24 +1428,28 @@ export default function IssueDetail({
 
         <div className="space-y-2">
           {isOwner && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setIsEditing((prev) => !prev);
-                  setEditTitle(currentIssue.title);
-                  setEditDescription(currentIssue.description ?? "");
-                  setEditStreet(currentIssue.street_name ?? "");
-                }}
-                className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
-                <Pencil size={12} /> {isEditing ? "Откажи" : "Измени"}
-              </button>
-              <button
-                onClick={deleteIssue}
-                disabled={deletingIssue}
-                className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
-                <Trash2 size={12} /> {deletingIssue ? "Се брише..." : "Избриши"}
-              </button>
-            </div>
+            <>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setIsEditing((prev) => !prev);
+                    setEditTitle(currentIssue.title);
+                    setEditDescription(currentIssue.description ?? "");
+                    setEditStreet(currentIssue.street_name ?? "");
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
+                  <Pencil size={12} /> {isEditing ? "Откажи" : "Измени"}
+                </button>
+                <button
+                  onClick={deleteIssue}
+                  disabled={deletingIssue}
+                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
+                  <Trash2 size={12} /> {deletingIssue ? "Се брише..." : "Избриши"}
+                </button>
+              </div>
+              {statusSelector}
+              {pendingRequestsSection}
+            </>
           )}
 
           {isEditing ? (
@@ -1105,18 +1499,40 @@ export default function IssueDetail({
           )}
         </div>
 
-        {currentIssue.photo_url && (
-          <Image
-            src={currentIssue.photo_url}
-            alt="Фотографија"
-            width={1200}
-            height={720}
-            unoptimized
-            loading={variant === "full" ? "eager" : "lazy"}
-            priority={variant === "full"}
-            sizes="(max-width: 1024px) 100vw, 40vw"
-            className="w-full rounded-lg object-cover max-h-48 border border-zinc-200"
-          />
+        {/* Before / after photos */}
+        {(currentIssue.photo_url || currentIssue.after_photo_url) && (
+          currentIssue.photo_url && currentIssue.after_photo_url ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1">Пред</p>
+                <Image
+                  src={currentIssue.photo_url}
+                  alt="Пред"
+                  width={640} height={480} unoptimized
+                  className="w-full rounded-lg object-cover max-h-40 border border-zinc-200"
+                />
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-teal-500 uppercase tracking-wide mb-1">После</p>
+                <Image
+                  src={currentIssue.after_photo_url}
+                  alt="После"
+                  width={640} height={480} unoptimized
+                  className="w-full rounded-lg object-cover max-h-40 border border-teal-200"
+                />
+              </div>
+            </div>
+          ) : (
+            <Image
+              src={(currentIssue.photo_url ?? currentIssue.after_photo_url)!}
+              alt="Фотографија"
+              width={1200} height={720} unoptimized
+              loading={variant === "full" ? "eager" : "lazy"}
+              priority={variant === "full"}
+              sizes="(max-width: 1024px) 100vw, 40vw"
+              className="w-full rounded-lg object-cover max-h-48 border border-zinc-200"
+            />
+          )
         )}
 
         <div className="flex items-center gap-2">
@@ -1135,6 +1551,7 @@ export default function IssueDetail({
         </div>
 
         <div className="space-y-3 border-t border-zinc-100 pt-3">
+          {helperProposalButton}
           {peopleSection}
           {helpPlanningSection}
           {shareSection}
@@ -1160,6 +1577,7 @@ export default function IssueDetail({
           onClose={() => setShowHelperPopup(false)}
         />
       )}
+      {proposeModal}
     </>
   );
 }
