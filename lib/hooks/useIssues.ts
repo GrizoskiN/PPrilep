@@ -27,25 +27,21 @@ export function useIssues(opts: UseIssuesOptions = {}) {
     if (data.length === 0) return [];
     const ids = data.map((i) => i.id);
 
-    const queries = [
+    const [affectedRes, helpersRes, userAffectedRes, userHelpersRes] = await Promise.all([
       supabase.from("issue_affected").select("issue_id").in("issue_id", ids),
       supabase.from("issue_helpers").select("issue_id").in("issue_id", ids),
-    ];
+      opts.userId
+        ? supabase.from("issue_affected").select("issue_id").in("issue_id", ids).eq("user_id", opts.userId)
+        : Promise.resolve(null),
+      opts.userId
+        ? supabase.from("issue_helpers").select("issue_id").in("issue_id", ids).eq("user_id", opts.userId)
+        : Promise.resolve(null),
+    ]);
 
-    if (opts.userId) {
-      queries.push(
-        supabase.from("issue_affected").select("issue_id").in("issue_id", ids).eq("user_id", opts.userId),
-        supabase.from("issue_helpers").select("issue_id").in("issue_id", ids).eq("user_id", opts.userId),
-      );
-    }
-
-    const results = await Promise.all(queries);
-    const [{ data: affected }, { data: helpers }] = results as [
-      { data: { issue_id: number }[] | null },
-      { data: { issue_id: number }[] | null },
-    ];
-    const userAffected = opts.userId ? (results[2] as { data: { issue_id: number }[] | null }).data : null;
-    const userHelpers  = opts.userId ? (results[3] as { data: { issue_id: number }[] | null }).data : null;
+    const affected = affectedRes?.data;
+    const helpers = helpersRes?.data;
+    const userAffected = userAffectedRes?.data;
+    const userHelpers = userHelpersRes?.data;
 
     const affMap: Record<number, number> = {};
     const helMap: Record<number, number> = {};
