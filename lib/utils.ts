@@ -45,6 +45,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   power: "Струја",
   garbage: "Ѓубре",
   park: "Парк",
+  violation: "Срамна листа",
   other: "Друго",
 };
 
@@ -65,6 +66,7 @@ export function categoryIcon(cat: Category): string {
     power: "⚡",
     garbage: "🗑️",
     park: "🌳",
+    violation: "😡",
     other: "📋",
   };
   return map[cat] ?? "📋";

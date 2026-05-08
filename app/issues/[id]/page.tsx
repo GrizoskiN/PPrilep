@@ -18,12 +18,47 @@ export default async function IssueDetailPage({ params }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: issue, error: issueError } = await supabase
-    .from("issues")
-    .select(`*, profiles:reported_by(id, full_name, avatar_url, username)`)
-    .eq("id", issueId)
-    .maybeSingle();
+  // Fetch issue + everything else in parallel on the server.
+  // This replaces ~5 client-side round-trips with one server round.
+  const [
+    issueRes,
+    affectedCountRes,
+    helperCountRes,
+    isAffectedRes,
+    isHelperRes,
+  ] = await Promise.all([
+    supabase
+      .from("issues")
+      .select(`*, profiles:reported_by(id, full_name, avatar_url, username)`)
+      .eq("id", issueId)
+      .maybeSingle(),
+    supabase
+      .from("issue_affected")
+      .select("*", { count: "exact", head: true })
+      .eq("issue_id", issueId),
+    supabase
+      .from("issue_helpers")
+      .select("*", { count: "exact", head: true })
+      .eq("issue_id", issueId),
+    user
+      ? supabase
+          .from("issue_affected")
+          .select("user_id")
+          .eq("issue_id", issueId)
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null } as const),
+    user
+      ? supabase
+          .from("issue_helpers")
+          .select("user_id, note")
+          .eq("issue_id", issueId)
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null } as const),
+  ]);
 
+  const { data: issue, error: issueError } = issueRes;
   if (issueError) {
     console.error("[IssueDetailPage] issue fetch error:", issueError);
     notFound();
@@ -36,21 +71,13 @@ export default async function IssueDetailPage({ params }: Props) {
     redirect(canonicalPath);
   }
 
-  const [{ count: affectedCount }, { count: helperCount }] = await Promise.all([
-    supabase
-      .from("issue_affected")
-      .select("*", { count: "exact", head: true })
-      .eq("issue_id", issueId),
-    supabase
-      .from("issue_helpers")
-      .select("*", { count: "exact", head: true })
-      .eq("issue_id", issueId),
-  ]);
-
   const enriched = {
     ...issue,
-    affected_count: affectedCount ?? 0,
-    helper_count: helperCount ?? 0,
+    affected_count: affectedCountRes.count ?? 0,
+    helper_count: helperCountRes.count ?? 0,
+    is_affected: Boolean(isAffectedRes.data),
+    is_helper: Boolean(isHelperRes.data),
+    user_helper_note: isHelperRes.data?.note ?? null,
   };
 
   return (

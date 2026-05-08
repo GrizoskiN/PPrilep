@@ -18,6 +18,7 @@ import {
 import type { Issue, IssueStatus } from "../../lib/types/database";
 import { toast } from "sonner";
 import { createClient } from "../../lib/supabase/client";
+import { useAuth } from "../../lib/hooks/useAuth";
 
 interface Props {
   issue: Issue;
@@ -154,8 +155,16 @@ export default function IssueDetail({
   const [proposing, setProposing] = useState(false);
   // direct helper check (for full-page where is_helper may not be pre-loaded)
   const [isHelperDirect, setIsHelperDirect] = useState(Boolean(currentIssue.is_helper));
+  // resolver info & upvote state
+  const [resolver, setResolver] = useState<{ id: string; full_name: string | null; username: string | null; avatar_url: string | null } | null>(null);
+  const [resolverUpvotes, setResolverUpvotes] = useState<number>(0);
+  const [hasUpvotedResolver, setHasUpvotedResolver] = useState(false);
+  const [upvotingResolver, setUpvotingResolver] = useState(false);
 
+  const { profile: authProfile } = useAuth();
+  const isAdmin = Boolean(authProfile?.is_admin);
   const isOwner = Boolean(userId && currentIssue.reported_by === userId);
+  const canModerate = isOwner || isAdmin;
   const isHelper = Boolean(
     userId && (
       isHelperDirect ||
@@ -165,9 +174,11 @@ export default function IssueDetail({
   );
 
   // Ensure isHelperDirect is set for any authenticated user who has already
-  // registered as a helper (catches the case where is_helper wasn't pre-loaded)
+  // registered as a helper. Skip if the server-side prefetch (page.tsx) already
+  // told us — only fire when is_helper is undefined on the input issue.
   useEffect(() => {
     if (!userId || isHelperDirect) return;
+    if (typeof currentIssue.is_helper === "boolean") return; // server already resolved
     supabase
       .from("issue_helpers")
       .select("user_id")
@@ -276,10 +287,85 @@ export default function IssueDetail({
   }
 
   useEffect(() => {
-    if (!isOwner) return;
+    if (!canModerate) return;
     loadChangeRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIssue.id, isOwner]);
+  }, [currentIssue.id, canModerate]);
+
+  async function loadResolverInfo() {
+    // Single RPC bundles: resolver profile, upvote count, and whether *I* upvoted.
+    const { data, error } = await supabase.rpc("get_resolver_info", {
+      p_issue_id: currentIssue.id,
+    });
+    if (error || !data) {
+      setResolver(null);
+      setResolverUpvotes(0);
+      setHasUpvotedResolver(false);
+      return;
+    }
+    // RPC returns a row: { resolver: jsonb|null, upvote_count: int, has_upvoted: bool }
+    const row = Array.isArray(data) ? data[0] : data;
+    setResolver(row?.resolver ?? null);
+    setResolverUpvotes(row?.upvote_count ?? 0);
+    setHasUpvotedResolver(Boolean(row?.has_upvoted));
+  }
+
+  useEffect(() => {
+    if (currentIssue.status === "resolved") loadResolverInfo();
+    else {
+      setResolver(null);
+      setResolverUpvotes(0);
+      setHasUpvotedResolver(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIssue.id, currentIssue.status, currentIssue.resolved_by, userId]);
+
+  const [savingResolver, setSavingResolver] = useState(false);
+
+  async function setResolverFor(newResolverId: string | null) {
+    if (!canModerate || !userId || savingResolver) return;
+    setSavingResolver(true);
+    let q = supabase
+      .from("issues")
+      .update({ resolved_by: newResolverId })
+      .eq("id", currentIssue.id);
+    if (!isAdmin) q = q.eq("reported_by", userId);
+    const { error } = await q;
+    if (error) { toast.error(error.message); setSavingResolver(false); return; }
+    setCurrentIssue((prev) => ({ ...prev, resolved_by: newResolverId }));
+    await loadResolverInfo();
+    toast.success("Решавачот е променет");
+    setSavingResolver(false);
+  }
+
+  async function toggleResolverUpvote() {
+    if (!userId) { redirectToAuth(); return; }
+    if (!resolver || upvotingResolver) return;
+    if (resolver.id === userId) {
+      toast.error("Не можеш да гласаш за себе");
+      return;
+    }
+    setUpvotingResolver(true);
+    if (hasUpvotedResolver) {
+      const { error } = await supabase
+        .from("issue_resolution_upvotes")
+        .delete()
+        .eq("issue_id", currentIssue.id)
+        .eq("user_id", userId);
+      if (error) { toast.error(error.message); setUpvotingResolver(false); return; }
+      setHasUpvotedResolver(false);
+      setResolverUpvotes((c) => Math.max(0, c - 1));
+    } else {
+      const { error } = await supabase
+        .from("issue_resolution_upvotes")
+        .insert({ issue_id: currentIssue.id, user_id: userId });
+      if (error) { toast.error(error.message); setUpvotingResolver(false); return; }
+      setHasUpvotedResolver(true);
+      setResolverUpvotes((c) => c + 1);
+      toast.success("Благодарност испратена!");
+    }
+    setUpvotingResolver(false);
+  }
 
   async function loadHelpOffers() {
     setLoadingOffers(true);
@@ -496,21 +582,32 @@ export default function IssueDetail({
   const [changingStatus, setChangingStatus] = useState(false);
 
   async function changeStatus(newStatus: "open" | "progress" | "resolved") {
-    if (!isOwner || !userId || changingStatus) return;
+    if (!canModerate || !userId || changingStatus) return;
     if (newStatus === currentIssue.status) return;
     setChangingStatus(true);
-    const { error } = await supabase
-      .from("issues")
-      .update({ status: newStatus })
-      .eq("id", currentIssue.id)
-      .eq("reported_by", userId);
+    const update: Record<string, unknown> = { status: newStatus };
+    // Going to resolved: do NOT auto-assign — owner picks the resolver via the
+    // dropdown. Going to open/progress: clear any previous resolver.
+    if (newStatus !== "resolved") update.resolved_by = null;
+    let q = supabase.from("issues").update(update).eq("id", currentIssue.id);
+    if (!isAdmin) q = q.eq("reported_by", userId);
+    const { error } = await q;
     if (error) toast.error(error.message);
-    else { setCurrentIssue((prev) => ({ ...prev, status: newStatus })); toast.success("Статусот е променет"); }
+    else {
+      setCurrentIssue((prev) => ({
+        ...prev,
+        status: newStatus,
+        resolved_by: newStatus === "resolved" ? userId : null,
+      }));
+      toast.success("Статусот е променет");
+      // Refetch resolver display info
+      if (newStatus === "resolved") loadResolverInfo();
+    }
     setChangingStatus(false);
   }
 
   async function uploadAfterPhoto(file: File) {
-    if (!isOwner || !userId) return;
+    if (!canModerate || !userId) return;
     if (!file.type.startsWith("image/")) { toast.error("Избери слика (jpg/png/webp)"); return; }
     if (file.size > 8 * 1024 * 1024) { toast.error("Сликата е преголема (макс 8MB)"); return; }
     setUploadingAfter(true);
@@ -555,7 +652,7 @@ export default function IssueDetail({
   }
 
   async function saveIssueEdits() {
-    if (!isOwner || !userId) return;
+    if (!canModerate || !userId) return;
 
     const title = editTitle.trim();
     if (title.length < 4) {
@@ -571,11 +668,12 @@ export default function IssueDetail({
       street_name: editStreet.trim() || null,
     };
 
-    const { data, error } = await supabase
+    let q = supabase
       .from("issues")
       .update(payload)
-      .eq("id", currentIssue.id)
-      .eq("reported_by", userId)
+      .eq("id", currentIssue.id);
+    if (!isAdmin) q = q.eq("reported_by", userId);
+    const { data, error } = await q
       .select("*, profiles:reported_by(id, full_name, avatar_url, username)")
       .single();
 
@@ -592,7 +690,7 @@ export default function IssueDetail({
   }
 
   async function deleteIssue() {
-    if (!isOwner || !userId || deletingIssue) return;
+    if (!canModerate || !userId || deletingIssue) return;
 
     const ok = window.confirm(
       "Дали сигурно сакаш да ја избришеш оваа пријава?",
@@ -601,11 +699,9 @@ export default function IssueDetail({
 
     setDeletingIssue(true);
 
-    const { error } = await supabase
-      .from("issues")
-      .delete()
-      .eq("id", currentIssue.id)
-      .eq("reported_by", userId);
+    let q = supabase.from("issues").delete().eq("id", currentIssue.id);
+    if (!isAdmin) q = q.eq("reported_by", userId);
+    const { error } = await q;
 
     if (error) {
       toast.error(error.message);
@@ -1060,7 +1156,7 @@ export default function IssueDetail({
   }
 
   async function approveRequest(req: ChangeRequest) {
-    if (!isOwner || !userId || approvingId) return;
+    if (!canModerate || !userId || approvingId) return;
     setApprovingId(req.id);
     const { error } = await supabase.rpc("approve_change_request", { p_id: req.id });
     if (error) { toast.error(error.message); setApprovingId(null); return; }
@@ -1075,7 +1171,7 @@ export default function IssueDetail({
   }
 
   async function rejectRequest(req: ChangeRequest) {
-    if (!isOwner || approvingId) return;
+    if (!canModerate || approvingId) return;
     setApprovingId(req.id);
     const { error } = await supabase.rpc("reject_change_request", { p_id: req.id });
     if (error) { toast.error(error.message); setApprovingId(null); return; }
@@ -1086,7 +1182,7 @@ export default function IssueDetail({
 
   const STATUS_LABEL: Record<string, string> = { progress: "Во тек", resolved: "Завршено" };
 
-  const pendingRequestsSection = isOwner && pendingRequests.length > 0 && (
+  const pendingRequestsSection = canModerate && pendingRequests.length > 0 && (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
       <p className="text-[11px] font-semibold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
         🔔 Барања за одобрување ({pendingRequests.length})
@@ -1128,7 +1224,7 @@ export default function IssueDetail({
     </div>
   );
 
-  const helperProposalButton = userId && !isOwner && (
+  const helperProposalButton = userId && !isOwner && !isAdmin && (
     <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3">
       <button
         onClick={() => setShowProposeModal(true)}
@@ -1245,6 +1341,40 @@ export default function IssueDetail({
           </button>
         ))}
       </div>
+      {/* Resolver picker — only when status is resolved */}
+      {currentIssue.status === "resolved" && (
+        <div className="flex items-start gap-2 flex-wrap">
+          <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide pt-1.5">Решено од:</span>
+          <select
+            value={currentIssue.resolved_by ?? ""}
+            disabled={savingResolver}
+            onChange={(e) => setResolverFor(e.target.value || null)}
+            className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-700 outline-none focus:border-teal-400 disabled:opacity-60">
+            <option value="">— Никој / Непознато —</option>
+            {currentIssue.reported_by && (
+              <option value={currentIssue.reported_by}>
+                {currentIssue.profiles?.full_name ?? currentIssue.profiles?.username ?? "Авторот"} (автор)
+              </option>
+            )}
+            {helperUsers
+              .filter((h) => h.user_id !== currentIssue.reported_by)
+              .map((h) => (
+                <option key={h.user_id} value={h.user_id}>
+                  {h.profiles?.full_name ?? h.profiles?.username ?? "Помошник"}
+                </option>
+              ))}
+            {/* If current resolved_by isn't in the list, keep it visible */}
+            {currentIssue.resolved_by &&
+              currentIssue.resolved_by !== currentIssue.reported_by &&
+              !helperUsers.some((h) => h.user_id === currentIssue.resolved_by) &&
+              resolver && (
+                <option value={currentIssue.resolved_by}>
+                  {resolver.full_name ?? resolver.username ?? "Решавач"}
+                </option>
+              )}
+          </select>
+        </div>
+      )}
       {/* After photo upload */}
       <div className="flex items-center gap-2">
         <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Фото После:</span>
@@ -1268,8 +1398,11 @@ export default function IssueDetail({
   if (variant === "engagement") {
     return (
       <div className="space-y-3 p-3">
-        {isOwner && (
+        {canModerate && (
           <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3">
+            {isAdmin && !isOwner && (
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">⚠ Модератор</p>
+            )}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
@@ -1320,6 +1453,47 @@ export default function IssueDetail({
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {currentIssue.status === "resolved" && resolver && (
+          <div className="rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50 to-emerald-50 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-lg">🏆</span>
+                <Link
+                  href={resolver.username ? `/u/${resolver.username}` : `/u/${resolver.id}`}
+                  className="flex items-center gap-2 min-w-0 group">
+                  <AvatarInitials
+                    name={resolver.full_name ?? resolver.username ?? "Херој"}
+                    avatarUrl={resolver.avatar_url}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold text-teal-800 leading-tight">
+                      Решено од
+                    </p>
+                    <p className="text-sm font-bold text-zinc-900 group-hover:underline truncate">
+                      {resolver.full_name ?? resolver.username ?? "Херој"}
+                    </p>
+                  </div>
+                </Link>
+              </div>
+              <button
+                onClick={toggleResolverUpvote}
+                disabled={upvotingResolver || resolver.id === userId}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
+                  hasUpvotedResolver
+                    ? "bg-teal-600 text-white"
+                    : "bg-white border border-teal-300 text-teal-700 hover:bg-teal-50",
+                  resolver.id === userId && "opacity-50 cursor-not-allowed",
+                )}
+                title={resolver.id === userId ? "Не можеш да гласаш за себе" : "Дај поени на херојот"}>
+                <span className="text-sm">👏</span>
+                <span>{resolverUpvotes}</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -1427,8 +1601,11 @@ export default function IssueDetail({
         </div>
 
         <div className="space-y-2">
-          {isOwner && (
+          {canModerate && (
             <>
+              {isAdmin && !isOwner && (
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">⚠ Модератор</p>
+              )}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {

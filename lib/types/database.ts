@@ -19,6 +19,7 @@ export type Category =
   | "power"
   | "garbage"
   | "park"
+  | "violation"
   | "other";
 export type IssueStatus = "open" | "progress" | "resolved";
 export type Provider = "water" | "garbage" | "power";
@@ -37,6 +38,7 @@ export interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   points: number;
+  is_admin?: boolean;
   created_at: string;
 }
 
@@ -51,6 +53,10 @@ export interface Issue {
   photo_url: string | null;
   after_photo_url?: string | null;
   reported_by: string | null;
+  resolved_by?: string | null;
+  resolver?: Profile | null;
+  resolution_upvotes?: number;
+  has_upvoted_resolver?: boolean;
   created_at: string;
   updated_at: string;
   // joined

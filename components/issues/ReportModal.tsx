@@ -24,6 +24,7 @@ const CATEGORIES = [
   "power",
   "garbage",
   "park",
+  "violation",
   "other",
 ] as const;
 
@@ -41,6 +42,7 @@ const CATEGORY_MK: Record<string, string> = {
   power: "Струја",
   garbage: "Ѓубре",
   park: "Парк",
+  violation: "Срамна листа",
   other: "Друго",
 };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
 import Topbar from "./Topbar";
@@ -31,6 +31,73 @@ export default function Shell({ children, rightPanel }: Props) {
     ? (profile?.full_name ?? profile?.username ?? "Профил")
     : "Гостин";
 
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Forward keyboard scroll keys to the <main> when nothing else has focus.
+  // Lets users on laptops without trackpad/wheel scroll the feed with arrow
+  // keys, PageUp/PageDown, Space, Home, End — without showing a scrollbar.
+  useEffect(() => {
+    const SCROLL_KEYS = new Set([
+      "ArrowDown",
+      "ArrowUp",
+      "PageDown",
+      "PageUp",
+      "Home",
+      "End",
+      " ",
+      "Spacebar",
+    ]);
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!SCROLL_KEYS.has(e.key)) return;
+      // Skip when typing in inputs/textareas/contenteditable elements
+      const target = e.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT" ||
+          target.isContentEditable
+        ) return;
+      }
+      const main = mainRef.current;
+      if (!main) return;
+
+      const stepLine = 80;
+      const stepPage = main.clientHeight - 60;
+
+      switch (e.key) {
+        case "ArrowDown":
+          main.scrollBy({ top: stepLine, behavior: "smooth" });
+          break;
+        case "ArrowUp":
+          main.scrollBy({ top: -stepLine, behavior: "smooth" });
+          break;
+        case "PageDown":
+        case " ":
+        case "Spacebar":
+          main.scrollBy({ top: stepPage, behavior: "smooth" });
+          break;
+        case "PageUp":
+          main.scrollBy({ top: -stepPage, behavior: "smooth" });
+          break;
+        case "Home":
+          main.scrollTo({ top: 0, behavior: "smooth" });
+          break;
+        case "End":
+          main.scrollTo({ top: main.scrollHeight, behavior: "smooth" });
+          break;
+        default:
+          return;
+      }
+      e.preventDefault();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
     <>
       <MarqueeBanner />
@@ -48,7 +115,10 @@ export default function Shell({ children, rightPanel }: Props) {
                 <LeftNav />
               </Suspense>
             </div>
-            <main className="scrollbar-hidden min-h-0 overflow-y-auto bg-white pb-16 lg:pb-0">
+            <main
+              ref={mainRef}
+              tabIndex={-1}
+              className="scrollbar-hidden min-h-0 overflow-y-auto bg-white pb-16 outline-none lg:pb-0">
               {children}
             </main>
             <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block lg:border-l lg:border-[#e4ece8]">
