@@ -1,7 +1,7 @@
 "use client";
 
 import Image, { ImageProps } from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cdnUrl } from "../../lib/utils";
 
 interface BlurImageProps extends Omit<ImageProps, "placeholder" | "blurDataURL"> {
@@ -34,12 +34,24 @@ export default function BlurImage({
   ...rest
 }: BlurImageProps) {
   const [loaded, setLoaded] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Route Supabase storage URLs through the CDN automatically
   const finalSrc = typeof src === "string" ? cdnUrl(src) : src;
 
+  // If the image is already complete (e.g. from browser cache) when we mount,
+  // onLoad will not fire — detect that and flip `loaded` ourselves so the
+  // image isn't stuck at opacity-0 / behind the skeleton.
+  useEffect(() => {
+    const img = wrapperRef.current?.querySelector("img");
+    if (img && img.complete && img.naturalWidth > 0) {
+      setLoaded(true);
+    }
+  }, [finalSrc]);
+
   return (
     <div
+      ref={wrapperRef}
       className={`relative overflow-hidden ${rounded} ${wrapperClassName}`.trim()}>
       {!loaded && (
         <div
@@ -56,6 +68,12 @@ export default function BlurImage({
         onLoad={(e) => {
           setLoaded(true);
           onLoad?.(e);
+        }}
+        onError={() => {
+          // If the optimized image fails (e.g. CDN cert pending), unhide
+          // it anyway so the user at least sees the broken-image icon
+          // instead of a permanent gray skeleton.
+          setLoaded(true);
         }}
         className={`${className} transition-opacity duration-300 ${
           loaded ? "opacity-100" : "opacity-0"
