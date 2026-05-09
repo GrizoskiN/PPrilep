@@ -98,9 +98,11 @@ export default async function HomePage() {
 
   return (
     <Shell>
-      <div className="px-6 py-6">
-        <DynamicGreeting fallbackName={greetingName} />
-        <div className="bg-gray-100 p-6 rounded-3xl mt-8 ">
+      <div className="mx-auto max-w-156 py-4 lg:py-6 lg:px-3">
+        <div className="px-3 lg:px-0">
+          <DynamicGreeting fallbackName={greetingName} />
+        </div>
+        <div className="bg-gray-100 p-4 lg:p-6 rounded-2xl lg:rounded-3xl mt-6 lg:mt-8">
           <p className="my-3 text-lg leading-8 text-slate-500">
             Пријави проблеми. Координирај локални акции. Држи ги лидерите
             одговорни.

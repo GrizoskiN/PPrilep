@@ -14,14 +14,16 @@ body {
   height: 100%;
 }
 html {
-  background: #8eb3eb;
+  background: #f2f4f7;
   -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
 }
 
 body {
   margin: 0;
   background: #f2f4f7;
   color: #132238;
+  overscroll-behavior: none;
 }
 
 /* Prevent iOS Safari from auto-zooming on focused form controls */

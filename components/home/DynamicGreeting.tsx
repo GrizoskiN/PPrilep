@@ -85,7 +85,7 @@ export default function DynamicGreeting({ fallbackName }: Props) {
         <h1 className="text-4xl font-semibold leading-[1.02] tracking-tight text-slate-900">
           {greeting}, {placeLabel}.
         </h1>
-        <p className="mt-2 max-w-2xl text-lg leading-8 text-slate-500">
+        <p className="mt-2 max-w-165.57 text-lg leading-8 text-slate-500">
           {weather
             ? `${weatherLabel(weather.code)} ${weather.temp}°C • Денес ${weather.min}°/${weather.max}° • Врнежи ${weather.rainProbability}%`
             : "Пријави проблеми. Координирај локални акции. Држи ги лидерите одговорни."}

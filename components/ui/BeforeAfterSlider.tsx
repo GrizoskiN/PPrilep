@@ -8,20 +8,27 @@ interface Props {
   afterSrc: string;
   alt?: string;
   className?: string;
+  /** Maximum height for the slider area (CSS value). Default 88vh. */
+  maxHeight?: string;
+  /** Show small "Пред / Потоа" labels in the corners. Default false. */
+  showLabels?: boolean;
 }
 
 /**
  * Interactive before/after image comparison.
  *
- * Memory cost: two images + a few hundred bytes of state. The slider uses
- * CSS clip-path on the upper layer, so the browser does the heavy lifting.
- * No canvas, no JS image processing.
+ * Both images are anchored to the same rect (absolute, inset-0) and use
+ * object-contain so nothing is cropped. The "Потоа" image sits in the
+ * normal flow and sets the container's size; the "Пред" image overlays
+ * the same rect and is clipped from the right by the slider position.
  */
 export default function BeforeAfterSlider({
   beforeSrc,
   afterSrc,
   alt = "",
   className = "",
+  maxHeight = "88vh",
+  showLabels = false,
 }: Props) {
   const [pos, setPos] = useState(50); // percentage 0–100
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,17 +63,18 @@ export default function BeforeAfterSlider({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
-      className={`relative w-full overflow-hidden rounded-lg select-none touch-none ${className}`}>
-      {/* "Потоа" image — full width, bottom layer */}
+      className={`relative inline-block select-none touch-none align-middle ${className}`}>
+      {/* "Потоа" — drives the container's natural size */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={cdnUrl(afterSrc)}
         alt={`${alt} — Потоа`}
         draggable={false}
-        className="block w-full h-full object-cover pointer-events-none"
+        className="block max-w-full pointer-events-none"
+        style={{ maxHeight }}
       />
 
-      {/* "Пред" image — clipped to the left of the divider */}
+      {/* "Пред" — overlay matched exactly to the after image's rect */}
       <div
         className="absolute inset-0 overflow-hidden pointer-events-none"
         style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
@@ -75,17 +83,20 @@ export default function BeforeAfterSlider({
           src={cdnUrl(beforeSrc)}
           alt={`${alt} — Пред`}
           draggable={false}
-          className="block w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-contain"
         />
       </div>
 
-      {/* Pred / Потоа labels */}
-      <span className="absolute top-2 left-2 z-10 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white pointer-events-none">
-        Пред
-      </span>
-      <span className="absolute top-2 right-2 z-10 rounded-md bg-teal-600/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white pointer-events-none">
-        Потоа
-      </span>
+      {showLabels && (
+        <>
+          <span className="absolute top-2 left-2 z-10 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white pointer-events-none">
+            Пред
+          </span>
+          <span className="absolute top-2 right-2 z-10 rounded-md bg-teal-600/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white pointer-events-none">
+            Потоа
+          </span>
+        </>
+      )}
 
       {/* Divider line + handle */}
       <div

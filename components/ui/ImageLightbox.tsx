@@ -123,7 +123,6 @@ export default function ImageLightbox({
             beforeSrc={beforeSrc!}
             afterSrc={afterSrc!}
             alt={alt}
-            className="max-h-[88vh] w-full"
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
