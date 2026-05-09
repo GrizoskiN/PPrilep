@@ -6,6 +6,7 @@ import Link from "next/link";
 import { X, Share2, MapPin, MessageCircle, Pencil, Trash2, AlertTriangle, HandHelping } from "lucide-react";
 import StatusPill from "../ui/StatusPill";
 import AvatarInitials from "../ui/AvatarInitials";
+import ImageLightbox from "../ui/ImageLightbox";
 import {
   formatDays,
   districtColor,
@@ -322,6 +323,7 @@ export default function IssueDetail({
   }, [currentIssue.id, currentIssue.status, currentIssue.resolved_by, userId]);
 
   const [savingResolver, setSavingResolver] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   async function setResolverFor(newResolverId: string | null) {
     if (!canModerate || !userId || savingResolver) return;
@@ -1201,7 +1203,7 @@ export default function IssueDetail({
                 </p>
                 <p className="text-xs text-zinc-600 mt-0.5 leading-relaxed">{req.payload.description}</p>
                 {req.payload.after_photo_url && (
-                  <img src={cdnUrl(req.payload.after_photo_url)} alt="После" className="mt-1.5 w-full max-h-36 object-cover rounded-lg border border-zinc-200" />
+                  <img src={cdnUrl(req.payload.after_photo_url)} alt="Потоа" className="mt-1.5 w-full max-h-36 object-cover rounded-lg border border-zinc-200" />
                 )}
               </div>
             </div>
@@ -1378,7 +1380,7 @@ export default function IssueDetail({
       )}
       {/* After photo upload */}
       <div className="flex items-center gap-2">
-        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Фото После:</span>
+        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Фото Потоа:</span>
         {currentIssue.after_photo_url ? (
           <span className="text-[11px] text-teal-600 font-medium">✓ Прикачено</span>
         ) : null}
@@ -1509,44 +1511,59 @@ export default function IssueDetail({
                   <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1">
                     Пред
                   </p>
-                  <BlurImage
-                    src={currentIssue.photo_url}
-                    alt="Пред"
-                    width={640}
-                    height={480}
-                    sizes="(max-width: 640px) 50vw, 280px"
-                    rounded="rounded-lg"
-                    wrapperClassName="border border-zinc-200"
-                    className="w-full object-cover max-h-44"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setLightboxSrc(currentIssue.photo_url!)}
+                    className="block w-full cursor-zoom-in p-0">
+                    <BlurImage
+                      src={currentIssue.photo_url}
+                      alt="Пред"
+                      width={1200}
+                      height={900}
+                      sizes="(max-width: 640px) 50vw, 360px"
+                      rounded="rounded-lg"
+                      wrapperClassName="border border-zinc-200"
+                      className="w-full object-cover h-72"
+                    />
+                  </button>
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide mb-1">
-                    После
+                    Потоа
                   </p>
-                  <BlurImage
-                    src={currentIssue.after_photo_url}
-                    alt="После"
-                    width={640}
-                    height={480}
-                    sizes="(max-width: 640px) 50vw, 280px"
-                    rounded="rounded-lg"
-                    wrapperClassName="border border-teal-200"
-                    className="w-full object-cover max-h-44"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setLightboxSrc(currentIssue.after_photo_url!)}
+                    className="block w-full cursor-zoom-in p-0">
+                    <BlurImage
+                      src={currentIssue.after_photo_url}
+                      alt="Потоа"
+                      width={1200}
+                      height={900}
+                      sizes="(max-width: 640px) 50vw, 360px"
+                      rounded="rounded-lg"
+                      wrapperClassName="border border-teal-200"
+                      className="w-full object-cover h-72"
+                    />
+                  </button>
                 </div>
               </div>
             ) : (
-              <BlurImage
-                src={currentIssue.after_photo_url}
-                alt="После"
-                width={1200}
-                height={720}
-                sizes="(max-width: 640px) 100vw, 600px"
-                rounded="rounded-lg"
-                wrapperClassName="border border-teal-200"
-                className="w-full object-cover max-h-56"
-              />
+              <button
+                type="button"
+                onClick={() => setLightboxSrc(currentIssue.after_photo_url!)}
+                className="block w-full cursor-zoom-in p-0">
+                <BlurImage
+                  src={currentIssue.after_photo_url}
+                  alt="Потоа"
+                  width={1600}
+                  height={1200}
+                  sizes="(max-width: 640px) 100vw, 800px"
+                  rounded="rounded-lg"
+                  wrapperClassName="border border-teal-200"
+                  className="w-full object-cover h-96"
+                />
+              </button>
             )}
           </div>
         )}
@@ -1576,6 +1593,15 @@ export default function IssueDetail({
           />
         )}
         {proposeModal}
+        {lightboxSrc && (
+          <ImageLightbox
+            src={lightboxSrc}
+            alt={currentIssue.title}
+            beforeSrc={currentIssue.photo_url}
+            afterSrc={currentIssue.after_photo_url}
+            onClose={() => setLightboxSrc(null)}
+          />
+        )}
       </div>
     );
   }
@@ -1689,41 +1715,56 @@ export default function IssueDetail({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1">Пред</p>
-                <BlurImage
-                  src={currentIssue.photo_url}
-                  alt="Пред"
-                  width={640} height={480}
-                  sizes="(max-width: 1024px) 50vw, 280px"
-                  rounded="rounded-lg"
-                  wrapperClassName="border border-zinc-200"
-                  className="w-full object-cover max-h-40"
-                />
+                <button
+                  type="button"
+                  onClick={() => setLightboxSrc(currentIssue.photo_url!)}
+                  className="block w-full cursor-zoom-in p-0">
+                  <BlurImage
+                    src={currentIssue.photo_url}
+                    alt="Пред"
+                    width={1200} height={900}
+                    sizes="(max-width: 1024px) 50vw, 360px"
+                    rounded="rounded-lg"
+                    wrapperClassName="border border-zinc-200"
+                    className="w-full object-cover h-80"
+                  />
+                </button>
               </div>
               <div>
-                <p className="text-[10px] font-semibold text-teal-500 uppercase tracking-wide mb-1">После</p>
-                <BlurImage
-                  src={currentIssue.after_photo_url}
-                  alt="После"
-                  width={640} height={480}
-                  sizes="(max-width: 1024px) 50vw, 280px"
-                  rounded="rounded-lg"
-                  wrapperClassName="border border-teal-200"
-                  className="w-full object-cover max-h-40"
-                />
+                <p className="text-[10px] font-semibold text-teal-500 uppercase tracking-wide mb-1">Потоа</p>
+                <button
+                  type="button"
+                  onClick={() => setLightboxSrc(currentIssue.after_photo_url!)}
+                  className="block w-full cursor-zoom-in p-0">
+                  <BlurImage
+                    src={currentIssue.after_photo_url}
+                    alt="Потоа"
+                    width={1200} height={900}
+                    sizes="(max-width: 1024px) 50vw, 360px"
+                    rounded="rounded-lg"
+                    wrapperClassName="border border-teal-200"
+                    className="w-full object-cover h-80"
+                  />
+                </button>
               </div>
             </div>
           ) : (
-            <BlurImage
-              src={(currentIssue.photo_url ?? currentIssue.after_photo_url)!}
-              alt="Фотографија"
-              width={1200} height={720}
-              loading={variant === "full" ? "eager" : "lazy"}
-              priority={variant === "full"}
-              sizes="(max-width: 1024px) 100vw, 40vw"
-              rounded="rounded-lg"
-              wrapperClassName="border border-zinc-200"
-              className="w-full object-cover max-h-48"
-            />
+            <button
+              type="button"
+              onClick={() => setLightboxSrc((currentIssue.photo_url ?? currentIssue.after_photo_url)!)}
+              className="block w-full cursor-zoom-in p-0">
+              <BlurImage
+                src={(currentIssue.photo_url ?? currentIssue.after_photo_url)!}
+                alt="Фотографија"
+                width={1600} height={1200}
+                loading={variant === "full" ? "eager" : "lazy"}
+                priority={variant === "full"}
+                sizes="(max-width: 1024px) 100vw, 800px"
+                rounded="rounded-lg"
+                wrapperClassName="border border-zinc-200"
+                className="w-full object-cover h-96 md:h-[28rem]"
+              />
+            </button>
           )
         )}
 
@@ -1770,6 +1811,15 @@ export default function IssueDetail({
         />
       )}
       {proposeModal}
+      {lightboxSrc && (
+        <ImageLightbox
+          src={lightboxSrc}
+          alt={currentIssue.title}
+          beforeSrc={currentIssue.photo_url}
+          afterSrc={currentIssue.after_photo_url}
+          onClose={() => setLightboxSrc(null)}
+        />
+      )}
     </>
   );
 }

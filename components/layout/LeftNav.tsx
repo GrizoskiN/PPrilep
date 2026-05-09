@@ -55,7 +55,7 @@ export default function LeftNav() {
   }, []);
 
   return (
-    <nav className="scrollbar-hidden flex h-full min-h-0 flex-col gap-5 overflow-y-auto bg-white px-4 py-4">
+    <nav className="scrollbar-hidden flex h-full min-h-0 flex-col gap-5 overflow-y-auto px-4 py-4">
       <section>
         <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
           Платформа

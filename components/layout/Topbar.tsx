@@ -89,7 +89,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
 
   return (
     <>
-      <header className="col-span-3 z-30 flex h-18 items-center justify-between border-b border-[#e4ece8] bg-white px-2 lg:px-7">
+      <header className="col-span-3 z-30 flex h-18 items-center justify-between border-b border-[#e4ece8] px-2 lg:px-7">
         <Link
           href="/"
           className="flex max-w-[60%] items-center gap-3 cursor-pointer">

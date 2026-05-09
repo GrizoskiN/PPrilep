@@ -118,8 +118,10 @@ export default function Shell({ children, rightPanel }: Props) {
             <main
               ref={mainRef}
               tabIndex={-1}
-              className="scrollbar-hidden min-h-0 overflow-y-auto bg-white pb-16 outline-none lg:pb-0">
-              {children}
+              className="scrollbar-hidden min-h-0 overflow-y-auto pb-16 outline-none lg:pb-0">
+              <div className="mx-auto w-full max-w-166.75">
+                {children}
+              </div>
             </main>
             <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block lg:border-l lg:border-[#e4ece8]">
               {rightPanel ?? <RightPanel />}

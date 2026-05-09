@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import dynamic from "next/dynamic";
 
 const HelperModal = dynamic(() => import("./HelperModal"), { ssr: false });
+const ImageLightbox = dynamic(() => import("../ui/ImageLightbox"), { ssr: false });
 
 interface Props {
   issue: Issue;
@@ -52,7 +53,14 @@ export default function IssueCard({
   const [isHelper, setIsHelper] = useState(issue.is_helper ?? false);
   const [helperOpen, setHelperOpen] = useState(false);
   const [loadingAff, setLoadingAff] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const issuePath = getIssuePath(issue.id, issue.title);
+
+  function openLightbox(src: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    setLightboxSrc(src);
+  }
 
   function redirectToAuth() {
     const next = `${location.pathname}${location.search}`;
@@ -120,7 +128,7 @@ export default function IssueCard({
           "cursor-pointer p-4 transition-all",
           embeddedMobile
             ? "rounded-none border-0 bg-transparent hover:border-transparent hover:shadow-none"
-            : "rounded-xl border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm",
+            : "overflow-hidden rounded-xl border border-zinc-200 bg-white hover:border-zinc-300",
           selected && "border-teal-500 ring-1 ring-teal-500",
         )}>
         <div className="flex items-start justify-between gap-2 mb-2">
@@ -152,68 +160,93 @@ export default function IssueCard({
           {(issue.photo_url || issue.after_photo_url) && (
             <div
               className={cn(
-                "mb-3 w-full",
-                !embeddedMobile && "md:mb-0 md:w-60 md:shrink-0",
+                "mb-3 -mx-4 w-auto",
+                !embeddedMobile && "md:mx-0 md:mb-0 md:w-72 md:shrink-0",
               )}>
               {issue.photo_url && issue.after_photo_url ? (
-                <div className="grid grid-cols-2 gap-1">
-                  <div className="relative">
+                <div className="grid grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={(e) => openLightbox(issue.photo_url!, e)}
+                    className="relative block w-full cursor-zoom-in p-0">
                     <BlurImage
                       src={issue.photo_url}
                       alt="Пред"
-                      width={640}
-                      height={640}
+                      width={1200}
+                      height={1200}
                       loading={eagerImage ? "eager" : "lazy"}
                       priority={eagerImage}
-                      sizes="(max-width: 767px) 50vw, 140px"
-                      rounded="rounded-lg"
-                      wrapperClassName="border border-zinc-200"
+                      sizes="(max-width: 767px) 50vw, 320px"
+                      rounded="md:rounded-none"
+                      wrapperClassName="md:border md:border-zinc-200"
                       className={cn(
-                        "h-52 w-full object-cover",
-                        !embeddedMobile && "md:h-60",
+                        "h-72 w-full object-cover",
+                        !embeddedMobile && "md:h-80",
                       )}
                     />
                     <span className="absolute top-1 left-1 z-10 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
                       Пред
                     </span>
-                  </div>
-                  <div className="relative">
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => openLightbox(issue.after_photo_url!, e)}
+                    className="relative block w-full cursor-zoom-in p-0">
                     <BlurImage
                       src={issue.after_photo_url}
-                      alt="После"
-                      width={640}
-                      height={640}
+                      alt="Потоа"
+                      width={1200}
+                      height={1200}
                       loading={eagerImage ? "eager" : "lazy"}
                       priority={eagerImage}
-                      sizes="(max-width: 767px) 50vw, 140px"
-                      rounded="rounded-lg"
-                      wrapperClassName="border border-teal-200"
+                      sizes="(max-width: 767px) 50vw, 320px"
+                      rounded="md:rounded-none"
+                      wrapperClassName="md:border md:border-teal-200"
                       className={cn(
-                        "h-52 w-full object-cover",
-                        !embeddedMobile && "md:h-60",
+                        "h-72 w-full object-cover",
+                        !embeddedMobile && "md:h-80",
                       )}
                     />
                     <span className="absolute top-1 left-1 z-10 rounded-md bg-teal-600/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
-                      После
+                      Потоа
                     </span>
-                  </div>
+                    {issue.resolver && (
+                      <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1.5 rounded-md bg-black/65 backdrop-blur-sm px-1.5 py-1">
+                        <span className="text-[10px]">🏆</span>
+                        <AvatarInitials
+                          name={issue.resolver.full_name ?? issue.resolver.username ?? ""}
+                          avatarUrl={issue.resolver.avatar_url}
+                          size="sm"
+                          className="w-4! h-4! text-[8px]!"
+                        />
+                        <span className="text-[10px] font-semibold text-white truncate">
+                          {issue.resolver.full_name ?? issue.resolver.username ?? "Херој"}
+                        </span>
+                      </div>
+                    )}
+                  </button>
                 </div>
               ) : (
-                <BlurImage
-                  src={(issue.photo_url ?? issue.after_photo_url)!}
-                  alt="Фотографија"
-                  width={640}
-                  height={640}
-                  loading={eagerImage ? "eager" : "lazy"}
-                  priority={eagerImage}
-                  sizes="(max-width: 767px) 100vw, 280px"
-                  rounded="rounded-lg"
-                  wrapperClassName="border border-zinc-200"
-                  className={cn(
-                    "h-52 w-full object-cover",
-                    !embeddedMobile && "md:h-60",
-                  )}
-                />
+                <button
+                  type="button"
+                  onClick={(e) => openLightbox((issue.photo_url ?? issue.after_photo_url)!, e)}
+                  className="block w-full cursor-zoom-in p-0">
+                  <BlurImage
+                    src={(issue.photo_url ?? issue.after_photo_url)!}
+                    alt="Фотографија"
+                    width={1600}
+                    height={1200}
+                    loading={eagerImage ? "eager" : "lazy"}
+                    priority={eagerImage}
+                    sizes="(max-width: 767px) 100vw, 600px"
+                    rounded="md:rounded-lg"
+                    wrapperClassName="md:border md:border-zinc-200"
+                    className={cn(
+                      "h-96 w-full object-cover",
+                      !embeddedMobile && "md:h-112",
+                    )}
+                  />
+                </button>
               )}
             </div>
           )}
@@ -361,6 +394,15 @@ export default function IssueCard({
             setHelperCount(count);
             setHelperOpen(false);
           }}
+        />
+      )}
+      {lightboxSrc && (
+        <ImageLightbox
+          src={lightboxSrc}
+          alt={issue.title}
+          beforeSrc={issue.photo_url}
+          afterSrc={issue.after_photo_url}
+          onClose={() => setLightboxSrc(null)}
         />
       )}
     </>

@@ -14,13 +14,13 @@ body {
   height: 100%;
 }
 html {
-  background: #fff;
+  background: #8eb3eb;
   -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
-
+  background: #f2f4f7;
   color: #132238;
 }
 
@@ -36,6 +36,28 @@ body {
 
 ::selection {
   background: rgba(42, 169, 157, 0.2);
+}
+
+/* Filter selects — kill iOS tap highlight + native styling artifacts */
+.filter-select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.filter-select:focus {
+  outline: none;
+}
+.filter-select option {
+  background: #fff;
+  color: #1f2937;
+  font-size: 14px;
+  padding: 8px 12px;
+}
+.filter-select option:checked,
+.filter-select option:hover {
+  background: linear-gradient(0deg, #eef8f5, #eef8f5);
+  color: #0f766e;
 }
 
 /* Marquee scroll animation */
