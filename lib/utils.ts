@@ -139,3 +139,17 @@ export function parseIssueIdFromSegment(segment: string): number | null {
   if (!match) return null;
   return Number(match[1]);
 }
+
+// Rewrites a Supabase storage URL to go through the Cloudflare CDN
+// (env: NEXT_PUBLIC_CDN_HOST, e.g. "cdn.mojprilep.mk"). Falls back to the
+// original URL when the env var is not set, so this is safe to deploy before
+// DNS is live.
+const CDN_HOST = process.env.NEXT_PUBLIC_CDN_HOST;
+const SUPABASE_STORAGE_RE =
+  /https:\/\/[a-z0-9]+\.supabase\.co(\/storage\/v1\/object\/(?:public|sign)\/[^?#]+)/;
+
+export function cdnUrl(url: string | null | undefined): string {
+  if (!url) return "";
+  if (!CDN_HOST) return url;
+  return url.replace(SUPABASE_STORAGE_RE, `https://${CDN_HOST}$1`);
+}

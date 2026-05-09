@@ -12,6 +12,7 @@ import {
   STATUS_LABELS,
   formatDays,
   getIssuePath,
+  cdnUrl,
 } from "../../lib/utils";
 import AvatarInitials from "../../components/ui/AvatarInitials";
 import Button from "../../components/ui/Button";
@@ -215,10 +216,11 @@ export default function AccountPage() {
             <div className="flex flex-col items-start gap-3">
               {avatarUrl ? (
                 <Image
-                  src={avatarUrl}
+                  src={cdnUrl(avatarUrl)}
                   alt="Профил слика"
                   width={92}
                   height={92}
+                  sizes="92px"
                   className="h-23 w-23 rounded-2xl border border-[#dce6e2] object-cover"
                 />
               ) : (

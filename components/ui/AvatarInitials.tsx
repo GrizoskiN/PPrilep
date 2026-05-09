@@ -1,4 +1,4 @@
-import { cn } from '../../lib/utils'
+import { cn, cdnUrl } from '../../lib/utils'
 
 interface Props {
   name?: string | null
@@ -17,7 +17,7 @@ export default function AvatarInitials({ name, avatarUrl, size = 'md', className
   if (avatarUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={avatarUrl} alt={name ?? ''} className={cn('rounded-full object-cover', sizeClass, className)} />
+      <img src={cdnUrl(avatarUrl)} alt={name ?? ''} className={cn('rounded-full object-cover', sizeClass, className)} />
     )
   }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
+import BlurImage from "../ui/BlurImage";
 import Link from "next/link";
 import { X, Share2, MapPin, MessageCircle, Pencil, Trash2, AlertTriangle, HandHelping } from "lucide-react";
 import StatusPill from "../ui/StatusPill";
@@ -14,6 +14,7 @@ import {
   DISTRICT_LABELS,
   CATEGORY_LABELS,
   getIssuePath,
+  cdnUrl,
 } from "../../lib/utils";
 import type { Issue, IssueStatus } from "../../lib/types/database";
 import { toast } from "sonner";
@@ -1200,7 +1201,7 @@ export default function IssueDetail({
                 </p>
                 <p className="text-xs text-zinc-600 mt-0.5 leading-relaxed">{req.payload.description}</p>
                 {req.payload.after_photo_url && (
-                  <img src={req.payload.after_photo_url} alt="После" className="mt-1.5 w-full max-h-36 object-cover rounded-lg border border-zinc-200" />
+                  <img src={cdnUrl(req.payload.after_photo_url)} alt="После" className="mt-1.5 w-full max-h-36 object-cover rounded-lg border border-zinc-200" />
                 )}
               </div>
             </div>
@@ -1508,37 +1509,43 @@ export default function IssueDetail({
                   <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1">
                     Пред
                   </p>
-                  <Image
+                  <BlurImage
                     src={currentIssue.photo_url}
                     alt="Пред"
                     width={640}
                     height={480}
-                    unoptimized
-                    className="w-full rounded-lg object-cover max-h-44 border border-zinc-200"
+                    sizes="(max-width: 640px) 50vw, 280px"
+                    rounded="rounded-lg"
+                    wrapperClassName="border border-zinc-200"
+                    className="w-full object-cover max-h-44"
                   />
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide mb-1">
                     После
                   </p>
-                  <Image
+                  <BlurImage
                     src={currentIssue.after_photo_url}
                     alt="После"
                     width={640}
                     height={480}
-                    unoptimized
-                    className="w-full rounded-lg object-cover max-h-44 border border-teal-200"
+                    sizes="(max-width: 640px) 50vw, 280px"
+                    rounded="rounded-lg"
+                    wrapperClassName="border border-teal-200"
+                    className="w-full object-cover max-h-44"
                   />
                 </div>
               </div>
             ) : (
-              <Image
+              <BlurImage
                 src={currentIssue.after_photo_url}
                 alt="После"
                 width={1200}
                 height={720}
-                unoptimized
-                className="w-full rounded-lg object-cover max-h-56 border border-teal-200"
+                sizes="(max-width: 640px) 100vw, 600px"
+                rounded="rounded-lg"
+                wrapperClassName="border border-teal-200"
+                className="w-full object-cover max-h-56"
               />
             )}
           </div>
@@ -1682,32 +1689,40 @@ export default function IssueDetail({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1">Пред</p>
-                <Image
+                <BlurImage
                   src={currentIssue.photo_url}
                   alt="Пред"
-                  width={640} height={480} unoptimized
-                  className="w-full rounded-lg object-cover max-h-40 border border-zinc-200"
+                  width={640} height={480}
+                  sizes="(max-width: 1024px) 50vw, 280px"
+                  rounded="rounded-lg"
+                  wrapperClassName="border border-zinc-200"
+                  className="w-full object-cover max-h-40"
                 />
               </div>
               <div>
                 <p className="text-[10px] font-semibold text-teal-500 uppercase tracking-wide mb-1">После</p>
-                <Image
+                <BlurImage
                   src={currentIssue.after_photo_url}
                   alt="После"
-                  width={640} height={480} unoptimized
-                  className="w-full rounded-lg object-cover max-h-40 border border-teal-200"
+                  width={640} height={480}
+                  sizes="(max-width: 1024px) 50vw, 280px"
+                  rounded="rounded-lg"
+                  wrapperClassName="border border-teal-200"
+                  className="w-full object-cover max-h-40"
                 />
               </div>
             </div>
           ) : (
-            <Image
+            <BlurImage
               src={(currentIssue.photo_url ?? currentIssue.after_photo_url)!}
               alt="Фотографија"
-              width={1200} height={720} unoptimized
+              width={1200} height={720}
               loading={variant === "full" ? "eager" : "lazy"}
               priority={variant === "full"}
               sizes="(max-width: 1024px) 100vw, 40vw"
-              className="w-full rounded-lg object-cover max-h-48 border border-zinc-200"
+              rounded="rounded-lg"
+              wrapperClassName="border border-zinc-200"
+              className="w-full object-cover max-h-48"
             />
           )
         )}

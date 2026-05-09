@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import BlurImage from "../ui/BlurImage";
 import Link from "next/link";
 import {
   Share2,
@@ -20,6 +20,7 @@ import {
   DISTRICT_LABELS,
   CATEGORY_LABELS,
   getIssuePath,
+  cdnUrl,
 } from "../../lib/utils";
 import type { Issue } from "../../lib/types/database";
 import { toast } from "sonner";
@@ -156,62 +157,63 @@ export default function IssueCard({
               )}>
               {issue.photo_url && issue.after_photo_url ? (
                 <div className="grid grid-cols-2 gap-1">
-                  <div className="relative overflow-hidden rounded-lg border border-zinc-200">
-                    <Image
+                  <div className="relative">
+                    <BlurImage
                       src={issue.photo_url}
                       alt="Пред"
                       width={640}
                       height={640}
-                      unoptimized
                       loading={eagerImage ? "eager" : "lazy"}
                       priority={eagerImage}
-                      sizes="(max-width: 767px) 50vw, 80px"
+                      sizes="(max-width: 767px) 50vw, 140px"
+                      rounded="rounded-lg"
+                      wrapperClassName="border border-zinc-200"
                       className={cn(
                         "h-52 w-full object-cover",
                         !embeddedMobile && "md:h-60",
                       )}
                     />
-                    <span className="absolute top-1 left-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                    <span className="absolute top-1 left-1 z-10 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
                       Пред
                     </span>
                   </div>
-                  <div className="relative overflow-hidden rounded-lg border border-teal-200">
-                    <Image
+                  <div className="relative">
+                    <BlurImage
                       src={issue.after_photo_url}
                       alt="После"
                       width={640}
                       height={640}
-                      unoptimized
                       loading={eagerImage ? "eager" : "lazy"}
                       priority={eagerImage}
-                      sizes="(max-width: 767px) 50vw, 80px"
+                      sizes="(max-width: 767px) 50vw, 140px"
+                      rounded="rounded-lg"
+                      wrapperClassName="border border-teal-200"
                       className={cn(
                         "h-52 w-full object-cover",
                         !embeddedMobile && "md:h-60",
                       )}
                     />
-                    <span className="absolute top-1 left-1 rounded-md bg-teal-600/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                    <span className="absolute top-1 left-1 z-10 rounded-md bg-teal-600/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
                       После
                     </span>
                   </div>
                 </div>
               ) : (
-                <div className="overflow-hidden rounded-lg border border-zinc-200">
-                  <Image
-                    src={(issue.photo_url ?? issue.after_photo_url)!}
-                    alt="Фотографија"
-                    width={640}
-                    height={640}
-                    unoptimized
-                    loading={eagerImage ? "eager" : "lazy"}
-                    priority={eagerImage}
-                    sizes="(max-width: 767px) 100vw, 160px"
-                    className={cn(
-                      "h-52 w-full object-cover",
-                      !embeddedMobile && "md:h-60",
-                    )}
-                  />
-                </div>
+                <BlurImage
+                  src={(issue.photo_url ?? issue.after_photo_url)!}
+                  alt="Фотографија"
+                  width={640}
+                  height={640}
+                  loading={eagerImage ? "eager" : "lazy"}
+                  priority={eagerImage}
+                  sizes="(max-width: 767px) 100vw, 280px"
+                  rounded="rounded-lg"
+                  wrapperClassName="border border-zinc-200"
+                  className={cn(
+                    "h-52 w-full object-cover",
+                    !embeddedMobile && "md:h-60",
+                  )}
+                />
               )}
             </div>
           )}

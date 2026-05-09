@@ -10,6 +10,7 @@ import {
   STATUS_LABELS,
   formatDays,
   getIssuePath,
+  cdnUrl,
 } from "../../../lib/utils";
 
 interface Props {
@@ -85,11 +86,11 @@ export default async function PublicProfilePage({ params }: Props) {
           <div className="flex items-center gap-4">
             {profile.avatar_url ? (
               <Image
-                src={profile.avatar_url}
+                src={cdnUrl(profile.avatar_url)}
                 alt={displayName}
                 width={72}
                 height={72}
-                unoptimized
+                sizes="72px"
                 className="w-18 h-18 rounded-2xl border border-[#dce6e2] object-cover shrink-0"
               />
             ) : (
