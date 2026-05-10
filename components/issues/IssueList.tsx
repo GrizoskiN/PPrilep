@@ -25,7 +25,8 @@ const DISTRICTS: Array<District | "all"> = [
   "Trizla",
   "Točila",
   "Rid",
-  "Tri Bari",
+  "Tipski",
+  "Boncejca",
 ];
 const CATEGORIES: Array<Category | "all"> = [
   "all",
@@ -42,7 +43,6 @@ const STATUSES: Array<IssueStatus | "all"> = [
   "progress",
   "resolved",
 ];
-
 
 export default function IssueList({
   defaultDistrict,
@@ -64,13 +64,15 @@ export default function IssueList({
   );
 
   const { user } = useAuth();
-  const { issues, loading, loadingMore, hasMore, error, fetchMore } = useIssues({ district, category, status, userId: user?.id });
+  const { issues, loading, loadingMore, hasMore, error, fetchMore } = useIssues(
+    { district, category, status, userId: user?.id },
+  );
 
   return (
     <div className="">
       <div
         suppressHydrationWarning
-        className="mt-3 grid grid-cols-3 z-50 gap-1.5 px-1 py-2 sticky top-0 max-w-156 mx-auto bg-[#f2f4f7] border-b border-zinc-200 lg:border-b-0"
+        className="mt-3 grid grid-cols-3 z-50 gap-1.5 px-2 md:px-0 lg:px-3 py-2 sticky top-0 bg-[#f2f4f7] border-b border-zinc-200 lg:border-b-0"
         style={{ backgroundColor: "#f2f4f7" }}>
         {mounted ? (
           <>
@@ -113,7 +115,7 @@ export default function IssueList({
       </div>
 
       <div className="flex min-h-0 gap-0">
-        <div className="w-full space-y-3 overflow-y-auto px-2 lg:px-6 py-5">
+        <div className="w-full space-y-3 overflow-y-auto px-0 lg:px-3 py-3 lg:py-5">
           {loading && (
             <>
               <IssueCardSkeleton />
@@ -133,8 +135,8 @@ export default function IssueList({
           {issues.map((issue, index) => (
             <div key={issue.id} className="space-y-2">
               <div
-                className={`overflow-hidden rounded-xl border border-zinc-200 bg-white transition-colors ${
-                  selectedId === issue.id ? "border-zinc-400" : ""
+                className={`overflow-hidden rounded-none lg:rounded-xl border-y lg:border border-zinc-200 bg-white transition-colors ${
+                  selectedId === issue.id ? "lg:border-zinc-400" : ""
                 }`}>
                 <IssueCard
                   eagerImage={index < 2}

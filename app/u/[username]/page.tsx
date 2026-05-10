@@ -7,7 +7,7 @@ import AvatarInitials from "../../../components/ui/AvatarInitials";
 import StatusPill from "../../../components/ui/StatusPill";
 import {
   DISTRICT_LABELS,
-  STATUS_LABELS,
+  
   formatDays,
   getIssuePath,
   cdnUrl,

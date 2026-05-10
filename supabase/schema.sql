@@ -16,7 +16,7 @@ create table issues (
   id bigserial primary key,
   title text not null,
   description text,
-  district text not null check (district in ('Center','Varoš','Trizla','Točila','Rid','Tri Bari')),
+  district text not null check (district in ('Center','Varoš','Trizla','Točila','Rid','Tipski','Boncejca')),
   category text not null check (category in ('road','water','power','garbage','park','other')),
   status text default 'open' check (status in ('open','progress','resolved')),
   photo_url text,
@@ -163,10 +163,14 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- ── Storage bucket for issue photos ──────────────────────────────────
-insert into storage.buckets (id, name, public) values ('issue-photos', 'issue-photos', true);
+insert into storage.buckets (id, name, public)
+values ('issue-photos', 'issue-photos', true)
+on conflict (id) do nothing;
 
+drop policy if exists "Public read photos" on storage.objects;
 create policy "Public read photos" on storage.objects
   for select using (bucket_id = 'issue-photos');
 
+drop policy if exists "Auth upload photos" on storage.objects;
 create policy "Auth upload photos" on storage.objects
   for insert with check (bucket_id = 'issue-photos' and auth.role() = 'authenticated');

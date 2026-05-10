@@ -2,8 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import BlurImage from "../ui/BlurImage";
+import Image from "next/image";
 import Link from "next/link";
-import { X, Share2, MapPin, MessageCircle, Pencil, Trash2, AlertTriangle, HandHelping } from "lucide-react";
+import {
+  X,
+  Share2,
+  MapPin,
+  MessageCircle,
+  Pencil,
+  Trash2,
+  AlertTriangle,
+  HandHelping,
+} from "lucide-react";
 import StatusPill from "../ui/StatusPill";
 import AvatarInitials from "../ui/AvatarInitials";
 import ImageLightbox from "../ui/ImageLightbox";
@@ -71,15 +81,103 @@ interface HelpOffer {
   comments: HelpOfferComment[];
 }
 
+type PeopleUser = {
+  user_id: string;
+  profiles?: {
+    full_name: string | null;
+    avatar_url: string | null;
+    username: string | null;
+  } | null;
+};
+
+function PeoplePopup({
+  title,
+  icon,
+  users,
+  accentColor,
+  onClose,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  users: PeopleUser[];
+  accentColor: "slate" | "teal";
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      style={{
+        backgroundColor: "rgba(255,255,255,0.72)",
+        backdropFilter: "blur(4px)",
+      }}
+      onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[60vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            {icon}
+            {title}
+            <span
+              className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                accentColor === "teal"
+                  ? "bg-teal-50 text-teal-700"
+                  : "bg-slate-100 text-slate-700"
+              }`}>
+              {users.length}
+            </span>
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-700 p-1 rounded-lg hover:bg-zinc-100 transition-colors">
+            <X size={14} />
+          </button>
+        </div>
+        <div className="overflow-y-auto divide-y divide-zinc-50 px-4 py-2">
+          {users.map((u) => {
+            const name =
+              u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
+            const href = u.profiles?.username
+              ? `/u/${u.profiles.username}`
+              : `/u/${u.user_id}`;
+            return (
+              <Link
+                key={u.user_id}
+                href={href}
+                onClick={onClose}
+                className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-zinc-50 -mx-4 px-4 transition-colors">
+                <AvatarInitials
+                  name={name}
+                  avatarUrl={u.profiles?.avatar_url ?? null}
+                  size="sm"
+                />
+                <span className="text-sm text-zinc-800">{name}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type ChangeRequest = {
   id: number;
   issue_id: number;
   requester_user_id: string;
   type: "status_change";
-  payload: { status: "progress" | "resolved"; description: string; after_photo_url?: string | null };
+  payload: {
+    status: "progress" | "resolved";
+    description: string;
+    after_photo_url?: string | null;
+  };
   status: "pending" | "approved" | "rejected";
   created_at?: string;
-  profiles?: { full_name: string | null; avatar_url: string | null; username: string | null } | null;
+  profiles?: {
+    full_name: string | null;
+    avatar_url: string | null;
+    username: string | null;
+  } | null;
 };
 
 type HelpOfferCommentRow = {
@@ -111,8 +209,8 @@ export default function IssueDetail({
   const supabase = useMemo(() => createClient(), []);
 
   function redirectToAuth() {
-    const next = `${location.pathname}${location.search}`;
-    location.href = `/auth/login?next=${encodeURIComponent(next)}`;
+    const next = `${window.location.pathname}${window.location.search}`;
+    window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
   }
 
   const [currentIssue, setCurrentIssue] = useState<Issue>(issue);
@@ -131,8 +229,8 @@ export default function IssueDetail({
   const [loadingComments, setLoadingComments] = useState(true);
   const [savingComment, setSavingComment] = useState(false);
   const [commentsUnavailable, setCommentsUnavailable] = useState(false);
-  const [affectedUsers, setAffectedUsers] = useState<{ user_id: string; profiles?: { full_name: string | null; avatar_url: string | null; username: string | null } | null }[]>([]);
-  const [helperUsers, setHelperUsers] = useState<{ user_id: string; profiles?: { full_name: string | null; avatar_url: string | null; username: string | null } | null }[]>([]);
+  const [affectedUsers, setAffectedUsers] = useState<PeopleUser[]>([]);
+  const [helperUsers, setHelperUsers] = useState<PeopleUser[]>([]);
   const [showAffectedPopup, setShowAffectedPopup] = useState(false);
   const [showHelperPopup, setShowHelperPopup] = useState(false);
   const [helpOffers, setHelpOffers] = useState<HelpOffer[]>([]);
@@ -150,15 +248,24 @@ export default function IssueDetail({
   const [approvingId, setApprovingId] = useState<number | null>(null);
   // proposal modal
   const [showProposeModal, setShowProposeModal] = useState(false);
-  const [proposeStatus, setProposeStatus] = useState<"progress" | "resolved" | null>(null);
+  const [proposeStatus, setProposeStatus] = useState<
+    "progress" | "resolved" | null
+  >(null);
   const [proposeDesc, setProposeDesc] = useState("");
   const [proposeFile, setProposeFile] = useState<File | null>(null);
   const [proposePreview, setProposePreview] = useState<string | null>(null);
   const [proposing, setProposing] = useState(false);
   // direct helper check (for full-page where is_helper may not be pre-loaded)
-  const [isHelperDirect, setIsHelperDirect] = useState(Boolean(currentIssue.is_helper));
+  const [isHelperDirect, setIsHelperDirect] = useState(
+    Boolean(currentIssue.is_helper),
+  );
   // resolver info & upvote state
-  const [resolver, setResolver] = useState<{ id: string; full_name: string | null; username: string | null; avatar_url: string | null } | null>(null);
+  const [resolver, setResolver] = useState<{
+    id: string;
+    full_name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+  } | null>(null);
   const [resolverUpvotes, setResolverUpvotes] = useState<number>(0);
   const [hasUpvotedResolver, setHasUpvotedResolver] = useState(false);
   const [upvotingResolver, setUpvotingResolver] = useState(false);
@@ -167,13 +274,6 @@ export default function IssueDetail({
   const isAdmin = Boolean(authProfile?.is_admin);
   const isOwner = Boolean(userId && currentIssue.reported_by === userId);
   const canModerate = isOwner || isAdmin;
-  const isHelper = Boolean(
-    userId && (
-      isHelperDirect ||
-      currentIssue.is_helper ||
-      helperUsers.some((h) => h.user_id === userId)
-    )
-  );
 
   // Ensure isHelperDirect is set for any authenticated user who has already
   // registered as a helper. Skip if the server-side prefetch (page.tsx) already
@@ -190,22 +290,26 @@ export default function IssueDetail({
       .then(({ data }) => {
         if (data) setIsHelperDirect(true);
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIssue.id, userId]);
 
   useEffect(() => {
-    setCurrentIssue(issue);
-    setEditTitle(issue.title);
-    setEditDescription(issue.description ?? "");
-    setEditStreet(issue.street_name ?? "");
-    setIsEditing(false);
+    // Sync external `issue` prop into local state. Defer to next tick so the
+    // setState calls don't run synchronously during commit.
+    const id = setTimeout(() => {
+      setCurrentIssue(issue);
+      setEditTitle(issue.title);
+      setEditDescription(issue.description ?? "");
+      setEditStreet(issue.street_name ?? "");
+      setIsEditing(false);
+    }, 0);
+    return () => clearTimeout(id);
   }, [issue]);
 
   const shareUrl =
     typeof window !== "undefined"
       ? `${location.origin}${getIssuePath(currentIssue.id, currentIssue.title)}`
       : "";
-  const issuePath = getIssuePath(currentIssue.id, currentIssue.title);
 
   async function loadComments() {
     setLoadingComments(true);
@@ -259,13 +363,24 @@ export default function IssueDetail({
         .select("user_id, profiles:user_id(full_name, avatar_url, username)")
         .eq("issue_id", currentIssue.id),
     ]);
-    setAffectedUsers((affected ?? []).map((r) => ({ ...r, profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles })));
-    setHelperUsers((helpers ?? []).map((r) => ({ ...r, profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles })));
+    setAffectedUsers(
+      (affected ?? []).map((r) => ({
+        ...r,
+        profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles,
+      })),
+    );
+    setHelperUsers(
+      (helpers ?? []).map((r) => ({
+        ...r,
+        profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles,
+      })),
+    );
   }
 
   useEffect(() => {
-    loadPeopleStats();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    const id = setTimeout(() => loadPeopleStats(), 0);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIssue.id]);
 
   async function loadChangeRequests() {
@@ -290,7 +405,8 @@ export default function IssueDetail({
 
   useEffect(() => {
     if (!canModerate) return;
-    loadChangeRequests();
+    const id = setTimeout(() => loadChangeRequests(), 0);
+    return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIssue.id, canModerate]);
 
@@ -313,12 +429,18 @@ export default function IssueDetail({
   }
 
   useEffect(() => {
-    if (currentIssue.status === "resolved") loadResolverInfo();
-    else {
-      setResolver(null);
-      setResolverUpvotes(0);
-      setHasUpvotedResolver(false);
-    }
+    // Defer to next tick so async setState resolves don't fire synchronously
+    // during the render commit phase.
+    const id = setTimeout(() => {
+      if (currentIssue.status === "resolved") {
+        loadResolverInfo();
+      } else {
+        setResolver(null);
+        setResolverUpvotes(0);
+        setHasUpvotedResolver(false);
+      }
+    }, 0);
+    return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIssue.id, currentIssue.status, currentIssue.resolved_by, userId]);
 
@@ -334,7 +456,11 @@ export default function IssueDetail({
       .eq("id", currentIssue.id);
     if (!isAdmin) q = q.eq("reported_by", userId);
     const { error } = await q;
-    if (error) { toast.error(error.message); setSavingResolver(false); return; }
+    if (error) {
+      toast.error(error.message);
+      setSavingResolver(false);
+      return;
+    }
     setCurrentIssue((prev) => ({ ...prev, resolved_by: newResolverId }));
     await loadResolverInfo();
     toast.success("Решавачот е променет");
@@ -342,7 +468,10 @@ export default function IssueDetail({
   }
 
   async function toggleResolverUpvote() {
-    if (!userId) { redirectToAuth(); return; }
+    if (!userId) {
+      redirectToAuth();
+      return;
+    }
     if (!resolver || upvotingResolver) return;
     if (resolver.id === userId) {
       toast.error("Не можеш да гласаш за себе");
@@ -355,14 +484,22 @@ export default function IssueDetail({
         .delete()
         .eq("issue_id", currentIssue.id)
         .eq("user_id", userId);
-      if (error) { toast.error(error.message); setUpvotingResolver(false); return; }
+      if (error) {
+        toast.error(error.message);
+        setUpvotingResolver(false);
+        return;
+      }
       setHasUpvotedResolver(false);
       setResolverUpvotes((c) => Math.max(0, c - 1));
     } else {
       const { error } = await supabase
         .from("issue_resolution_upvotes")
         .insert({ issue_id: currentIssue.id, user_id: userId });
-      if (error) { toast.error(error.message); setUpvotingResolver(false); return; }
+      if (error) {
+        toast.error(error.message);
+        setUpvotingResolver(false);
+        return;
+      }
       setHasUpvotedResolver(true);
       setResolverUpvotes((c) => c + 1);
       toast.success("Благодарност испратена!");
@@ -611,17 +748,39 @@ export default function IssueDetail({
 
   async function uploadAfterPhoto(file: File) {
     if (!canModerate || !userId) return;
-    if (!file.type.startsWith("image/")) { toast.error("Избери слика (jpg/png/webp)"); return; }
-    if (file.size > 8 * 1024 * 1024) { toast.error("Сликата е преголема (макс 8MB)"); return; }
+    if (!file.type.startsWith("image/")) {
+      toast.error("Избери слика (jpg/png/webp)");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Сликата е преголема (макс 8MB)");
+      return;
+    }
     setUploadingAfter(true);
     const ext = file.name.split(".").pop() ?? "jpg";
     const { data, error } = await supabase.storage
       .from("issue-photos")
-      .upload(`${currentIssue.id}/after-${Date.now()}.${ext}`, file, { contentType: file.type, upsert: true });
-    if (error) { toast.error(error.message); setUploadingAfter(false); return; }
-    const { data: { publicUrl } } = supabase.storage.from("issue-photos").getPublicUrl(data.path);
-    const { error: upd } = await supabase.from("issues").update({ after_photo_url: publicUrl }).eq("id", currentIssue.id);
-    if (upd) { toast.error(upd.message); setUploadingAfter(false); return; }
+      .upload(`${currentIssue.id}/after-${Date.now()}.${ext}`, file, {
+        contentType: file.type,
+        upsert: true,
+      });
+    if (error) {
+      toast.error(error.message);
+      setUploadingAfter(false);
+      return;
+    }
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("issue-photos").getPublicUrl(data.path);
+    const { error: upd } = await supabase
+      .from("issues")
+      .update({ after_photo_url: publicUrl })
+      .eq("id", currentIssue.id);
+    if (upd) {
+      toast.error(upd.message);
+      setUploadingAfter(false);
+      return;
+    }
     setCurrentIssue((prev) => ({ ...prev, after_photo_url: publicUrl }));
     toast.success("Фотографијата е прикачена");
     setUploadingAfter(false);
@@ -635,16 +794,34 @@ export default function IssueDetail({
       const ext = proposeFile.name.split(".").pop() ?? "jpg";
       const { data, error } = await supabase.storage
         .from("issue-photos")
-        .upload(`${userId}/proposals/${currentIssue.id}-${Date.now()}.${ext}`, proposeFile, { contentType: proposeFile.type, upsert: true });
-      if (error) { toast.error(error.message); setProposing(false); return; }
-      const { data: { publicUrl } } = supabase.storage.from("issue-photos").getPublicUrl(data.path);
+        .upload(
+          `${userId}/proposals/${currentIssue.id}-${Date.now()}.${ext}`,
+          proposeFile,
+          { contentType: proposeFile.type, upsert: true },
+        );
+      if (error) {
+        toast.error(error.message);
+        setProposing(false);
+        return;
+      }
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("issue-photos").getPublicUrl(data.path);
       afterPhotoUrl = publicUrl;
     }
     const { error } = await supabase.rpc("submit_change_request", {
       p_issue_id: currentIssue.id,
-      p_payload: { status: proposeStatus, description: proposeDesc.trim(), after_photo_url: afterPhotoUrl },
+      p_payload: {
+        status: proposeStatus,
+        description: proposeDesc.trim(),
+        after_photo_url: afterPhotoUrl,
+      },
     });
-    if (error) { toast.error(error.message); setProposing(false); return; }
+    if (error) {
+      toast.error(error.message);
+      setProposing(false);
+      return;
+    }
     toast.success("Барањето е испратено до авторот за одобрување");
     setShowProposeModal(false);
     setProposeStatus(null);
@@ -671,10 +848,7 @@ export default function IssueDetail({
       street_name: editStreet.trim() || null,
     };
 
-    let q = supabase
-      .from("issues")
-      .update(payload)
-      .eq("id", currentIssue.id);
+    let q = supabase.from("issues").update(payload).eq("id", currentIssue.id);
     if (!isAdmin) q = q.eq("reported_by", userId);
     const { data, error } = await q
       .select("*, profiles:reported_by(id, full_name, avatar_url, username)")
@@ -878,7 +1052,14 @@ export default function IssueDetail({
     u,
     accentColor,
   }: {
-    u: { user_id: string; profiles?: { full_name: string | null; avatar_url: string | null; username: string | null } | null };
+    u: {
+      user_id: string;
+      profiles?: {
+        full_name: string | null;
+        avatar_url: string | null;
+        username: string | null;
+      } | null;
+    };
     accentColor: "slate" | "teal";
   }) {
     const name = u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
@@ -900,14 +1081,16 @@ export default function IssueDetail({
           avatarUrl={u.profiles?.avatar_url ?? null}
           size="sm"
         />
-        <span className={`text-xs ${accentColor === "teal" ? "text-teal-700" : "text-zinc-700"}`}>
+        <span
+          className={`text-xs ${accentColor === "teal" ? "text-teal-700" : "text-zinc-700"}`}>
           {name}
         </span>
       </Link>
     );
   }
 
-  const peopleSection = (affectedUsers.length > 0 || helperUsers.length > 0) && (
+  const peopleSection = (affectedUsers.length > 0 ||
+    helperUsers.length > 0) && (
     <div className="rounded-xl border border-zinc-200 bg-white p-3 space-y-3">
       {affectedUsers.length > 0 && (
         <div>
@@ -1093,80 +1276,23 @@ export default function IssueDetail({
     </div>
   );
 
-  // ── people popup ────────────────────────────────────────────────────────────
-  function PeoplePopup({
-    title,
-    icon,
-    users,
-    accentColor,
-    onClose,
-  }: {
-    title: string;
-    icon: React.ReactNode;
-    users: typeof affectedUsers;
-    accentColor: "slate" | "teal";
-    onClose: () => void;
-  }) {
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-        style={{ backgroundColor: "rgba(255,255,255,0.72)", backdropFilter: "blur(4px)" }}
-        onClick={onClose}>
-        <div
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[60vh] flex flex-col overflow-hidden"
-          onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              {icon}
-              {title}
-              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
-                accentColor === "teal" ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-700"
-              }`}>
-                {users.length}
-              </span>
-            </h3>
-            <button
-              onClick={onClose}
-              className="text-zinc-400 hover:text-zinc-700 p-1 rounded-lg hover:bg-zinc-100 transition-colors">
-              <X size={14} />
-            </button>
-          </div>
-          <div className="overflow-y-auto divide-y divide-zinc-50 px-4 py-2">
-            {users.map((u) => {
-              const name = u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
-              const href = u.profiles?.username
-                ? `/u/${u.profiles.username}`
-                : `/u/${u.user_id}`;
-              return (
-                <Link
-                  key={u.user_id}
-                  href={href}
-                  onClick={onClose}
-                  className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-zinc-50 -mx-4 px-4 transition-colors">
-                  <AvatarInitials
-                    name={name}
-                    avatarUrl={u.profiles?.avatar_url ?? null}
-                    size="sm"
-                  />
-                  <span className="text-sm text-zinc-800">{name}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   async function approveRequest(req: ChangeRequest) {
     if (!canModerate || !userId || approvingId) return;
     setApprovingId(req.id);
-    const { error } = await supabase.rpc("approve_change_request", { p_id: req.id });
-    if (error) { toast.error(error.message); setApprovingId(null); return; }
+    const { error } = await supabase.rpc("approve_change_request", {
+      p_id: req.id,
+    });
+    if (error) {
+      toast.error(error.message);
+      setApprovingId(null);
+      return;
+    }
     setCurrentIssue((prev) => ({
       ...prev,
       status: req.payload.status as IssueStatus,
-      ...(req.payload.after_photo_url ? { after_photo_url: req.payload.after_photo_url } : {}),
+      ...(req.payload.after_photo_url
+        ? { after_photo_url: req.payload.after_photo_url }
+        : {}),
     }));
     toast.success("Одобрено — статусот е променет");
     setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
@@ -1176,14 +1302,23 @@ export default function IssueDetail({
   async function rejectRequest(req: ChangeRequest) {
     if (!canModerate || approvingId) return;
     setApprovingId(req.id);
-    const { error } = await supabase.rpc("reject_change_request", { p_id: req.id });
-    if (error) { toast.error(error.message); setApprovingId(null); return; }
+    const { error } = await supabase.rpc("reject_change_request", {
+      p_id: req.id,
+    });
+    if (error) {
+      toast.error(error.message);
+      setApprovingId(null);
+      return;
+    }
     toast.success("Одбиено");
     setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
     setApprovingId(null);
   }
 
-  const STATUS_LABEL: Record<string, string> = { progress: "Во тек", resolved: "Завршено" };
+  const STATUS_LABEL: Record<string, string> = {
+    progress: "Во тек",
+    resolved: "Завршено",
+  };
 
   const pendingRequestsSection = canModerate && pendingRequests.length > 0 && (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
@@ -1191,19 +1326,38 @@ export default function IssueDetail({
         🔔 Барања за одобрување ({pendingRequests.length})
       </p>
       {pendingRequests.map((req) => {
-        const name = req.profiles?.full_name ?? req.profiles?.username ?? "Помошник";
+        const name =
+          req.profiles?.full_name ?? req.profiles?.username ?? "Помошник";
         return (
-          <div key={req.id} className="rounded-lg bg-white border border-amber-100 p-2.5 space-y-2">
+          <div
+            key={req.id}
+            className="rounded-lg bg-white border border-amber-100 p-2.5 space-y-2">
             <div className="flex items-start gap-2">
-              <AvatarInitials name={name} avatarUrl={req.profiles?.avatar_url ?? null} size="sm" />
+              <AvatarInitials
+                name={name}
+                avatarUrl={req.profiles?.avatar_url ?? null}
+                size="sm"
+              />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-zinc-800">{name}</p>
                 <p className="text-xs text-zinc-500">
-                  Предлага статус: <span className="font-semibold text-teal-700">{STATUS_LABEL[req.payload.status] ?? req.payload.status}</span>
+                  Предлага статус:{" "}
+                  <span className="font-semibold text-teal-700">
+                    {STATUS_LABEL[req.payload.status] ?? req.payload.status}
+                  </span>
                 </p>
-                <p className="text-xs text-zinc-600 mt-0.5 leading-relaxed">{req.payload.description}</p>
+                <p className="text-xs text-zinc-600 mt-0.5 leading-relaxed">
+                  {req.payload.description}
+                </p>
                 {req.payload.after_photo_url && (
-                  <img src={cdnUrl(req.payload.after_photo_url)} alt="Потоа" className="mt-1.5 w-full max-h-36 object-cover rounded-lg border border-zinc-200" />
+                  <Image
+                    src={cdnUrl(req.payload.after_photo_url)}
+                    alt="Потоа"
+                    width={640}
+                    height={360}
+                    sizes="(max-width: 640px) 100vw, 360px"
+                    className="mt-1.5 w-full max-h-36 object-cover rounded-lg border border-zinc-200"
+                  />
                 )}
               </div>
             </div>
@@ -1240,8 +1394,15 @@ export default function IssueDetail({
   const proposeModal = showProposeModal && (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(255,255,255,0.72)", backdropFilter: "blur(4px)" }}
-      onClick={() => { if (!proposing) { setShowProposeModal(false); } }}>
+      style={{
+        backgroundColor: "rgba(255,255,255,0.72)",
+        backdropFilter: "blur(4px)",
+      }}
+      onClick={() => {
+        if (!proposing) {
+          setShowProposeModal(false);
+        }
+      }}>
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
         onClick={(e) => e.stopPropagation()}>
@@ -1250,14 +1411,18 @@ export default function IssueDetail({
             <HandHelping size={14} className="text-teal-600" />
             Предложи промена на статус
           </h3>
-          <button onClick={() => setShowProposeModal(false)} className="text-zinc-400 hover:text-zinc-700 p-1 rounded-lg hover:bg-zinc-100">
+          <button
+            onClick={() => setShowProposeModal(false)}
+            className="text-zinc-400 hover:text-zinc-700 p-1 rounded-lg hover:bg-zinc-100">
             <X size={14} />
           </button>
         </div>
         <div className="p-4 space-y-3">
           {/* Status choice */}
           <div>
-            <p className="text-xs font-semibold text-zinc-600 mb-1.5">Нов статус *</p>
+            <p className="text-xs font-semibold text-zinc-600 mb-1.5">
+              Нов статус *
+            </p>
             <div className="flex gap-2">
               {(["progress", "resolved"] as const).map((s) => (
                 <button
@@ -1266,8 +1431,12 @@ export default function IssueDetail({
                   className={cn(
                     "flex-1 rounded-lg border py-2 text-xs font-semibold transition-colors",
                     proposeStatus === s
-                      ? s === "resolved" ? "bg-teal-600 border-teal-600 text-white" : "bg-amber-500 border-amber-500 text-white"
-                      : s === "resolved" ? "border-teal-200 text-teal-700 hover:bg-teal-50" : "border-amber-200 text-amber-700 hover:bg-amber-50",
+                      ? s === "resolved"
+                        ? "bg-teal-600 border-teal-600 text-white"
+                        : "bg-amber-500 border-amber-500 text-white"
+                      : s === "resolved"
+                        ? "border-teal-200 text-teal-700 hover:bg-teal-50"
+                        : "border-amber-200 text-amber-700 hover:bg-amber-50",
                   )}>
                   {STATUS_LABEL[s]}
                 </button>
@@ -1276,7 +1445,9 @@ export default function IssueDetail({
           </div>
           {/* Description */}
           <div>
-            <p className="text-xs font-semibold text-zinc-600 mb-1.5">Опис / Порака *</p>
+            <p className="text-xs font-semibold text-zinc-600 mb-1.5">
+              Опис / Порака *
+            </p>
             <textarea
               value={proposeDesc}
               onChange={(e) => setProposeDesc(e.target.value)}
@@ -1288,12 +1459,23 @@ export default function IssueDetail({
           </div>
           {/* Photo */}
           <div>
-            <p className="text-xs font-semibold text-zinc-600 mb-1.5">Фотографија после (опционално)</p>
+            <p className="text-xs font-semibold text-zinc-600 mb-1.5">
+              Фотографија после (опционално)
+            </p>
             {proposePreview ? (
               <div className="relative">
-                <img src={proposePreview} alt="preview" className="w-full max-h-36 object-cover rounded-lg border border-zinc-200" />
+                {/* Local blob URL from URL.createObjectURL — next/image can't optimize it */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={proposePreview}
+                  alt="preview"
+                  className="w-full max-h-36 object-cover rounded-lg border border-zinc-200"
+                />
                 <button
-                  onClick={() => { setProposeFile(null); setProposePreview(null); }}
+                  onClick={() => {
+                    setProposeFile(null);
+                    setProposePreview(null);
+                  }}
                   className="absolute top-1.5 right-1.5 bg-black/50 text-white rounded-full p-0.5 hover:bg-black/70">
                   <X size={12} />
                 </button>
@@ -1301,10 +1483,18 @@ export default function IssueDetail({
             ) : (
               <label className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-zinc-300 px-3 py-2.5 text-xs font-semibold text-zinc-500 hover:border-teal-400 hover:text-teal-600 transition-colors">
                 + Додади слика
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) { setProposeFile(f); setProposePreview(URL.createObjectURL(f)); }
-                }} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setProposeFile(f);
+                      setProposePreview(URL.createObjectURL(f));
+                    }
+                  }}
+                />
               </label>
             )}
           </div>
@@ -1319,16 +1509,34 @@ export default function IssueDetail({
     </div>
   );
 
-  const statusOptions: { value: "open" | "progress" | "resolved"; label: string; classes: string }[] = [
-    { value: "open",     label: "Отворено", classes: "border-zinc-200 text-zinc-600 hover:border-zinc-400" },
-    { value: "progress", label: "Во тек",   classes: "border-amber-200 text-amber-700 hover:border-amber-400" },
-    { value: "resolved", label: "Завршено", classes: "border-teal-200 text-teal-700 hover:border-teal-400" },
+  const statusOptions: {
+    value: "open" | "progress" | "resolved";
+    label: string;
+    classes: string;
+  }[] = [
+    {
+      value: "open",
+      label: "Отворено",
+      classes: "border-zinc-200 text-zinc-600 hover:border-zinc-400",
+    },
+    {
+      value: "progress",
+      label: "Во тек",
+      classes: "border-amber-200 text-amber-700 hover:border-amber-400",
+    },
+    {
+      value: "resolved",
+      label: "Завршено",
+      classes: "border-teal-200 text-teal-700 hover:border-teal-400",
+    },
   ];
 
   const statusSelector = (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide mr-0.5">Статус:</span>
+        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide mr-0.5">
+          Статус:
+        </span>
         {statusOptions.map((opt) => (
           <button
             key={opt.value}
@@ -1347,7 +1555,9 @@ export default function IssueDetail({
       {/* Resolver picker — only when status is resolved */}
       {currentIssue.status === "resolved" && (
         <div className="flex items-start gap-2 flex-wrap">
-          <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide pt-1.5">Решено од:</span>
+          <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide pt-1.5">
+            Решено од:
+          </span>
           <select
             value={currentIssue.resolved_by ?? ""}
             disabled={savingResolver}
@@ -1356,7 +1566,10 @@ export default function IssueDetail({
             <option value="">— Никој / Непознато —</option>
             {currentIssue.reported_by && (
               <option value={currentIssue.reported_by}>
-                {currentIssue.profiles?.full_name ?? currentIssue.profiles?.username ?? "Авторот"} (автор)
+                {currentIssue.profiles?.full_name ??
+                  currentIssue.profiles?.username ??
+                  "Авторот"}{" "}
+                (автор)
               </option>
             )}
             {helperUsers
@@ -1369,7 +1582,9 @@ export default function IssueDetail({
             {/* If current resolved_by isn't in the list, keep it visible */}
             {currentIssue.resolved_by &&
               currentIssue.resolved_by !== currentIssue.reported_by &&
-              !helperUsers.some((h) => h.user_id === currentIssue.resolved_by) &&
+              !helperUsers.some(
+                (h) => h.user_id === currentIssue.resolved_by,
+              ) &&
               resolver && (
                 <option value={currentIssue.resolved_by}>
                   {resolver.full_name ?? resolver.username ?? "Решавач"}
@@ -1380,18 +1595,29 @@ export default function IssueDetail({
       )}
       {/* After photo upload */}
       <div className="flex items-center gap-2">
-        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Фото Потоа:</span>
+        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">
+          Фото Потоа:
+        </span>
         {currentIssue.after_photo_url ? (
-          <span className="text-[11px] text-teal-600 font-medium">✓ Прикачено</span>
+          <span className="text-[11px] text-teal-600 font-medium">
+            ✓ Прикачено
+          </span>
         ) : null}
         <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-zinc-300 px-2.5 py-1 text-xs font-semibold text-zinc-600 hover:border-teal-400 hover:text-teal-700 transition-colors">
-          {uploadingAfter ? "Се прикачува..." : currentIssue.after_photo_url ? "Замени" : "+ Додади слика"}
+          {uploadingAfter
+            ? "Се прикачува..."
+            : currentIssue.after_photo_url
+              ? "Замени"
+              : "+ Додади слика"}
           <input
             type="file"
             accept="image/*"
             className="hidden"
             disabled={uploadingAfter}
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAfterPhoto(f); }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadAfterPhoto(f);
+            }}
           />
         </label>
       </div>
@@ -1404,7 +1630,9 @@ export default function IssueDetail({
         {canModerate && (
           <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3">
             {isAdmin && !isOwner && (
-              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">⚠ Модератор</p>
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">
+                ⚠ Модератор
+              </p>
             )}
             <div className="flex items-center gap-2">
               <button
@@ -1460,12 +1688,16 @@ export default function IssueDetail({
         )}
 
         {currentIssue.status === "resolved" && resolver && (
-          <div className="rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50 to-emerald-50 p-3">
+          <div className="rounded-xl border border-teal-200 bg-linear-to-br from-teal-50 to-emerald-50 p-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-lg">🏆</span>
                 <Link
-                  href={resolver.username ? `/u/${resolver.username}` : `/u/${resolver.id}`}
+                  href={
+                    resolver.username
+                      ? `/u/${resolver.username}`
+                      : `/u/${resolver.id}`
+                  }
                   className="flex items-center gap-2 min-w-0 group">
                   <AvatarInitials
                     name={resolver.full_name ?? resolver.username ?? "Херој"}
@@ -1492,79 +1724,15 @@ export default function IssueDetail({
                     : "bg-white border border-teal-300 text-teal-700 hover:bg-teal-50",
                   resolver.id === userId && "opacity-50 cursor-not-allowed",
                 )}
-                title={resolver.id === userId ? "Не можеш да гласаш за себе" : "Дај поени на херојот"}>
+                title={
+                  resolver.id === userId
+                    ? "Не можеш да гласаш за себе"
+                    : "Дај поени на херојот"
+                }>
                 <span className="text-sm">👏</span>
                 <span>{resolverUpvotes}</span>
               </button>
             </div>
-          </div>
-        )}
-
-        {currentIssue.after_photo_url && (
-          <div className="rounded-xl border border-zinc-200 bg-white p-3">
-            <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide mb-2">
-              Споредба
-            </p>
-            {currentIssue.photo_url ? (
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1">
-                    Пред
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setLightboxSrc(currentIssue.photo_url!)}
-                    className="block w-full cursor-zoom-in p-0">
-                    <BlurImage
-                      src={currentIssue.photo_url}
-                      alt="Пред"
-                      width={1200}
-                      height={900}
-                      sizes="(max-width: 640px) 50vw, 360px"
-                      rounded="rounded-lg"
-                      wrapperClassName="border border-zinc-200"
-                      className="w-full object-cover h-72"
-                    />
-                  </button>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide mb-1">
-                    Потоа
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setLightboxSrc(currentIssue.after_photo_url!)}
-                    className="block w-full cursor-zoom-in p-0">
-                    <BlurImage
-                      src={currentIssue.after_photo_url}
-                      alt="Потоа"
-                      width={1200}
-                      height={900}
-                      sizes="(max-width: 640px) 50vw, 360px"
-                      rounded="rounded-lg"
-                      wrapperClassName="border border-teal-200"
-                      className="w-full object-cover h-72"
-                    />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setLightboxSrc(currentIssue.after_photo_url!)}
-                className="block w-full cursor-zoom-in p-0">
-                <BlurImage
-                  src={currentIssue.after_photo_url}
-                  alt="Потоа"
-                  width={1600}
-                  height={1200}
-                  sizes="(max-width: 640px) 100vw, 800px"
-                  rounded="rounded-lg"
-                  wrapperClassName="border border-teal-200"
-                  className="w-full object-cover h-96"
-                />
-              </button>
-            )}
           </div>
         )}
 
@@ -1637,7 +1805,9 @@ export default function IssueDetail({
           {canModerate && (
             <>
               {isAdmin && !isOwner && (
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">⚠ Модератор</p>
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">
+                  ⚠ Модератор
+                </p>
               )}
               <div className="flex items-center gap-2">
                 <button
@@ -1654,7 +1824,8 @@ export default function IssueDetail({
                   onClick={deleteIssue}
                   disabled={deletingIssue}
                   className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
-                  <Trash2 size={12} /> {deletingIssue ? "Се брише..." : "Избриши"}
+                  <Trash2 size={12} />{" "}
+                  {deletingIssue ? "Се брише..." : "Избриши"}
                 </button>
               </div>
               {statusSelector}
@@ -1710,11 +1881,13 @@ export default function IssueDetail({
         </div>
 
         {/* Before / after photos */}
-        {(currentIssue.photo_url || currentIssue.after_photo_url) && (
-          currentIssue.photo_url && currentIssue.after_photo_url ? (
+        {(currentIssue.photo_url || currentIssue.after_photo_url) &&
+          (currentIssue.photo_url && currentIssue.after_photo_url ? (
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1">Пред</p>
+                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1">
+                  Пред
+                </p>
                 <button
                   type="button"
                   onClick={() => setLightboxSrc(currentIssue.photo_url!)}
@@ -1722,7 +1895,8 @@ export default function IssueDetail({
                   <BlurImage
                     src={currentIssue.photo_url}
                     alt="Пред"
-                    width={1200} height={900}
+                    width={1200}
+                    height={900}
                     sizes="(max-width: 1024px) 50vw, 360px"
                     rounded="rounded-lg"
                     wrapperClassName="border border-zinc-200"
@@ -1731,7 +1905,9 @@ export default function IssueDetail({
                 </button>
               </div>
               <div>
-                <p className="text-[10px] font-semibold text-teal-500 uppercase tracking-wide mb-1">Потоа</p>
+                <p className="text-[10px] font-semibold text-teal-500 uppercase tracking-wide mb-1">
+                  Потоа
+                </p>
                 <button
                   type="button"
                   onClick={() => setLightboxSrc(currentIssue.after_photo_url!)}
@@ -1739,7 +1915,8 @@ export default function IssueDetail({
                   <BlurImage
                     src={currentIssue.after_photo_url}
                     alt="Потоа"
-                    width={1200} height={900}
+                    width={1200}
+                    height={900}
                     sizes="(max-width: 1024px) 50vw, 360px"
                     rounded="rounded-lg"
                     wrapperClassName="border border-teal-200"
@@ -1751,22 +1928,26 @@ export default function IssueDetail({
           ) : (
             <button
               type="button"
-              onClick={() => setLightboxSrc((currentIssue.photo_url ?? currentIssue.after_photo_url)!)}
+              onClick={() =>
+                setLightboxSrc(
+                  (currentIssue.photo_url ?? currentIssue.after_photo_url)!,
+                )
+              }
               className="block w-full cursor-zoom-in p-0">
               <BlurImage
                 src={(currentIssue.photo_url ?? currentIssue.after_photo_url)!}
                 alt="Фотографија"
-                width={1600} height={1200}
+                width={1600}
+                height={1200}
                 loading={variant === "full" ? "eager" : "lazy"}
                 priority={variant === "full"}
                 sizes="(max-width: 1024px) 100vw, 800px"
                 rounded="rounded-lg"
                 wrapperClassName="border border-zinc-200"
-                className="w-full object-cover h-96 md:h-[28rem]"
+                className="w-full object-cover h-96 md:h-112"
               />
             </button>
-          )
-        )}
+          ))}
 
         <div className="flex items-center gap-2">
           {currentIssue.profiles && (

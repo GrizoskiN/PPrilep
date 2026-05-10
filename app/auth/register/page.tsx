@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { createClient } from '../../../lib/supabase/client'
 import Button from '../../../components/ui/Button'
 import { toast } from 'sonner'
-import { useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 const schema = z.object({
   full_name: z.string().min(2, 'Внесете го вашето целосно име'),
@@ -17,7 +17,7 @@ const schema = z.object({
 type Fields = z.infer<typeof schema>
 
 export default function RegisterPage() {
-  const supabase = useRef(createClient()).current
+  const supabase = useMemo(() => createClient(), [])
   const [done, setDone] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Shell from '../../components/layout/Shell'
 import IdeaCard from '../../components/ideas/IdeaCard'
 import NewIdeaModal from '../../components/ideas/NewIdeaModal'
@@ -11,7 +11,7 @@ import { Plus } from 'lucide-react'
 import type { Idea } from '../../lib/types/database'
 
 export default function IdeasPage() {
-  const supabase = useRef(createClient()).current
+  const supabase = useMemo(() => createClient(), [])
   const { user } = useAuth()
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,7 +26,11 @@ export default function IdeasPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    const id = setTimeout(() => load(), 0)
+    return () => clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <Shell>

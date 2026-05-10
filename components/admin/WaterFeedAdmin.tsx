@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 import { formatDays } from "../../lib/utils";
 import { Trash2, Plus, Loader2 } from "lucide-react";
@@ -22,7 +22,7 @@ const STATUS_OPTIONS: { value: IssueStatus | ""; label: string }[] = [
 ];
 
 export default function WaterFeedAdmin({ initial }: { initial: Post[] }) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [posts, setPosts] = useState<Post[]>(initial);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");

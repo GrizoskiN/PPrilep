@@ -20,7 +20,7 @@ import {
   DISTRICT_LABELS,
   CATEGORY_LABELS,
   getIssuePath,
-  cdnUrl,
+  
 } from "../../lib/utils";
 import type { Issue } from "../../lib/types/database";
 import { toast } from "sonner";
@@ -125,10 +125,10 @@ export default function IssueCard({
       <article
         onClick={onClick}
         className={cn(
-          "cursor-pointer p-4 transition-all",
+          "cursor-pointer p-4 transition-all rounded-none xl:rounded-xl",
           embeddedMobile
             ? "rounded-none border-0 bg-transparent hover:border-transparent hover:shadow-none"
-            : "overflow-hidden rounded-xl border border-zinc-200 bg-white hover:border-zinc-300",
+            : "overflow-hidden  border border-zinc-200 bg-white hover:border-zinc-300",
           selected && "border-teal-500 ring-1 ring-teal-500",
         )}>
         <div className="flex items-start justify-between gap-2 mb-2">

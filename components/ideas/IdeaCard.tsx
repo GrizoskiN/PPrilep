@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { ThumbsUp } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "../../lib/supabase/client";
@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function IdeaCard({ idea, userId }: Props) {
-  const supabase = useRef(createClient()).current;
+  const supabase = useMemo(() => createClient(), []);
   const [upvotes, setUpvotes] = useState(idea.upvotes);
   const [voted, setVoted] = useState(false);
 

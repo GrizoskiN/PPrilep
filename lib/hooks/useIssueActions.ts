@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { createClient } from "../supabase/client";
 import { toast } from "sonner";
 
 export function useIssueActions(issueId: number, userId: string | undefined) {
-  const supabase = useRef(createClient()).current;
+  const supabase = useMemo(() => createClient(), []);
   const [loadingAffected, setLoadingAffected] = useState(false);
   const [loadingHelper, setLoadingHelper] = useState(false);
 

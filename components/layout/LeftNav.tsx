@@ -13,6 +13,11 @@ import {
   faDroplet,
   faTrashCan,
   faPlug,
+  faSun,
+  faAddressCard,
+  faHandshake,
+  faDiagramProject,
+  faBullhorn,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import NavItem from "../ui/NavItem";
@@ -26,7 +31,8 @@ const districts = [
   { value: "Trizla", label: "Тризла" },
   { value: "Točila", label: "Точила" },
   { value: "Rid", label: "Рид" },
-  { value: "Tri Bari", label: "Типски" },
+  { value: "Tipski", label: "Типски" },
+  { value: "Boncejca", label: "Бончејца" },
 ] as const;
 
 export default function LeftNav() {
@@ -107,7 +113,65 @@ export default function LeftNav() {
 
       <section>
         <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-          Комунални
+          Информации
+        </p>
+        <div className="flex flex-col gap-1">
+          <NavItem
+            href="/positive"
+            label="Позитива"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faSun}
+                className="h-4 w-4 text-amber-500"
+              />
+            }
+          />
+          <NavItem
+            href="/about"
+            label="Мој Прилеп"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faAddressCard}
+                className="h-4 w-4 text-primary"
+              />
+            }
+          />
+          <NavItem
+            href="/sponsors"
+            label="Спонзори"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faHandshake}
+                className="h-4 w-4 text-emerald-600"
+              />
+            }
+          />
+          <NavItem
+            href="/projects"
+            label="Наши Проекти"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faDiagramProject}
+                className="h-4 w-4 text-indigo-500"
+              />
+            }
+          />
+          <NavItem
+            href="/info"
+            label="Информатор"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faBullhorn}
+                className="h-4 w-4 text-rose-500"
+              />
+            }
+          />
+        </div>
+      </section>
+
+      <section>
+        <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          Претпријатие
         </p>
         <div className="flex flex-col gap-1">
           <NavItem
@@ -122,7 +186,7 @@ export default function LeftNav() {
           />
           <NavItem
             href="/utility/garbage"
-            label="Комунален"
+            label="Комуналец"
             iconNode={
               <FontAwesomeIcon
                 icon={faTrashCan}
@@ -132,7 +196,7 @@ export default function LeftNav() {
           />
           <NavItem
             href="/utility/power"
-            label="Електрична"
+            label="Осветлување"
             iconNode={
               <FontAwesomeIcon
                 icon={faPlug}

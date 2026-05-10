@@ -9,8 +9,8 @@ import { notFound } from "next/navigation";
 const PROVIDERS: Provider[] = ["water", "garbage", "power"];
 const PROVIDER_LABELS: Record<Provider, string> = {
   water: "Водовод",
-  garbage: "Комунален отпад",
-  power: "Електрична енергија",
+  garbage: "Комуналец",
+  power: "Осветлување",
 };
 const PROVIDER_ICONS: Record<Provider, string> = {
   water: "💧",

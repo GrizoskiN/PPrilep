@@ -111,7 +111,7 @@ export default function BottomNav() {
 
   useEffect(() => {
     if (!user) return;
-    loadUnreadCount();
+    const initialId = setTimeout(() => loadUnreadCount(), 0);
 
     const channel = supabase
       .channel(`bottom-nav-notif-${user.id}`)
@@ -131,6 +131,7 @@ export default function BottomNav() {
       .subscribe();
 
     return () => {
+      clearTimeout(initialId);
       supabase.removeChannel(channel);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps

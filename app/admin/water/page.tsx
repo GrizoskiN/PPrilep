@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "../../../lib/supabase/server";
 import { redirect } from "next/navigation";
 import Shell from "../../../components/layout/Shell";
@@ -26,9 +27,9 @@ export default async function WaterAdminPage() {
           <h1 className="text-base font-semibold">💧 Водовод — Администрација</h1>
           <p className="text-xs text-zinc-500">
             Објавите се прикажуваат веднаш на{" "}
-            <a href="/utility/water" className="text-primary hover:underline">
+            <Link href="/utility/water" className="text-primary hover:underline">
               страницата на Водовод
-            </a>
+            </Link>
           </p>
         </div>
         <WaterFeedAdmin initial={(posts ?? []) as Parameters<typeof WaterFeedAdmin>[0]["initial"]} />

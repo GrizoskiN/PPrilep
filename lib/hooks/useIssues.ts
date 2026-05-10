@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { createClient } from "../supabase/client";
 import type { Issue, District, Category, IssueStatus } from "../types/database";
 
@@ -14,7 +14,7 @@ interface UseIssuesOptions {
 }
 
 export function useIssues(opts: UseIssuesOptions = {}) {
-  const supabase = useRef(createClient()).current;
+  const supabase = useMemo(() => createClient(), []);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -125,7 +125,7 @@ export function useIssues(opts: UseIssuesOptions = {}) {
   }, [loadingMore, hasMore, opts.district, opts.category, opts.status]);
 
   useEffect(() => {
-    fetchInitial();
+    const initialId = setTimeout(() => fetchInitial(), 0);
 
     const channel = supabase
       .channel(`issues-realtime-${Date.now()}`)
@@ -163,9 +163,13 @@ export function useIssues(opts: UseIssuesOptions = {}) {
       .subscribe();
 
     return () => {
+      clearTimeout(initialId);
       supabase.removeChannel(channel);
     };
-  }, [fetchInitial]);
+    // enrichBatch is stable inside this scope; including it would cause
+    // re-subscriptions on every render of the hook's consumer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchInitial, supabase]);
 
   return {
     issues,

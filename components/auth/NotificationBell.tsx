@@ -5,11 +5,17 @@ import Link from "next/link";
 import { Bell } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
 import { isMissingNotificationsTableError } from "../../lib/notifications";
-import { formatDays, getIssuePath, parseIssueIdFromSegment } from "../../lib/utils";
+import {
+  formatDays,
+  getIssuePath,
+  parseIssueIdFromSegment,
+} from "../../lib/utils";
 import type { AppNotification, Profile } from "../../lib/types/database";
 
 function resolveNotifLink(link: string, title: string): string {
-  const segment = link.startsWith("/issues/") ? link.slice("/issues/".length) : null;
+  const segment = link.startsWith("/issues/")
+    ? link.slice("/issues/".length)
+    : null;
   if (!segment) return link;
   const id = parseIssueIdFromSegment(segment);
   if (!id) return link;
@@ -26,7 +32,12 @@ export default function NotificationBell({ userId }: Props) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const openRef = useRef(open);
   const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
 
   async function loadUnreadCount() {
     const { count, error } = await supabase
@@ -96,7 +107,10 @@ export default function NotificationBell({ userId }: Props) {
   }, []);
 
   useEffect(() => {
-    loadUnreadCount();
+    const initialId = setTimeout(() => {
+      void loadUnreadCount();
+    }, 0);
+
     const channel = supabase
       .channel(`notif-bell-${userId}`)
       .on(
@@ -108,20 +122,25 @@ export default function NotificationBell({ userId }: Props) {
           filter: `recipient_user_id=eq.${userId}`,
         },
         () => {
-          loadUnreadCount();
-          if (open) loadNotifications();
+          void loadUnreadCount();
+          if (openRef.current) void loadNotifications();
         },
       )
       .subscribe();
     return () => {
+      clearTimeout(initialId);
       supabase.removeChannel(channel);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   useEffect(() => {
-    if (open) loadNotifications();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!open) return;
+    const id = setTimeout(() => {
+      void loadNotifications();
+    }, 0);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return (
@@ -143,7 +162,7 @@ export default function NotificationBell({ userId }: Props) {
             <Bell size={13} className="text-zinc-400" />
             <p className="text-xs font-semibold text-zinc-700">Известувања</p>
           </div>
-          <div className="max-h-[340px] overflow-y-auto">
+          <div className="max-h-85 overflow-y-auto">
             <div className="p-2 space-y-1">
               {loading && (
                 <p className="py-5 text-center text-xs text-zinc-400">

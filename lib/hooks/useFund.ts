@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '../supabase/client'
 import type { FundCampaign } from '../types/database'
 
 export function useFund() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [campaigns, setCampaigns] = useState<FundCampaign[]>([])
   const [loading, setLoading] = useState(true)
 

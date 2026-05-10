@@ -61,9 +61,12 @@ export default function AccountPage() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    setFullName(profile?.full_name ?? "");
-    setUsername(profile?.username ?? "");
-    setAvatarUrl(profile?.avatar_url ?? null);
+    const id = setTimeout(() => {
+      setFullName(profile?.full_name ?? "");
+      setUsername(profile?.username ?? "");
+      setAvatarUrl(profile?.avatar_url ?? null);
+    }, 0);
+    return () => clearTimeout(id);
   }, [profile]);
 
   useEffect(() => {

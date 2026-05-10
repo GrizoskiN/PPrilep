@@ -12,7 +12,8 @@ const DISTRICTS: District[] = [
   "Trizla",
   "Točila",
   "Rid",
-  "Tri Bari",
+  "Tipski",
+  "Boncejca",
 ];
 
 export default async function IssuesPage({ searchParams }: Props) {

@@ -16,7 +16,8 @@ const DISTRICTS = [
   "Trizla",
   "Točila",
   "Rid",
-  "Tri Bari",
+  "Tipski",
+  "Boncejca",
 ] as const;
 const CATEGORIES = [
   "road",
@@ -34,7 +35,8 @@ const DISTRICT_MK: Record<string, string> = {
   Trizla: "Тризла",
   Točila: "Точила",
   Rid: "Рид",
-  "Tri Bari": "Три Бари",
+  Tipski: "Типски",
+  Boncejca: "Бончејца",
 };
 const CATEGORY_MK: Record<string, string> = {
   road: "Патишта",
