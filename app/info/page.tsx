@@ -29,7 +29,7 @@ export default function InfoPage() {
             Како да пријавиш проблем
           </h2>
           <ol className="text-sm text-slate-700 space-y-1.5 list-decimal pl-5 leading-relaxed">
-            <li>Кликнете „<span className="font-medium">Пријави проблем</span>" во горниот дел.</li>
+            <li>Кликнете „<span className="font-medium">Пријави проблем</span>“ во горниот дел.</li>
             <li>Опишете го проблемот, изберете населба и категорија.</li>
             <li>Прикачете фотографија (опционално, но многу помага).</li>
             <li>Следете го статусот и поканете соседи да го поддржат.</li>

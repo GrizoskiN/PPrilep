@@ -17,7 +17,9 @@ import {
   faAddressCard,
   faHandshake,
   faDiagramProject,
-  faBullhorn,
+  faBus,
+  faSquareParking,
+  faCalendarDays,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import NavItem from "../ui/NavItem";
@@ -108,6 +110,36 @@ export default function LeftNav() {
             label="Населби"
             iconNode={<FontAwesomeIcon icon={faUsers} className="h-4 w-4" />}
           />
+          <NavItem
+            href="/about"
+            label="Мој Прилеп"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faAddressCard}
+                className="h-4 w-4 text-primary"
+              />
+            }
+          />
+          <NavItem
+            href="/projects"
+            label="Наши Проекти"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faDiagramProject}
+                className="h-4 w-4 text-indigo-500"
+              />
+            }
+          />
+          <NavItem
+            href="/sponsors"
+            label="Партнери"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faHandshake}
+                className="h-4 w-4 text-emerald-600"
+              />
+            }
+          />
         </div>
       </section>
 
@@ -127,41 +159,11 @@ export default function LeftNav() {
             }
           />
           <NavItem
-            href="/about"
-            label="Мој Прилеп"
+            href="/events"
+            label="Случувања"
             iconNode={
               <FontAwesomeIcon
-                icon={faAddressCard}
-                className="h-4 w-4 text-primary"
-              />
-            }
-          />
-          <NavItem
-            href="/sponsors"
-            label="Спонзори"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faHandshake}
-                className="h-4 w-4 text-emerald-600"
-              />
-            }
-          />
-          <NavItem
-            href="/projects"
-            label="Наши Проекти"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faDiagramProject}
-                className="h-4 w-4 text-indigo-500"
-              />
-            }
-          />
-          <NavItem
-            href="/info"
-            label="Информатор"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faBullhorn}
+                icon={faCalendarDays}
                 className="h-4 w-4 text-rose-500"
               />
             }
@@ -201,6 +203,26 @@ export default function LeftNav() {
               <FontAwesomeIcon
                 icon={faPlug}
                 className="h-4 w-4 text-amber-500"
+              />
+            }
+          />
+          <NavItem
+            href="/utility/transport"
+            label="Градски превоз"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faBus}
+                className="h-4 w-4 text-orange-500"
+              />
+            }
+          />
+          <NavItem
+            href="/utility/parking"
+            label="Паркинзи"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faSquareParking}
+                className="h-4 w-4 text-blue-700"
               />
             }
           />

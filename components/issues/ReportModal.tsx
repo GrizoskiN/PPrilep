@@ -1,14 +1,21 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X, ImagePlus } from "lucide-react";
+import { X, ImagePlus, MapPin, Check } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
 import Button from "../ui/Button";
 import StreetAutocomplete from "./StreetAutocomplete";
+import DuplicateAlert, { type SimilarIssue } from "./DuplicateAlert";
 import { toast } from "sonner";
+
+// Lazy-load the map modal (~150KB of MapLibre) only when user opens it
+const LocationPickerModal = dynamic(() => import("./LocationPickerModal"), {
+  ssr: false,
+});
 
 const DISTRICTS = [
   "Center",
@@ -25,7 +32,9 @@ const CATEGORIES = [
   "power",
   "garbage",
   "park",
-  "violation",
+  "negligent",
+  "transport",
+  "parking",
   "other",
 ] as const;
 
@@ -41,10 +50,12 @@ const DISTRICT_MK: Record<string, string> = {
 const CATEGORY_MK: Record<string, string> = {
   road: "Патишта",
   water: "Вода",
-  power: "Струја",
+  power: "Осветлување",
   garbage: "Ѓубре",
   park: "Парк",
-  violation: "Срамна листа",
+  negligent: "Несовесни граѓани",
+  transport: "Градски превоз",
+  parking: "Паркинзи",
   other: "Друго",
 };
 
@@ -68,16 +79,54 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [pinLat, setPinLat] = useState<number | null>(null);
+  const [pinLng, setPinLng] = useState<number | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [similar, setSimilar] = useState<SimilarIssue[]>([]);
+  const [duplicateDismissed, setDuplicateDismissed] = useState(false);
 
   const {
     register,
     handleSubmit,
     control,
+    setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<Fields>({
     resolver: zodResolver(schema),
     defaultValues: { district: "Center", category: "road" },
   });
+
+  const watchedCategory = useWatch({ control, name: "category" });
+  const watchedStreet = useWatch({ control, name: "street_name" });
+
+  // Debounced duplicate-detection lookup whenever category, street, or pin changes
+  useEffect(() => {
+    const street = (watchedStreet ?? "").trim();
+    const hasPin = pinLat !== null && pinLng !== null;
+    // Need either a meaningful street or a pin to make the lookup useful
+    if (!watchedCategory || (street.length < 3 && !hasPin)) {
+      const clearId = setTimeout(() => setSimilar([]), 0);
+      return () => clearTimeout(clearId);
+    }
+    const id = setTimeout(async () => {
+      const { data, error } = await supabase.rpc("find_similar_issues", {
+        p_category: watchedCategory,
+        p_street: street.length >= 3 ? street : null,
+        p_lat: pinLat,
+        p_lng: pinLng,
+        p_radius_m: 200,
+        p_limit: 5,
+      });
+      if (error) {
+        console.error("find_similar_issues error:", error);
+        return;
+      }
+      setSimilar((data ?? []) as SimilarIssue[]);
+      setDuplicateDismissed(false);
+    }, 400);
+    return () => clearTimeout(id);
+  }, [watchedCategory, watchedStreet, pinLat, pinLng, supabase]);
 
   function redirectToAuth() {
     const next = `${location.pathname}${location.search}`;
@@ -119,6 +168,8 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
       street_name: values.street_name?.trim() || null,
       reported_by: userId,
       photo_url: photoUrl,
+      lat: pinLat,
+      lng: pinLng,
     });
 
     if (error) {
@@ -168,14 +219,11 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
             />
           </div>
 
-          {/* Street name with Nominatim geocoding */}
+          {/* Street name — local Prilep street DB with Cyrillic+Latin search */}
           <div>
             <label className="text-xs font-medium text-zinc-700">
               Улица / локација
             </label>
-            <p className="text-[10px] text-zinc-400 mb-1">
-              Напишете за автоматско пребарување на OpenStreetMap
-            </p>
             <Controller
               name="street_name"
               control={control}
@@ -183,10 +231,38 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
                 <StreetAutocomplete
                   value={field.value ?? ""}
                   onChange={field.onChange}
-                  placeholder="пр. ул. Партизанска"
+                  placeholder="пр. Партизанска"
+                  onSelect={(s) => {
+                    if (s.district) {
+                      setValue("district", s.district, { shouldDirty: true });
+                    }
+                  }}
                 />
               )}
             />
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+              <p className="text-[10px] text-zinc-400 leading-snug">
+                Не ја знаете точната адреса?
+              </p>
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors ${
+                  pinLat !== null && pinLng !== null
+                    ? "border-teal-300 bg-teal-50 text-teal-700 hover:bg-teal-100"
+                    : "border-zinc-200 bg-white text-slate-600 hover:border-teal-300 hover:text-teal-700"
+                }`}>
+                {pinLat !== null && pinLng !== null ? (
+                  <>
+                    <Check size={11} /> Локацијата е поставена
+                  </>
+                ) : (
+                  <>
+                    <MapPin size={11} /> Обележи на мапа
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -249,6 +325,13 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
             )}
           </div>
 
+          {!duplicateDismissed && similar.length > 0 && (
+            <DuplicateAlert
+              similar={similar}
+              onDismiss={() => setDuplicateDismissed(true)}
+            />
+          )}
+
           <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
             <Button type="button" variant="ghost" onClick={onClose}>
               Откажи
@@ -259,6 +342,36 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
           </div>
         </form>
       </div>
+
+      {pickerOpen && (
+        <LocationPickerModal
+          initialLat={pinLat}
+          initialLng={pinLng}
+          onClose={() => setPickerOpen(false)}
+          onConfirm={(lat, lng, street, matched) => {
+            setPinLat(lat);
+            setPinLng(lng);
+            // Auto-fill the street field if it's empty — but never silently
+            // overwrite what the user has typed.
+            if (street) {
+              const current = (getValues("street_name") ?? "").trim();
+              if (!current) {
+                setValue("street_name", street, { shouldDirty: true });
+              }
+            }
+            // Auto-fill district from the canonical match when known.
+            if (matched?.district) {
+              setValue("district", matched.district, { shouldDirty: true });
+            }
+            setPickerOpen(false);
+            toast.success(
+              street
+                ? `Локацијата е зачувана: ${street}`
+                : "Локацијата е зачувана",
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

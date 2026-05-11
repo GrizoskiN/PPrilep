@@ -6,7 +6,7 @@ export default function SponsorsPage() {
       <div className="mx-auto max-w-156 py-4 lg:py-6 px-3 lg:px-3 space-y-4">
         <header className="space-y-1">
           <h1 className="text-xl font-semibold text-slate-900">
-            🤝 Спонзори
+            🤝 Партнери
           </h1>
           <p className="text-sm text-slate-500">
             Локални компании и поединци кои ја поддржуваат нашата заедница.
@@ -15,14 +15,14 @@ export default function SponsorsPage() {
 
         <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5">
           <h2 className="text-base font-semibold text-emerald-900">
-            Станете спонзор
+            Станете партнер
           </h2>
           <p className="mt-1 text-sm text-emerald-800/80 leading-relaxed">
             Поддржете локални акции, добијте видливост во рамките на нашата
             заедница и бидете дел од подобрувањето на Прилеп.
           </p>
           <a
-            href="mailto:ngrizo@gmail.com?subject=Спонзорство%20-%20Мој%20Прилеп"
+            href="mailto:mojpprilep@gmail.com?subject=Партнерство%20-%20Мој%20Прилеп"
             className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors">
             Контактирајте нè →
           </a>
@@ -30,7 +30,7 @@ export default function SponsorsPage() {
 
         <section>
           <h2 className="mb-3 text-sm font-semibold text-slate-700 uppercase tracking-wide">
-            Тековни спонзори
+            Тековни партнери
           </h2>
           <div className="grid grid-cols-2 gap-3">
             {/* Placeholder cards — replace with real sponsor data */}
@@ -52,7 +52,7 @@ export default function SponsorsPage() {
               <p className="text-xs text-slate-400 text-center">
                 + Слободно место
                 <br />
-                за нов спонзор
+                за нов партнер
               </p>
             </div>
           </div>

@@ -6,16 +6,26 @@ import { formatDays } from "../../../lib/utils";
 import type { Provider, IssueStatus } from "../../../lib/types/database";
 import { notFound } from "next/navigation";
 
-const PROVIDERS: Provider[] = ["water", "garbage", "power"];
+const PROVIDERS: Provider[] = [
+  "water",
+  "garbage",
+  "power",
+  "transport",
+  "parking",
+];
 const PROVIDER_LABELS: Record<Provider, string> = {
   water: "Водовод",
   garbage: "Комуналец",
   power: "Осветлување",
+  transport: "Градски превоз",
+  parking: "Паркинзи",
 };
 const PROVIDER_ICONS: Record<Provider, string> = {
   water: "💧",
   garbage: "🗑️",
-  power: "⚡",
+  power: "💡",
+  transport: "🚌",
+  parking: "🅿️",
 };
 
 const FB_PAGE_URL = "https://www.facebook.com/JKP.VIK.PP/";

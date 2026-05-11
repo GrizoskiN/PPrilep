@@ -104,13 +104,13 @@ export default function Shell({ children, rightPanel }: Props) {
       <div className="flex h-screen w-full max-w-350 mx-auto flex-col overflow-hidden bg-transparent">
         <div className="flex h-full min-h-0   flex-1 flex-col overflow-hidden">
           <div className="grid shrink-0 grid-cols-1 lg:grid-cols-[18%_1fr_18%]">
-            <div className="hidden lg:block border-r border-[#e4ece8] " />
+            <div className="hidden lg:block" />
             <Topbar onOpenMobileMenu={openMenu} />
-            <div className="hidden lg:block border-l border-[#e4ece8] " />
+            <div className="hidden lg:block" />
           </div>
 
           <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)_250px] xl:grid-cols-[280px_minmax(0,1fr)_280px]">
-            <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block lg:border-r lg:border-[#e4ece8]">
+            <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block">
               <Suspense fallback={<div className="h-full" />}>
                 <LeftNav />
               </Suspense>
@@ -123,7 +123,7 @@ export default function Shell({ children, rightPanel }: Props) {
                 {children}
               </div>
             </main>
-            <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block lg:border-l lg:border-[#e4ece8]">
+            <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block">
               {rightPanel ?? <RightPanel />}
             </div>
           </div>

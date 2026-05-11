@@ -44,10 +44,12 @@ export const DISTRICT_LABELS: Record<string, string> = {
 export const CATEGORY_LABELS: Record<Category, string> = {
   road: "Патишта",
   water: "Вода",
-  power: "Струја",
+  power: "Осветлување",
   garbage: "Ѓубре",
   park: "Парк",
-  violation: "Срамна листа",
+  negligent: "Несовесни граѓани",
+  transport: "Градски превоз",
+  parking: "Паркинзи",
   other: "Друго",
 };
 
@@ -65,10 +67,12 @@ export function categoryIcon(cat: Category): string {
   const map: Record<Category, string> = {
     road: "🚧",
     water: "💧",
-    power: "⚡",
+    power: "💡",
     garbage: "🗑️",
     park: "🌳",
-    violation: "😡",
+    negligent: "🤦",
+    transport: "🚌",
+    parking: "🅿️",
     other: "📋",
   };
   return map[cat] ?? "📋";

@@ -35,6 +35,9 @@ const CATEGORIES: Array<Category | "all"> = [
   "power",
   "garbage",
   "park",
+  "negligent",
+  "transport",
+  "parking",
   "other",
 ];
 const STATUSES: Array<IssueStatus | "all"> = [
@@ -72,7 +75,7 @@ export default function IssueList({
     <div className="">
       <div
         suppressHydrationWarning
-        className="mt-3 grid grid-cols-3 z-50 gap-1.5 px-2 md:px-0 lg:px-3 py-2 sticky top-0 bg-[#f2f4f7] border-b border-zinc-200 lg:border-b-0"
+        className="mt-3 grid grid-cols-3 z-20 gap-1.5 px-2 md:px-0 lg:px-3 py-2 sticky top-0 bg-[#f2f4f7] border-b border-zinc-200 lg:border-b-0"
         style={{ backgroundColor: "#f2f4f7" }}>
         {mounted ? (
           <>

@@ -20,10 +20,17 @@ export type Category =
   | "power"
   | "garbage"
   | "park"
-  | "violation"
+  | "negligent"
+  | "transport"
+  | "parking"
   | "other";
 export type IssueStatus = "open" | "progress" | "resolved";
-export type Provider = "water" | "garbage" | "power";
+export type Provider =
+  | "water"
+  | "garbage"
+  | "power"
+  | "transport"
+  | "parking";
 export type CampaignStatus = "active" | "completed" | "cancelled";
 export type NotificationType =
   | "issue_comment"
@@ -53,6 +60,8 @@ export interface Issue {
   status: IssueStatus;
   photo_url: string | null;
   after_photo_url?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   reported_by: string | null;
   resolved_by?: string | null;
   resolver?: Profile | null;
