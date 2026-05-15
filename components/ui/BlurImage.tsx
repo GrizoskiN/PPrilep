@@ -56,7 +56,7 @@ export default function BlurImage({
       {!loaded && (
         <div
           aria-hidden
-          className={`absolute inset-0 animate-pulse bg-gradient-to-br from-zinc-100 via-zinc-50 to-zinc-100 ${rounded}`}
+          className={`absolute inset-0 animate-pulse bg-linear-to-br from-zinc-100 via-zinc-50 to-zinc-100 ${rounded}`}
         />
       )}
       <Image

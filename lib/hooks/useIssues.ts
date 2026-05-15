@@ -27,26 +27,31 @@ export function useIssues(opts: UseIssuesOptions = {}) {
     if (data.length === 0) return [];
     const ids = data.map((i) => i.id);
 
-    const [affectedRes, helpersRes, commentsRes, userAffectedRes, userHelpersRes] =
-      await Promise.all([
-        supabase.from("issue_affected").select("issue_id").in("issue_id", ids),
-        supabase.from("issue_helpers").select("issue_id").in("issue_id", ids),
-        supabase.from("issue_comments").select("issue_id").in("issue_id", ids),
-        opts.userId
-          ? supabase
-              .from("issue_affected")
-              .select("issue_id")
-              .in("issue_id", ids)
-              .eq("user_id", opts.userId)
-          : Promise.resolve(null),
-        opts.userId
-          ? supabase
-              .from("issue_helpers")
-              .select("issue_id")
-              .in("issue_id", ids)
-              .eq("user_id", opts.userId)
-          : Promise.resolve(null),
-      ]);
+    const [
+      affectedRes,
+      helpersRes,
+      commentsRes,
+      userAffectedRes,
+      userHelpersRes,
+    ] = await Promise.all([
+      supabase.from("issue_affected").select("issue_id").in("issue_id", ids),
+      supabase.from("issue_helpers").select("issue_id").in("issue_id", ids),
+      supabase.from("issue_comments").select("issue_id").in("issue_id", ids),
+      opts.userId
+        ? supabase
+            .from("issue_affected")
+            .select("issue_id")
+            .in("issue_id", ids)
+            .eq("user_id", opts.userId)
+        : Promise.resolve(null),
+      opts.userId
+        ? supabase
+            .from("issue_helpers")
+            .select("issue_id")
+            .in("issue_id", ids)
+            .eq("user_id", opts.userId)
+        : Promise.resolve(null),
+    ]);
 
     const affected = affectedRes?.data;
     const helpers = helpersRes?.data;
@@ -80,7 +85,9 @@ export function useIssues(opts: UseIssuesOptions = {}) {
   function buildQuery(offset: number) {
     let q = supabase
       .from("issues")
-      .select(`*, profiles:reported_by(id, full_name, avatar_url, username), resolver:resolved_by(id, full_name, avatar_url, username)`)
+      .select(
+        `*, profiles:reported_by(id, full_name, avatar_url, username), resolver:resolved_by(id, full_name, avatar_url, username)`,
+      )
       .order("created_at", { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1);
 
@@ -112,7 +119,7 @@ export function useIssues(opts: UseIssuesOptions = {}) {
     offsetRef.current = data?.length ?? 0;
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opts.district, opts.category, opts.status]);
+  }, [opts.district, opts.category, opts.status, opts.userId]);
 
   const fetchMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -128,7 +135,14 @@ export function useIssues(opts: UseIssuesOptions = {}) {
     }
     setLoadingMore(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingMore, hasMore, opts.district, opts.category, opts.status]);
+  }, [
+    loadingMore,
+    hasMore,
+    opts.district,
+    opts.category,
+    opts.status,
+    opts.userId,
+  ]);
 
   useEffect(() => {
     const initialId = setTimeout(() => fetchInitial(), 0);

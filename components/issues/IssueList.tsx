@@ -15,52 +15,90 @@ import {
   CATEGORY_LABELS,
   STATUS_LABELS,
 } from "../../lib/utils";
-import type { District, Category, IssueStatus, Issue } from "../../lib/types/database";
+import type {
+  District,
+  Category,
+  IssueStatus,
+  Issue,
+} from "../../lib/types/database";
 
 const CATEGORY_ALL_LABEL_SHORT = "Категории";
 const STATUS_ALL_LABEL_SHORT = "Статуси";
 
 const DISTRICTS: Array<District | "all"> = [
-  "all", "Center", "Varoš", "Trizla", "Točila", "Rid", "Tipski", "Boncejca",
+  "all",
+  "Center",
+  "Varoš",
+  "Trizla",
+  "Točila",
+  "Rid",
+  "Tipski",
+  "Boncejca",
 ];
 const CATEGORIES: Array<Category | "all"> = [
-  "all", "road", "water", "power", "garbage", "park", "negligent",
-  "transport", "parking", "admin", "other",
+  "all",
+  "road",
+  "water",
+  "power",
+  "garbage",
+  "park",
+  "negligent",
+  "transport",
+  "parking",
+  "admin",
+  "other",
 ];
-const STATUSES: Array<IssueStatus | "all"> = ["all", "open", "progress", "resolved"];
+const STATUSES: Array<IssueStatus | "all"> = [
+  "all",
+  "open",
+  "progress",
+  "resolved",
+];
 
-export default function IssueList({ defaultDistrict }: { defaultDistrict?: District; showGreeting?: boolean; greetingName?: string }) {
-  const [district, setDistrict] = useState<District | "all">(defaultDistrict ?? "all");
+export default function IssueList({
+  defaultDistrict,
+}: {
+  defaultDistrict?: District;
+  showGreeting?: boolean;
+  greetingName?: string;
+}) {
+  const [district, setDistrict] = useState<District | "all">(
+    defaultDistrict ?? "all",
+  );
   const [category, setCategory] = useState<Category | "all">("all");
   const [status, setStatus] = useState<IssueStatus | "all">("all");
   const [modalIssue, setModalIssue] = useState<Issue | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [swipeDx, setSwipeDx] = useState(0);
   const swipeStartX = useRef(0);
-  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
+  const swipeStartY = useRef(0);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const { user } = useAuth();
   const { issues, loading, loadingMore, hasMore, error, fetchMore } = useIssues(
     { district, category, status, userId: user?.id },
   );
 
-  // Slide-in animation trigger + cleanup
-  useEffect(() => {
-    if (modalIssue) {
-      const raf = requestAnimationFrame(() => setModalVisible(true));
-      return () => cancelAnimationFrame(raf);
-    } else {
-      setModalVisible(false);
-      setSwipeDx(0);
-    }
-  }, [modalIssue]);
+  function openIssueModal(issue: Issue) {
+    setSwipeDx(0);
+    setModalIssue(issue);
+  }
 
+  function closeIssueModal() {
+    setSwipeDx(0);
+    setModalIssue(null);
+  }
 
   // Close modal on Escape
   useEffect(() => {
     if (!modalIssue) return;
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setModalIssue(null); }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") closeIssueModal();
+    }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [modalIssue]);
@@ -68,7 +106,9 @@ export default function IssueList({ defaultDistrict }: { defaultDistrict?: Distr
   // Prevent body scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = modalIssue ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [modalIssue]);
 
   return (
@@ -76,14 +116,17 @@ export default function IssueList({ defaultDistrict }: { defaultDistrict?: Distr
       <div>
         <div
           suppressHydrationWarning
-          className="mt-3 grid grid-cols-3 z-20 gap-1.5 px-2 md:px-0 lg:px-3 py-2 sticky top-0 bg-[#f2f4f7] border-b border-zinc-200 lg:border-b-0"
+          className="mt-2.5 grid grid-cols-3 z-20 gap-1.5 px-2 md:px-0 lg:px-3 py-2 sticky -top-1 bg-[#f2f4f7] border-b border-zinc-200 lg:border-b-0"
           style={{ backgroundColor: "#f2f4f7" }}>
           {mounted ? (
             <>
               <FilterSelect
                 value={district}
                 onChange={(v) => setDistrict(v as District | "all")}
-                options={DISTRICTS.map((d) => ({ value: d, label: DISTRICT_LABELS[d] ?? d }))}
+                options={DISTRICTS.map((d) => ({
+                  value: d,
+                  label: DISTRICT_LABELS[d] ?? d,
+                }))}
               />
               <FilterSelect
                 value={category}
@@ -116,7 +159,13 @@ export default function IssueList({ defaultDistrict }: { defaultDistrict?: Distr
         </div>
 
         <div className="w-full space-y-3 px-0 lg:px-3 py-3 lg:py-5">
-          {loading && <><IssueCardSkeleton /><IssueCardSkeleton /><IssueCardSkeleton /></>}
+          {loading && (
+            <>
+              <IssueCardSkeleton />
+              <IssueCardSkeleton />
+              <IssueCardSkeleton />
+            </>
+          )}
           {error && (
             <div className="text-xs text-red-600 border border-red-200 rounded p-3 bg-red-50">
               <p className="font-medium">Грешка при вчитување</p>
@@ -128,11 +177,11 @@ export default function IssueList({ defaultDistrict }: { defaultDistrict?: Distr
           )}
           {issues.map((issue, index) => (
             <IssueCard
-              key={issue.id}
+              key={`${issue.id}-${issue.is_affected ? 1 : 0}-${issue.is_helper ? 1 : 0}-${issue.affected_count ?? 0}-${issue.helper_count ?? 0}`}
               eagerImage={index < 2}
               issue={issue}
               userId={user?.id}
-              onClick={() => setModalIssue(issue)}
+              onClick={() => openIssueModal(issue)}
             />
           ))}
 
@@ -144,7 +193,12 @@ export default function IssueList({ defaultDistrict }: { defaultDistrict?: Distr
               {loadingMore ? "Се вчитува…" : "Вчитај повеќе"}
             </button>
           )}
-          {loadingMore && <><IssueCardSkeleton /><IssueCardSkeleton /></>}
+          {loadingMore && (
+            <>
+              <IssueCardSkeleton />
+              <IssueCardSkeleton />
+            </>
+          )}
         </div>
       </div>
 
@@ -155,13 +209,14 @@ export default function IssueList({ defaultDistrict }: { defaultDistrict?: Distr
           <div
             className="hidden lg:flex fixed inset-0 z-50"
             style={{ backgroundColor: "rgba(0,0,0,0.92)" }}
-            onClick={() => setModalIssue(null)}>
-
+            onClick={closeIssueModal}>
             {/* Left: black bg — clicking the bg area closes modal */}
             <div className="flex-1 flex items-center justify-center p-8 min-w-0 bg-black">
               {modalIssue.photo_url && modalIssue.after_photo_url ? (
                 /* Before/after: embedded interactive slider */
-                <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="w-full max-w-3xl"
+                  onClick={(e) => e.stopPropagation()}>
                   <BeforeAfterSlider
                     beforeSrc={modalIssue.photo_url}
                     afterSrc={modalIssue.after_photo_url}
@@ -170,14 +225,19 @@ export default function IssueList({ defaultDistrict }: { defaultDistrict?: Distr
                     showLabels
                   />
                 </div>
-              ) : (modalIssue.photo_url || modalIssue.after_photo_url) ? (
+              ) : modalIssue.photo_url || modalIssue.after_photo_url ? (
                 /* Single photo: click to open lightbox */
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={(modalIssue.photo_url ?? modalIssue.after_photo_url)!}
                   alt="Фотографија"
                   className="max-w-full max-h-[90vh] object-contain rounded-xl cursor-zoom-in"
-                  onClick={(e) => { e.stopPropagation(); setLightboxSrc((modalIssue!.photo_url ?? modalIssue!.after_photo_url)!); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxSrc(
+                      (modalIssue!.photo_url ?? modalIssue!.after_photo_url)!,
+                    );
+                  }}
                 />
               ) : (
                 <div className="text-zinc-600 text-sm">Нема фотографија</div>
@@ -186,11 +246,11 @@ export default function IssueList({ defaultDistrict }: { defaultDistrict?: Distr
 
             {/* Right: flex-col panel — sticky header with X, scrollable content below */}
             <div
-              className="w-[420px] shrink-0 bg-white flex flex-col"
+              className="w-105 shrink-0 bg-white flex flex-col"
               onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-end px-4 py-3 border-b border-zinc-100 shrink-0">
                 <button
-                  onClick={() => setModalIssue(null)}
+                  onClick={closeIssueModal}
                   className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors">
                   <X size={20} />
                 </button>
@@ -204,29 +264,33 @@ export default function IssueList({ defaultDistrict }: { defaultDistrict?: Distr
           {/* Mobile: dark backdrop */}
           <div
             className="lg:hidden fixed inset-0 z-40 bg-black/50 transition-opacity duration-300"
-            style={{ opacity: modalVisible ? 1 : 0 }}
-            onClick={() => setModalIssue(null)}
+            style={{ opacity: modalIssue ? 1 : 0 }}
+            onClick={closeIssueModal}
           />
 
           {/* Mobile: full-width slide-in from right, swipe-right to close */}
           <div
             className={`lg:hidden fixed inset-0 z-50 bg-white flex flex-col${swipeDx === 0 ? " transition-transform duration-300 ease-out" : ""}`}
-            style={{ transform: modalVisible ? `translateX(${swipeDx}px)` : "translateX(100%)" }}
-            onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; }}
+            style={{ transform: `translateX(${swipeDx}px)` }}
+            onTouchStart={(e) => {
+              swipeStartX.current = e.touches[0].clientX;
+              swipeStartY.current = e.touches[0].clientY;
+            }}
             onTouchMove={(e) => {
               const dx = e.touches[0].clientX - swipeStartX.current;
-              if (dx > 0) setSwipeDx(dx);
+              const dy = Math.abs(e.touches[0].clientY - swipeStartY.current);
+              if (dx > 0 && dx > dy) setSwipeDx(dx);
             }}
             onTouchEnd={() => {
               if (swipeDx > 80) {
-                setModalIssue(null);
+                closeIssueModal();
               } else {
                 setSwipeDx(0);
               }
             }}>
             <div className="flex items-center justify-end px-4 py-3 border-b border-zinc-100 shrink-0">
               <button
-                onClick={() => setModalIssue(null)}
+                onClick={closeIssueModal}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors">
                 <X size={20} />
               </button>
