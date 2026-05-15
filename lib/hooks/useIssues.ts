@@ -27,10 +27,11 @@ export function useIssues(opts: UseIssuesOptions = {}) {
     if (data.length === 0) return [];
     const ids = data.map((i) => i.id);
 
-    const [affectedRes, helpersRes, userAffectedRes, userHelpersRes] =
+    const [affectedRes, helpersRes, commentsRes, userAffectedRes, userHelpersRes] =
       await Promise.all([
         supabase.from("issue_affected").select("issue_id").in("issue_id", ids),
         supabase.from("issue_helpers").select("issue_id").in("issue_id", ids),
+        supabase.from("issue_comments").select("issue_id").in("issue_id", ids),
         opts.userId
           ? supabase
               .from("issue_affected")
@@ -49,15 +50,19 @@ export function useIssues(opts: UseIssuesOptions = {}) {
 
     const affected = affectedRes?.data;
     const helpers = helpersRes?.data;
+    const comments = commentsRes?.data;
     const userAffected = userAffectedRes?.data;
     const userHelpers = userHelpersRes?.data;
 
     const affMap: Record<number, number> = {};
     const helMap: Record<number, number> = {};
+    const comMap: Record<number, number> = {};
     for (const r of affected ?? [])
       affMap[r.issue_id] = (affMap[r.issue_id] ?? 0) + 1;
     for (const r of helpers ?? [])
       helMap[r.issue_id] = (helMap[r.issue_id] ?? 0) + 1;
+    for (const r of comments ?? [])
+      comMap[r.issue_id] = (comMap[r.issue_id] ?? 0) + 1;
 
     const userAffSet = new Set(userAffected?.map((r) => r.issue_id) ?? []);
     const userHelSet = new Set(userHelpers?.map((r) => r.issue_id) ?? []);
@@ -66,6 +71,7 @@ export function useIssues(opts: UseIssuesOptions = {}) {
       ...i,
       affected_count: affMap[i.id] ?? 0,
       helper_count: helMap[i.id] ?? 0,
+      comment_count: comMap[i.id] ?? 0,
       is_affected: userAffSet.has(i.id),
       is_helper: userHelSet.has(i.id),
     }));

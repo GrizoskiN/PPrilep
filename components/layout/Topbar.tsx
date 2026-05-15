@@ -9,6 +9,7 @@ import { useAuth } from "../../lib/hooks/useAuth";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
+import { createClient } from "../../lib/supabase/client";
 
 const ReportModal = dynamic(() => import("../issues/ReportModal"), {
   ssr: false,
@@ -28,6 +29,25 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const lastMenuOpenRef = useRef(0);
   const pathname = usePathname();
+  const [activeCount, setActiveCount] = useState<number>(0);
+  const [totalCount, setTotalCount] = useState<number>(0);
+
+  useEffect(() => {
+    let mounted = true;
+    const supabase = createClient();
+    async function loadCounts() {
+      const [{ count: active }, { count: total }] = await Promise.all([
+        supabase.from("issues").select("id", { count: "exact", head: true }).neq("status", "resolved"),
+        supabase.from("issues").select("id", { count: "exact", head: true }),
+      ]);
+      if (mounted) {
+        setActiveCount(active ?? 0);
+        setTotalCount(total ?? 0);
+      }
+    }
+    loadCounts();
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     const currentWord = ROTATING_WORDS[wordIndex];
@@ -135,7 +155,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
             <div className="hidden items-center gap-2 text-sm text-slate-500 lg:flex">
               <span className="text-[#f2a93b]">⚡</span>
               <span className="font-semibold text-slate-700">
-                1,840 активни
+                {activeCount}/{totalCount} активни
               </span>
             </div>
 

@@ -50,6 +50,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   negligent: "Несовесни граѓани",
   transport: "Градски превоз",
   parking: "Паркинзи",
+  admin: "Јавна Администрација",
   other: "Друго",
 };
 
@@ -73,6 +74,7 @@ export function categoryIcon(cat: Category): string {
     negligent: "🤦",
     transport: "🚌",
     parking: "🅿️",
+    admin: "🏛️",
     other: "📋",
   };
   return map[cat] ?? "📋";

@@ -23,6 +23,7 @@ export type Category =
   | "negligent"
   | "transport"
   | "parking"
+  | "admin"
   | "other";
 export type IssueStatus = "open" | "progress" | "resolved";
 export type Provider =
@@ -47,6 +48,7 @@ export interface Profile {
   avatar_url: string | null;
   points: number;
   is_admin?: boolean;
+  is_company?: boolean;
   created_at: string;
 }
 
@@ -73,6 +75,7 @@ export interface Issue {
   profiles?: Profile | null;
   affected_count?: number;
   helper_count?: number;
+  comment_count?: number;
   is_affected?: boolean;
   is_helper?: boolean;
   user_helper_note?: string | null;

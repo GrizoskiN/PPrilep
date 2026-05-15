@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BlurImage from "../ui/BlurImage";
 import Image from "next/image";
 import Link from "next/link";
@@ -37,6 +37,7 @@ interface Props {
   userId?: string;
   onClose?: () => void;
   variant?: "full" | "engagement";
+  hideImage?: boolean;
 }
 
 interface IssueComment {
@@ -205,6 +206,7 @@ export default function IssueDetail({
   userId,
   onClose,
   variant = "full",
+  hideImage = false,
 }: Props) {
   const supabase = useMemo(() => createClient(), []);
 
@@ -246,6 +248,7 @@ export default function IssueDetail({
   const [uploadingAfter, setUploadingAfter] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<ChangeRequest[]>([]);
   const [approvingId, setApprovingId] = useState<number | null>(null);
+  const approvingInFlight = useRef(false);
   // proposal modal
   const [showProposeModal, setShowProposeModal] = useState(false);
   const [proposeStatus, setProposeStatus] = useState<
@@ -1277,15 +1280,21 @@ export default function IssueDetail({
   );
 
   async function approveRequest(req: ChangeRequest) {
-    if (!canModerate || !userId || approvingId) return;
+    if (!canModerate || !userId || approvingInFlight.current) return;
+    approvingInFlight.current = true;
     setApprovingId(req.id);
     const { error } = await supabase.rpc("approve_change_request", {
       p_id: req.id,
     });
     if (error) {
       toast.error(error.message);
+      approvingInFlight.current = false;
       setApprovingId(null);
       return;
+    }
+    // Award 1 applause to the helper when their "resolved" proposal is accepted
+    if (req.payload.status === "resolved") {
+      await supabase.rpc("award_applause", { p_user_id: req.requester_user_id });
     }
     setCurrentIssue((prev) => ({
       ...prev,
@@ -1296,6 +1305,7 @@ export default function IssueDetail({
     }));
     toast.success("Одобрено — статусот е променет");
     setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
+    approvingInFlight.current = false;
     setApprovingId(null);
   }
 
@@ -1378,6 +1388,45 @@ export default function IssueDetail({
           </div>
         );
       })}
+    </div>
+  );
+
+  const resolverSection = currentIssue.status === "resolved" && resolver && (
+    <div className="rounded-xl border border-teal-200 bg-linear-to-br from-teal-50 to-emerald-50 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-lg">🏆</span>
+          <Link
+            href={resolver.username ? `/u/${resolver.username}` : `/u/${resolver.id}`}
+            className="flex items-center gap-2 min-w-0 group">
+            <AvatarInitials
+              name={resolver.full_name ?? resolver.username ?? "Херој"}
+              avatarUrl={resolver.avatar_url}
+              size="sm"
+            />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-teal-800 leading-tight">Решено од</p>
+              <p className="text-sm font-bold text-zinc-900 group-hover:underline truncate">
+                {resolver.full_name ?? resolver.username ?? "Херој"}
+              </p>
+            </div>
+          </Link>
+        </div>
+        <button
+          onClick={toggleResolverUpvote}
+          disabled={upvotingResolver || resolver.id === userId}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
+            hasUpvotedResolver
+              ? "bg-teal-600 text-white"
+              : "bg-white border border-teal-300 text-teal-700 hover:bg-teal-50",
+            resolver.id === userId && "opacity-50 cursor-not-allowed",
+          )}
+          title={resolver.id === userId ? "Не можеш да гласаш за себе" : "Дај поени на херојот"}>
+          <span className="text-sm">👏</span>
+          <span>{resolverUpvotes}</span>
+        </button>
+      </div>
     </div>
   );
 
@@ -1687,59 +1736,8 @@ export default function IssueDetail({
           </div>
         )}
 
-        {currentIssue.status === "resolved" && resolver && (
-          <div className="rounded-xl border border-teal-200 bg-linear-to-br from-teal-50 to-emerald-50 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-lg">🏆</span>
-                <Link
-                  href={
-                    resolver.username
-                      ? `/u/${resolver.username}`
-                      : `/u/${resolver.id}`
-                  }
-                  className="flex items-center gap-2 min-w-0 group">
-                  <AvatarInitials
-                    name={resolver.full_name ?? resolver.username ?? "Херој"}
-                    avatarUrl={resolver.avatar_url}
-                    size="sm"
-                  />
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-teal-800 leading-tight">
-                      Решено од
-                    </p>
-                    <p className="text-sm font-bold text-zinc-900 group-hover:underline truncate">
-                      {resolver.full_name ?? resolver.username ?? "Херој"}
-                    </p>
-                  </div>
-                </Link>
-              </div>
-              <button
-                onClick={toggleResolverUpvote}
-                disabled={upvotingResolver || resolver.id === userId}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
-                  hasUpvotedResolver
-                    ? "bg-teal-600 text-white"
-                    : "bg-white border border-teal-300 text-teal-700 hover:bg-teal-50",
-                  resolver.id === userId && "opacity-50 cursor-not-allowed",
-                )}
-                title={
-                  resolver.id === userId
-                    ? "Не можеш да гласаш за себе"
-                    : "Дај поени на херојот"
-                }>
-                <span className="text-sm">👏</span>
-                <span>{resolverUpvotes}</span>
-              </button>
-            </div>
-          </div>
-        )}
-
+        {resolverSection}
         {helperProposalButton}
-        {peopleSection}
-        {helpPlanningSection}
-        {shareSection}
         {commentsSection}
 
         {showAffectedPopup && (
@@ -1881,7 +1879,7 @@ export default function IssueDetail({
         </div>
 
         {/* Before / after photos */}
-        {(currentIssue.photo_url || currentIssue.after_photo_url) &&
+        {!hideImage && (currentIssue.photo_url || currentIssue.after_photo_url) &&
           (currentIssue.photo_url && currentIssue.after_photo_url ? (
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -1965,10 +1963,8 @@ export default function IssueDetail({
         </div>
 
         <div className="space-y-3 border-t border-zinc-100 pt-3">
+          {resolverSection}
           {helperProposalButton}
-          {peopleSection}
-          {helpPlanningSection}
-          {shareSection}
           {commentsSection}
         </div>
       </div>

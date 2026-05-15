@@ -3,39 +3,82 @@
 import { useState } from "react";
 import BlurImage from "../ui/BlurImage";
 import Link from "next/link";
-import {
-  Share2,
-  AlertTriangle,
-  HandHelping,
-  MapPin,
-  Check,
-} from "lucide-react";
+import { Send, HandHelping, Zap, MessageCircle, X } from "lucide-react";
 import StatusPill from "../ui/StatusPill";
 import AvatarInitials from "../ui/AvatarInitials";
 import {
   formatDays,
-  districtColor,
   categoryIcon,
   cn,
   DISTRICT_LABELS,
   CATEGORY_LABELS,
   getIssuePath,
-  
 } from "../../lib/utils";
 import type { Issue } from "../../lib/types/database";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
 
 const HelperModal = dynamic(() => import("./HelperModal"), { ssr: false });
-const ImageLightbox = dynamic(() => import("../ui/ImageLightbox"), { ssr: false });
+
+interface UserEntry {
+  user_id: string;
+  profiles?: {
+    full_name: string | null;
+    avatar_url: string | null;
+    username: string | null;
+  } | null;
+}
+
+function UserListPopup({
+  users,
+  onClose,
+}: {
+  users: UserEntry[];
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="absolute bottom-full left-0 mb-2 z-50 bg-white rounded-xl shadow-xl border border-zinc-200 w-52 max-h-56 overflow-y-auto"
+      onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-100">
+        <p className="text-xs font-semibold text-zinc-700">{users.length} луѓе</p>
+        <button
+          onClick={onClose}
+          className="text-zinc-400 hover:text-zinc-700 transition-colors">
+          <X size={12} />
+        </button>
+      </div>
+      {users.map((u) => {
+        const name = u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
+        const href = u.profiles?.username
+          ? `/u/${u.profiles.username}`
+          : `/u/${u.user_id}`;
+        return (
+          <Link
+            key={u.user_id}
+            href={href}
+            className="flex items-center gap-2 px-3 py-2 hover:bg-zinc-50 transition-colors">
+            <AvatarInitials
+              name={name}
+              avatarUrl={u.profiles?.avatar_url ?? null}
+              size="sm"
+            />
+            <span className="text-xs text-zinc-700 truncate">{name}</span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 interface Props {
   issue: Issue;
   userId?: string;
   onClick?: () => void;
-  selected?: boolean;
-  embeddedMobile?: boolean;
   eagerImage?: boolean;
+  // legacy — kept for callers that still pass it, ignored
+  embeddedMobile?: boolean;
+  selected?: boolean;
   onAffectedToggle?: (affected: boolean, count: number) => void;
 }
 
@@ -43,8 +86,6 @@ export default function IssueCard({
   issue,
   userId,
   onClick,
-  selected,
-  embeddedMobile = false,
   eagerImage = false,
 }: Props) {
   const [affectedCount, setAffectedCount] = useState(issue.affected_count ?? 0);
@@ -53,14 +94,18 @@ export default function IssueCard({
   const [isHelper, setIsHelper] = useState(issue.is_helper ?? false);
   const [helperOpen, setHelperOpen] = useState(false);
   const [loadingAff, setLoadingAff] = useState(false);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-  const issuePath = getIssuePath(issue.id, issue.title);
 
-  function openLightbox(src: string, e: React.MouseEvent) {
-    e.stopPropagation();
-    e.preventDefault();
-    setLightboxSrc(src);
-  }
+  const [affectedUsers, setAffectedUsers] = useState<UserEntry[]>([]);
+  const [helperUsers, setHelperUsers] = useState<UserEntry[]>([]);
+  const [showAffectedPop, setShowAffectedPop] = useState(false);
+  const [showHelperPop, setShowHelperPop] = useState(false);
+
+  const issuePath = getIssuePath(issue.id, issue.title);
+  const authorHref = issue.profiles?.username
+    ? `/u/${issue.profiles.username}`
+    : issue.profiles?.id
+      ? `/u/${issue.profiles.id}`
+      : "#";
 
   function redirectToAuth() {
     const next = `${location.pathname}${location.search}`;
@@ -75,34 +120,19 @@ export default function IssueCard({
 
   async function toggleAffected(e: React.MouseEvent) {
     e.stopPropagation();
-    if (!userId) {
-      redirectToAuth();
-      return;
-    }
+    if (!userId) { redirectToAuth(); return; }
     if (loadingAff) return;
     setLoadingAff(true);
     const { createClient } = await import("../../lib/supabase/client");
     const supabase = createClient();
     if (isAffected) {
-      await supabase
-        .from("issue_affected")
-        .delete()
-        .eq("issue_id", issue.id)
-        .eq("user_id", userId);
-      const { count } = await supabase
-        .from("issue_affected")
-        .select("*", { count: "exact", head: true })
-        .eq("issue_id", issue.id);
+      await supabase.from("issue_affected").delete().eq("issue_id", issue.id).eq("user_id", userId);
+      const { count } = await supabase.from("issue_affected").select("*", { count: "exact", head: true }).eq("issue_id", issue.id);
       setIsAffected(false);
       setAffectedCount(count ?? 0);
     } else {
-      await supabase
-        .from("issue_affected")
-        .insert({ issue_id: issue.id, user_id: userId });
-      const { count } = await supabase
-        .from("issue_affected")
-        .select("*", { count: "exact", head: true })
-        .eq("issue_id", issue.id);
+      await supabase.from("issue_affected").insert({ issue_id: issue.id, user_id: userId });
+      const { count } = await supabase.from("issue_affected").select("*", { count: "exact", head: true }).eq("issue_id", issue.id);
       setIsAffected(true);
       setAffectedCount(count ?? 0);
       toast.success("Означени сте како засегнати");
@@ -112,274 +142,236 @@ export default function IssueCard({
 
   function openHelper(e: React.MouseEvent) {
     e.stopPropagation();
-    if (!userId) {
-      redirectToAuth();
-      return;
-    }
-    if (isHelper) return; // already helping — detail view handles removal
+    if (!userId) { redirectToAuth(); return; }
+    if (isHelper) return;
     setHelperOpen(true);
   }
 
+  async function showHelpers(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (helperCount === 0) return;
+    const { createClient } = await import("../../lib/supabase/client");
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("issue_helpers")
+      .select("user_id, profiles:user_id(full_name, avatar_url, username)")
+      .eq("issue_id", issue.id);
+    setHelperUsers((data ?? []) as UserEntry[]);
+    setShowHelperPop(true);
+    setShowAffectedPop(false);
+  }
+
+  async function showAffected(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (affectedCount === 0) return;
+    const { createClient } = await import("../../lib/supabase/client");
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("issue_affected")
+      .select("user_id, profiles:user_id(full_name, avatar_url, username)")
+      .eq("issue_id", issue.id);
+    setAffectedUsers((data ?? []) as UserEntry[]);
+    setShowAffectedPop(true);
+    setShowHelperPop(false);
+  }
+
+  const hasPhoto = !!(issue.photo_url || issue.after_photo_url);
+
   return (
     <>
+      {(showAffectedPop || showHelperPop) && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => { setShowAffectedPop(false); setShowHelperPop(false); }}
+        />
+      )}
+
       <article
         onClick={onClick}
-        className={cn(
-          "cursor-pointer p-4 transition-all rounded-none xl:rounded-xl",
-          embeddedMobile
-            ? "rounded-none border-0 bg-transparent hover:border-transparent hover:shadow-none"
-            : "overflow-hidden  border border-zinc-200 bg-white hover:border-zinc-300",
-          selected && "border-teal-500 ring-1 ring-teal-500",
-        )}>
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span
-              className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-md font-semibold",
-                districtColor(issue.district),
-              )}>
+        className="cursor-pointer bg-white border border-zinc-200 rounded-xl overflow-hidden hover:border-zinc-300 transition-colors">
+
+        {/* ── Header ─────────────────────────────────────── */}
+        <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+          <Link
+            href={authorHref}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-2 group min-w-0">
+            <AvatarInitials
+              name={issue.profiles?.full_name}
+              avatarUrl={issue.profiles?.avatar_url}
+              size="sm"
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-zinc-800 group-hover:underline leading-tight truncate">
+                {issue.profiles?.full_name ?? "Анонимно"}
+              </p>
+              <p className="text-[11px] text-zinc-400 leading-tight">
+                {formatDays(issue.created_at)}
+              </p>
+            </div>
+          </Link>
+
+          <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0 max-w-[55%]">
+            <span className="text-[10px] text-zinc-500 font-medium whitespace-nowrap">
               {DISTRICT_LABELS[issue.district] ?? issue.district}
+              {issue.street_name ? ` | ${issue.street_name}` : ""}
             </span>
-            <span className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-md">
+            <span className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-md font-medium whitespace-nowrap">
               {categoryIcon(issue.category)}{" "}
               {CATEGORY_LABELS[issue.category] ?? issue.category}
             </span>
             <StatusPill status={issue.status} />
           </div>
-          <button
-            onClick={share}
-            className="text-zinc-400 hover:text-zinc-700 shrink-0 cursor-pointer">
-            <Share2 size={13} />
-          </button>
         </div>
 
-        <div
-          className={cn(
-            embeddedMobile ? "block" : "md:flex md:items-start md:gap-3",
-          )}>
-          {(issue.photo_url || issue.after_photo_url) && (
-            <div
-              className={cn(
-                "mb-3 -mx-4 w-auto",
-                !embeddedMobile && "md:mx-0 md:mb-0 md:w-72 md:shrink-0",
-              )}>
-              {issue.photo_url && issue.after_photo_url ? (
-                <div className="grid grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={(e) => openLightbox(issue.photo_url!, e)}
-                    className="relative block w-full cursor-zoom-in p-0">
-                    <BlurImage
-                      src={issue.photo_url}
-                      alt="Пред"
-                      width={1200}
-                      height={1200}
-                      loading={eagerImage ? "eager" : "lazy"}
-                      priority={eagerImage}
-                      sizes="(max-width: 767px) 50vw, 320px"
-                      rounded="md:rounded-none"
-                      wrapperClassName="md:border md:border-zinc-200"
-                      className={cn(
-                        "h-72 w-full object-cover",
-                        !embeddedMobile && "md:h-80",
-                      )}
-                    />
-                    <span className="absolute top-1 left-1 z-10 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
-                      Пред
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => openLightbox(issue.after_photo_url!, e)}
-                    className="relative block w-full cursor-zoom-in p-0">
-                    <BlurImage
-                      src={issue.after_photo_url}
-                      alt="Потоа"
-                      width={1200}
-                      height={1200}
-                      loading={eagerImage ? "eager" : "lazy"}
-                      priority={eagerImage}
-                      sizes="(max-width: 767px) 50vw, 320px"
-                      rounded="md:rounded-none"
-                      wrapperClassName="md:border md:border-teal-200"
-                      className={cn(
-                        "h-72 w-full object-cover",
-                        !embeddedMobile && "md:h-80",
-                      )}
-                    />
-                    <span className="absolute top-1 left-1 z-10 rounded-md bg-teal-600/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
-                      Потоа
-                    </span>
-                    {issue.resolver && (
-                      <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1.5 rounded-md bg-black/65 backdrop-blur-sm px-1.5 py-1">
-                        <span className="text-[10px]">🏆</span>
-                        <AvatarInitials
-                          name={issue.resolver.full_name ?? issue.resolver.username ?? ""}
-                          avatarUrl={issue.resolver.avatar_url}
-                          size="sm"
-                          className="w-4! h-4! text-[8px]!"
-                        />
-                        <span className="text-[10px] font-semibold text-white truncate">
-                          {issue.resolver.full_name ?? issue.resolver.username ?? "Херој"}
-                        </span>
-                      </div>
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={(e) => openLightbox((issue.photo_url ?? issue.after_photo_url)!, e)}
-                  className="block w-full cursor-zoom-in p-0">
-                  <BlurImage
-                    src={(issue.photo_url ?? issue.after_photo_url)!}
-                    alt="Фотографија"
-                    width={1600}
-                    height={1200}
-                    loading={eagerImage ? "eager" : "lazy"}
-                    priority={eagerImage}
-                    sizes="(max-width: 767px) 100vw, 600px"
-                    rounded="md:rounded-lg"
-                    wrapperClassName="md:border md:border-zinc-200"
-                    className={cn(
-                      "h-96 w-full object-cover",
-                      !embeddedMobile && "md:h-112",
-                    )}
-                  />
-                </button>
-              )}
-            </div>
-          )}
-
-          <div className="min-w-0 flex-1">
-            <div className="mb-0.5 flex items-start justify-between gap-2">
-              <h3 className="text-sm font-semibold leading-snug line-clamp-2">
-                <Link
-                  href={issuePath}
-                  onClick={(e) => e.stopPropagation()}
-                  className="hover:underline">
-                  {issue.title}
-                </Link>
-              </h3>
-              <span className="shrink-0 text-[11px] text-zinc-400">
-                {formatDays(issue.created_at)}
-              </span>
-            </div>
-
-            {issue.street_name && (
-              <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-teal-600">
-                <MapPin size={10} /> {issue.street_name}
-              </p>
-            )}
-
-            {issue.description && (
-              <p className="mb-2 text-xs text-zinc-500 line-clamp-2">
-                {issue.description}
-              </p>
-            )}
-            <div className="flex items-center gap-1.5">
-              {issue.profiles && (
-                <AvatarInitials
-                  name={issue.profiles.full_name}
-                  avatarUrl={issue.profiles.avatar_url}
-                  size="sm"
+        {/* ── Image ──────────────────────────────────────── */}
+        {hasPhoto && (
+          issue.photo_url && issue.after_photo_url ? (
+            <div className="grid grid-cols-2">
+              <div className="relative">
+                <BlurImage
+                  src={issue.photo_url}
+                  alt="Пред"
+                  width={1200}
+                  height={900}
+                  loading={eagerImage ? "eager" : "lazy"}
+                  priority={eagerImage}
+                  sizes="50vw"
+                  rounded="rounded-none"
+                  className="h-72 w-full object-cover"
                 />
-              )}
-              <span className="text-[11px] text-zinc-500">
-                {issue.profiles?.full_name ?? "Анонимно"}
-              </span>
+                <span className="absolute top-1.5 left-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                  Пред
+                </span>
+              </div>
+              <div className="relative">
+                <BlurImage
+                  src={issue.after_photo_url}
+                  alt="Потоа"
+                  width={1200}
+                  height={900}
+                  loading={eagerImage ? "eager" : "lazy"}
+                  priority={eagerImage}
+                  sizes="50vw"
+                  rounded="rounded-none"
+                  className="h-72 w-full object-cover"
+                />
+                <span className="absolute top-1.5 left-1.5 rounded-md bg-teal-600/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                  Потоа
+                </span>
+                {issue.resolver && (
+                  <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center gap-1.5 rounded-lg bg-black/65 backdrop-blur-sm px-2 py-1">
+                    <span className="text-xs">🏆</span>
+                    <AvatarInitials
+                      name={issue.resolver.full_name ?? issue.resolver.username ?? ""}
+                      avatarUrl={issue.resolver.avatar_url}
+                      size="sm"
+                      className="w-4! h-4! text-[8px]!"
+                    />
+                    <span className="text-[10px] font-semibold text-white truncate">
+                      {issue.resolver.full_name ?? issue.resolver.username ?? "Херој"}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <BlurImage
+              src={(issue.photo_url ?? issue.after_photo_url)!}
+              alt="Фотографија"
+              width={1600}
+              height={900}
+              loading={eagerImage ? "eager" : "lazy"}
+              priority={eagerImage}
+              sizes="(max-width: 768px) 100vw, 640px"
+              rounded="rounded-none"
+              className="h-80 w-full object-cover"
+            />
+          )
+        )}
+
+        {/* ── Title ──────────────────────────────────────── */}
+        <div className={cn("px-3", hasPhoto ? "pt-2.5 pb-1" : "pt-2 pb-1")}>
+          <p className="text-sm font-semibold text-zinc-800 line-clamp-2 leading-snug">
+            {issue.title}
+          </p>
         </div>
 
-        <div className="mt-3  pt-3">
-          <div
-            className={cn(
-              "grid grid-cols-1 lg:grid-cols-2 gap-2",
-              !embeddedMobile && "md:hidden",
-            )}>
-            <button
-              onClick={openHelper}
-              className={cn(
-                "flex w-full items-center justify-center gap-2 rounded-xl border border-transparent px-2 py-2.5 text-sm lg:text-xs xl:text-sm font-semibold text-white transition-all duration-200 active:scale-[0.98]",
-                isHelper ? "bg-[#255a52]" : "bg-[#3b9f95] hover:bg-[#338c84]",
-              )}
-              style={{
-                backgroundColor: isHelper ? "#255a52" : "#3b9f95",
-                color: "#ffffff",
-              }}>
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/20 text-xs font-bold text-white">
-                {helperCount}
-              </span>
-              <HandHelping size={14} />
-              <span>{isHelper ? "Помагам" : "Помогни (Поправи)"}</span>
-            </button>
+        {/* ── Action bar ─────────────────────────────────── */}
+        <div className="flex items-center justify-between px-3 pt-1 pb-3">
+          <div className="flex items-center gap-4">
 
-            <button
-              onClick={toggleAffected}
-              disabled={loadingAff}
-              className={cn(
-                "flex w-full items-center justify-center gap-2 rounded-xl border px-2 py-2.5 text-sm lg:text-xs xl:text-sm font-semibold transition-all duration-200 active:scale-[0.98]",
-                isAffected
-                  ? "border-transparent bg-[#0f1a33] text-white"
-                  : "border-[#c8d0d8] bg-white text-slate-700 hover:bg-slate-50",
-              )}
-              style={
-                isAffected
-                  ? {
-                      backgroundColor: "#0f1a33",
-                      borderColor: "transparent",
-                      color: "#ffffff",
-                    }
-                  : {
-                      backgroundColor: "#ffffff",
-                      borderColor: "#c8d0d8",
-                      color: "#334155",
-                    }
-              }>
-              <span
-                className={cn(
-                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold",
-                  isAffected
-                    ? "bg-white/20 text-white"
-                    : "bg-[#eef2f7] text-slate-700",
-                )}>
-                {affectedCount}
-              </span>
-              {isAffected ? <Check size={14} /> : <AlertTriangle size={14} />}
-              <span>{isAffected ? "Засегнат/а" : "И јас сум засегнат/а"}</span>
-            </button>
-          </div>
-
-          <div
-            className={cn(
-              "hidden items-center justify-between md:flex",
-              embeddedMobile && "hidden",
-            )}>
-            <div className="lg:hidden flex items-center gap-2">
+            {/* Помогни */}
+            <div className="relative flex items-center gap-1">
               <button
-                onClick={toggleAffected}
-                disabled={loadingAff}
+                onClick={showHelpers}
                 className={cn(
-                  "flex items-center gap-1 text-xs rounded-lg px-2 py-1 transition-colors cursor-pointer",
-                  isAffected
-                    ? "bg-red-50 text-red-600 border border-red-200"
-                    : "text-zinc-500 hover:bg-red-50 hover:text-red-600",
+                  "text-xs font-bold tabular-nums transition-colors",
+                  helperCount > 0 ? "text-zinc-700 hover:text-teal-600 cursor-pointer" : "text-zinc-400 cursor-default",
                 )}>
-                <AlertTriangle size={11} /> {affectedCount}
+                {helperCount}
               </button>
               <button
                 onClick={openHelper}
                 className={cn(
-                  "flex items-center gap-1 text-xs rounded-lg px-2 py-1 transition-colors cursor-pointer",
-                  isHelper
-                    ? "bg-teal-50 text-teal-600 border border-teal-200"
-                    : "text-zinc-500 hover:bg-teal-50 hover:text-teal-600",
+                  "flex items-center gap-1 text-xs font-medium transition-colors",
+                  isHelper ? "text-teal-600" : "text-zinc-500 hover:text-teal-600",
                 )}>
-                <HandHelping size={11} /> {helperCount}
+                <HandHelping size={15} />
+                <span>Помогни</span>
               </button>
+              {showHelperPop && helperUsers.length > 0 && (
+                <UserListPopup users={helperUsers} onClose={() => setShowHelperPop(false)} />
+              )}
             </div>
+
+            {/* Иста мака */}
+            <div className="relative flex items-center gap-1">
+              <button
+                onClick={showAffected}
+                className={cn(
+                  "text-xs font-bold tabular-nums transition-colors",
+                  affectedCount > 0 ? "text-zinc-700 hover:text-amber-600 cursor-pointer" : "text-zinc-400 cursor-default",
+                )}>
+                {affectedCount}
+              </button>
+              <button
+                onClick={toggleAffected}
+                disabled={loadingAff}
+                className={cn(
+                  "flex items-center gap-1 text-xs font-medium transition-colors",
+                  isAffected ? "text-amber-600" : "text-zinc-500 hover:text-amber-600",
+                )}>
+                <Zap size={15} />
+                <span>Иста мака</span>
+              </button>
+              {showAffectedPop && affectedUsers.length > 0 && (
+                <UserListPopup users={affectedUsers} onClose={() => setShowAffectedPop(false)} />
+              )}
+            </div>
+
+            {/* Коментари */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+              className="flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-blue-600 transition-colors">
+              <span className={cn(
+                "text-xs font-bold tabular-nums mr-0.5",
+                (issue.comment_count ?? 0) > 0 ? "text-zinc-700" : "text-zinc-400",
+              )}>
+                {issue.comment_count ?? 0}
+              </span>
+              <MessageCircle size={15} />
+              <span>Коментари</span>
+            </button>
           </div>
+
+          {/* Сподели */}
+          <button
+            onClick={share}
+            className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-800 transition-colors">
+            <Send size={14} />
+            <span>Сподели</span>
+          </button>
         </div>
       </article>
 
@@ -394,15 +386,6 @@ export default function IssueCard({
             setHelperCount(count);
             setHelperOpen(false);
           }}
-        />
-      )}
-      {lightboxSrc && (
-        <ImageLightbox
-          src={lightboxSrc}
-          alt={issue.title}
-          beforeSrc={issue.photo_url}
-          afterSrc={issue.after_photo_url}
-          onClose={() => setLightboxSrc(null)}
         />
       )}
     </>

@@ -35,6 +35,7 @@ const CATEGORIES = [
   "negligent",
   "transport",
   "parking",
+  "admin",
   "other",
 ] as const;
 
@@ -56,6 +57,7 @@ const CATEGORY_MK: Record<string, string> = {
   negligent: "Несовесни граѓани",
   transport: "Градски превоз",
   parking: "Паркинзи",
+  admin: "Јавна Администрација",
   other: "Друго",
 };
 
