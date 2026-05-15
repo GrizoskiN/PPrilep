@@ -156,7 +156,10 @@ export default function IssueCard({
       .from("issue_helpers")
       .select("user_id, profiles:user_id(full_name, avatar_url, username)")
       .eq("issue_id", issue.id);
-    setHelperUsers((data ?? []) as UserEntry[]);
+    setHelperUsers((data ?? []).map((r) => ({
+      ...r,
+      profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles,
+    })) as UserEntry[]);
     setShowHelperPop(true);
     setShowAffectedPop(false);
   }
@@ -170,7 +173,10 @@ export default function IssueCard({
       .from("issue_affected")
       .select("user_id, profiles:user_id(full_name, avatar_url, username)")
       .eq("issue_id", issue.id);
-    setAffectedUsers((data ?? []) as UserEntry[]);
+    setAffectedUsers((data ?? []).map((r) => ({
+      ...r,
+      profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles,
+    })) as UserEntry[]);
     setShowAffectedPop(true);
     setShowHelperPop(false);
   }
