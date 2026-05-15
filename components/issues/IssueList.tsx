@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useIssues } from "../../lib/hooks/useIssues";
 import { useAuth } from "../../lib/hooks/useAuth";
 import IssueCard from "./IssueCard";
@@ -36,6 +36,8 @@ export default function IssueList({ defaultDistrict }: { defaultDistrict?: Distr
   const [modalIssue, setModalIssue] = useState<Issue | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [swipeDx, setSwipeDx] = useState(0);
+  const swipeStartX = useRef(0);
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   const { user } = useAuth();
@@ -43,13 +45,14 @@ export default function IssueList({ defaultDistrict }: { defaultDistrict?: Distr
     { district, category, status, userId: user?.id },
   );
 
-  // Slide-in animation trigger
+  // Slide-in animation trigger + cleanup
   useEffect(() => {
     if (modalIssue) {
       const raf = requestAnimationFrame(() => setModalVisible(true));
       return () => cancelAnimationFrame(raf);
     } else {
       setModalVisible(false);
+      setSwipeDx(0);
     }
   }, [modalIssue]);
 
@@ -198,10 +201,29 @@ export default function IssueList({ defaultDistrict }: { defaultDistrict?: Distr
             </div>
           </div>
 
-          {/* Mobile: full-width slide-in from right */}
+          {/* Mobile: dark backdrop */}
           <div
-            className="lg:hidden fixed inset-0 z-50 bg-white flex flex-col transition-transform duration-300 ease-out"
-            style={{ transform: modalVisible ? "translateX(0)" : "translateX(100%)" }}>
+            className="lg:hidden fixed inset-0 z-40 bg-black/50 transition-opacity duration-300"
+            style={{ opacity: modalVisible ? 1 : 0 }}
+            onClick={() => setModalIssue(null)}
+          />
+
+          {/* Mobile: full-width slide-in from right, swipe-right to close */}
+          <div
+            className={`lg:hidden fixed inset-0 z-50 bg-white flex flex-col${swipeDx === 0 ? " transition-transform duration-300 ease-out" : ""}`}
+            style={{ transform: modalVisible ? `translateX(${swipeDx}px)` : "translateX(100%)" }}
+            onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; }}
+            onTouchMove={(e) => {
+              const dx = e.touches[0].clientX - swipeStartX.current;
+              if (dx > 0) setSwipeDx(dx);
+            }}
+            onTouchEnd={() => {
+              if (swipeDx > 80) {
+                setModalIssue(null);
+              } else {
+                setSwipeDx(0);
+              }
+            }}>
             <div className="flex items-center justify-end px-4 py-3 border-b border-zinc-100 shrink-0">
               <button
                 onClick={() => setModalIssue(null)}

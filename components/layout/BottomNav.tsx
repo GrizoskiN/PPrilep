@@ -9,9 +9,12 @@ import {
   Lightbulb,
   MapPin,
   Bell,
+  LogOut,
+  UserCircle2,
   X,
 } from "lucide-react";
 import { useAuth } from "../../lib/hooks/useAuth";
+import AvatarInitials from "../ui/AvatarInitials";
 import { createClient } from "../../lib/supabase/client";
 import { isMissingNotificationsTableError } from "../../lib/notifications";
 import { formatDays, getIssuePath, parseIssueIdFromSegment } from "../../lib/utils";
@@ -35,7 +38,8 @@ const NAV_ITEMS = [
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile, signOut } = useAuth();
+  const [accountOpen, setAccountOpen] = useState(false);
   const supabase = useMemo(() => createClient(), []);
 
   const [notifOpen, setNotifOpen] = useState(false);
@@ -172,7 +176,7 @@ export default function BottomNav() {
               key={href}
               href={href}
               className="flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors"
-              onClick={closeNotifPanel}>
+              onClick={() => { closeNotifPanel(); setAccountOpen(false); }}>
               <Icon
                 size={20}
                 strokeWidth={active ? 2.4 : 1.8}
@@ -207,7 +211,83 @@ export default function BottomNav() {
             Известувања
           </span>
         </button>
+
+        {/* Account tab */}
+        <button
+          onClick={() => {
+            if (!user) {
+              router.push(`/auth/login?next=${encodeURIComponent(pathname ?? "/")}`);
+              return;
+            }
+            setAccountOpen((o) => !o);
+            closeNotifPanel();
+          }}
+          className="relative flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors">
+          {user && profile ? (
+            <AvatarInitials
+              name={profile.full_name}
+              avatarUrl={profile.avatar_url}
+              size="sm"
+              className={`w-5! h-5! text-[9px]! ${accountOpen ? "ring-2 ring-primary" : ""}`}
+            />
+          ) : (
+            <UserCircle2
+              size={20}
+              strokeWidth={1.8}
+              className="text-slate-400"
+            />
+          )}
+          <span className={`text-[10px] font-semibold ${accountOpen ? "text-primary" : "text-slate-400"}`}>
+            Профил
+          </span>
+        </button>
       </nav>
+
+      {/* Account panel */}
+      {accountOpen && user && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+            onClick={() => setAccountOpen(false)}
+          />
+          <div className="fixed bottom-16 left-0 right-0 z-50 rounded-t-2xl bg-white shadow-2xl lg:hidden overflow-hidden">
+            <div className="flex justify-center pt-2 pb-1">
+              <div className="h-1 w-10 rounded-full bg-zinc-200" />
+            </div>
+            <div className="px-4 pb-2 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AvatarInitials
+                  name={profile?.full_name}
+                  avatarUrl={profile?.avatar_url}
+                  size="md"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-zinc-800">{profile?.full_name ?? "Профил"}</p>
+                  {profile?.username && <p className="text-xs text-zinc-400">@{profile.username}</p>}
+                </div>
+              </div>
+              <button onClick={() => setAccountOpen(false)} className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="border-t border-zinc-100 px-4 py-3 space-y-1">
+              <Link
+                href={profile?.username ? `/u/${profile.username}` : `/u/${user.id}`}
+                onClick={() => setAccountOpen(false)}
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
+                <UserCircle2 size={16} className="text-zinc-400" />
+                Мој профил
+              </Link>
+              <button
+                onClick={async () => { setAccountOpen(false); await signOut(); }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                <LogOut size={16} />
+                Одјави се
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Notification panel */}
       {notifOpen && (

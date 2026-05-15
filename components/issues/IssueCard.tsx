@@ -217,16 +217,44 @@ export default function IssueCard({
             </div>
           </Link>
 
-          <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0 max-w-[55%]">
-            <span className="text-[10px] text-zinc-500 font-medium whitespace-nowrap">
-              {DISTRICT_LABELS[issue.district] ?? issue.district}
-              {issue.street_name ? ` | ${issue.street_name}` : ""}
-            </span>
-            <span className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-md font-medium whitespace-nowrap">
+          {/* Desktop: original row layout, district+street truncated with gradient */}
+          <div className="hidden lg:flex items-center gap-1.5 justify-end shrink-0 max-w-[60%] min-w-0">
+            <div className="relative min-w-0 overflow-hidden">
+              <span className="text-[10px] text-zinc-500 font-medium whitespace-nowrap block">
+                {DISTRICT_LABELS[issue.district] ?? issue.district}
+                {issue.street_name ? ` | ${issue.street_name}` : ""}
+              </span>
+              <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+            </div>
+            <span className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-md font-medium whitespace-nowrap shrink-0">
               {categoryIcon(issue.category)}{" "}
               {CATEGORY_LABELS[issue.category] ?? issue.category}
             </span>
             <StatusPill status={issue.status} />
+          </div>
+
+          {/* Mobile: category+status on top, street below with gradient */}
+          <div className="lg:hidden flex flex-col items-end gap-0.5 shrink-0 max-w-[60%]">
+            <div className="flex items-center gap-1.5">
+              <Link
+                href={`/issues?category=${issue.category}`}
+                onClick={(e) => e.stopPropagation()}
+                className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-md font-medium whitespace-nowrap hover:bg-zinc-200 transition-colors">
+                {categoryIcon(issue.category)} {CATEGORY_LABELS[issue.category] ?? issue.category}
+              </Link>
+              <StatusPill status={issue.status} />
+            </div>
+            {issue.street_name && (
+              <div className="relative w-full overflow-hidden">
+                <Link
+                  href={`/issues?street=${encodeURIComponent(issue.street_name)}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="block text-[10px] text-zinc-400 font-medium whitespace-nowrap hover:text-zinc-600 transition-colors text-right pl-6">
+                  {issue.street_name}
+                </Link>
+                <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white to-transparent pointer-events-none" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -305,14 +333,14 @@ export default function IssueCard({
 
         {/* ── Action bar ─────────────────────────────────── */}
         <div className="flex items-center justify-between px-3 pt-1 pb-3">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 lg:gap-4">
 
             {/* Помогни */}
-            <div className="relative flex items-center gap-1">
+            <div className="relative flex items-center gap-0.5 lg:gap-1">
               <button
                 onClick={showHelpers}
                 className={cn(
-                  "text-xs font-bold tabular-nums transition-colors",
+                  "text-[11px] lg:text-xs font-bold tabular-nums transition-colors",
                   helperCount > 0 ? "text-zinc-700 hover:text-teal-600 cursor-pointer" : "text-zinc-400 cursor-default",
                 )}>
                 {helperCount}
@@ -320,10 +348,10 @@ export default function IssueCard({
               <button
                 onClick={openHelper}
                 className={cn(
-                  "flex items-center gap-1 text-xs font-medium transition-colors",
+                  "flex items-center gap-0.5 lg:gap-1 text-[10px] lg:text-xs font-medium transition-colors",
                   isHelper ? "text-teal-600" : "text-zinc-500 hover:text-teal-600",
                 )}>
-                <HandHelping size={15} />
+                <HandHelping size={13} className="lg:w-[15px] lg:h-[15px]" />
                 <span>Помогни</span>
               </button>
               {showHelperPop && helperUsers.length > 0 && (
@@ -332,11 +360,11 @@ export default function IssueCard({
             </div>
 
             {/* Иста мака */}
-            <div className="relative flex items-center gap-1">
+            <div className="relative flex items-center gap-0.5 lg:gap-1">
               <button
                 onClick={showAffected}
                 className={cn(
-                  "text-xs font-bold tabular-nums transition-colors",
+                  "text-[11px] lg:text-xs font-bold tabular-nums transition-colors",
                   affectedCount > 0 ? "text-zinc-700 hover:text-amber-600 cursor-pointer" : "text-zinc-400 cursor-default",
                 )}>
                 {affectedCount}
@@ -345,10 +373,10 @@ export default function IssueCard({
                 onClick={toggleAffected}
                 disabled={loadingAff}
                 className={cn(
-                  "flex items-center gap-1 text-xs font-medium transition-colors",
+                  "flex items-center gap-0.5 lg:gap-1 text-[10px] lg:text-xs font-medium transition-colors",
                   isAffected ? "text-amber-600" : "text-zinc-500 hover:text-amber-600",
                 )}>
-                <Zap size={15} />
+                <Zap size={13} className="lg:w-[15px] lg:h-[15px]" />
                 <span>Иста мака</span>
               </button>
               {showAffectedPop && affectedUsers.length > 0 && (
@@ -359,14 +387,14 @@ export default function IssueCard({
             {/* Коментари */}
             <button
               onClick={(e) => { e.stopPropagation(); onClick?.(); }}
-              className="flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-blue-600 transition-colors">
+              className="flex items-center gap-0.5 lg:gap-1 text-[10px] lg:text-xs font-medium text-zinc-500 hover:text-blue-600 transition-colors">
               <span className={cn(
-                "text-xs font-bold tabular-nums mr-0.5",
+                "text-[11px] lg:text-xs font-bold tabular-nums mr-0.5",
                 (issue.comment_count ?? 0) > 0 ? "text-zinc-700" : "text-zinc-400",
               )}>
                 {issue.comment_count ?? 0}
               </span>
-              <MessageCircle size={15} />
+              <MessageCircle size={13} className="lg:w-[15px] lg:h-[15px]" />
               <span>Коментари</span>
             </button>
           </div>
@@ -376,7 +404,7 @@ export default function IssueCard({
             onClick={share}
             className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-800 transition-colors">
             <Send size={14} />
-            <span>Сподели</span>
+            <span className="hidden lg:inline">Сподели</span>
           </button>
         </div>
       </article>

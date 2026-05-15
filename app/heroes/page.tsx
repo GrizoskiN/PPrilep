@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createClient } from '../../lib/supabase/server'
 import Shell from '../../components/layout/Shell'
 import AvatarInitials from '../../components/ui/AvatarInitials'
@@ -18,18 +19,22 @@ function HeroList({ heroes, emptyText }: { heroes: HeroProfile[]; emptyText: str
   return (
     <div className="space-y-2">
       {heroes.map((profile, index) => (
-        <div key={profile.id} className="bg-white border border-zinc-200 rounded-lg p-3 flex items-center gap-3">
-          <span className="text-sm font-bold text-zinc-300 w-6 text-right">{index + 1}</span>
+        <Link
+          key={profile.id}
+          href={profile.username ? `/u/${profile.username}` : `/u/${profile.id}`}
+
+          className="bg-white border border-zinc-200 rounded-lg p-3 flex items-center gap-3 hover:border-zinc-300 hover:bg-zinc-50 transition-colors">
+          <span className="text-sm font-bold text-zinc-300 w-6 text-right shrink-0">{index + 1}</span>
           <AvatarInitials name={profile.full_name} avatarUrl={profile.avatar_url} size="md" />
-          <div className="flex-1">
-            <p className="text-sm font-medium">{profile.full_name ?? 'Анонимно'}</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{profile.full_name ?? 'Анонимно'}</p>
             {profile.username && <p className="text-xs text-zinc-400">@{profile.username}</p>}
           </div>
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <p className="text-sm font-bold">{profile.points}</p>
             <p className="text-[10px] text-zinc-400">аплаузи</p>
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   )
