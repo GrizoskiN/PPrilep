@@ -34,6 +34,7 @@ const DISTRICTS: Array<District | "all"> = [
   "Rid",
   "Tipski",
   "Boncejca",
+  "KorzoMaalo",
 ];
 const CATEGORIES: Array<Category | "all"> = [
   "all",
@@ -69,9 +70,10 @@ export default function IssueList({
   const [status, setStatus] = useState<IssueStatus | "all">("all");
   const [modalIssue, setModalIssue] = useState<Issue | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-  const [swipeDx, setSwipeDx] = useState(0);
-  const swipeStartX = useRef(0);
-  const swipeStartY = useRef(0);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [swipeDy, setSwipeDy] = useState(0);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const drawerScrollRef = useRef<HTMLDivElement>(null);
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -84,14 +86,82 @@ export default function IssueList({
   );
 
   function openIssueModal(issue: Issue) {
-    setSwipeDx(0);
+    setSwipeDy(0);
     setModalIssue(issue);
   }
 
   function closeIssueModal() {
-    setSwipeDx(0);
-    setModalIssue(null);
+    setModalOpen(false);
+    setSwipeDy(0);
+    // Wait for exit transitions (both desktop fade + mobile slide-down) to finish
+    setTimeout(() => setModalIssue(null), 280);
   }
+
+  // Entrance animation: trigger open on next frame so transitions catch it
+  useEffect(() => {
+    if (modalIssue) {
+      const id = requestAnimationFrame(() => setModalOpen(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setModalOpen(false);
+    }
+  }, [modalIssue]);
+
+  // Native touch drag-to-close — must be passive:false to allow preventDefault
+  useEffect(() => {
+    if (!modalIssue) return;
+    const el = drawerRef.current;
+    if (!el) return;
+
+    let startY = 0;
+    let startX = 0;
+    let dragging = false;
+    let currentDy = 0;
+
+    function onStart(e: TouchEvent) {
+      startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+      dragging = false;
+      currentDy = 0;
+    }
+
+    function onMove(e: TouchEvent) {
+      const dy = e.touches[0].clientY - startY;
+      const dx = Math.abs(e.touches[0].clientX - startX);
+      const scrollTop = drawerScrollRef.current?.scrollTop ?? 0;
+      // Commit only when: at scroll top, moving down, AND vertical dominates horizontal
+      // This lets horizontal gestures (e.g. BeforeAfterSlider) pass through unblocked
+      if (!dragging && dy > 8 && scrollTop < 2 && dy > dx) {
+        dragging = true;
+      }
+      if (dragging) {
+        e.preventDefault(); // block scroll while dragging drawer
+        currentDy = Math.max(0, dy);
+        setSwipeDy(currentDy);
+      }
+    }
+
+    function onEnd() {
+      if (dragging && currentDy > 120) {
+        closeIssueModal();
+      } else if (dragging) {
+        setSwipeDy(0);
+      }
+      dragging = false;
+      currentDy = 0;
+    }
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalIssue]);
 
   // Close modal on Escape
   useEffect(() => {
@@ -101,6 +171,7 @@ export default function IssueList({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalIssue]);
 
   // Prevent body scroll when modal is open
@@ -207,8 +278,8 @@ export default function IssueList({
         <>
           {/* Desktop: Facebook-style two-panel */}
           <div
-            className="hidden lg:flex fixed inset-0 z-50"
-            style={{ backgroundColor: "rgba(0,0,0,0.92)" }}
+            className="hidden lg:flex fixed inset-0 z-50 transition-opacity duration-300"
+            style={{ backgroundColor: "rgba(0,0,0,0.92)", opacity: modalOpen ? 1 : 0 }}
             onClick={closeIssueModal}>
             {/* Left: black bg — clicking the bg area closes modal */}
             <div className="flex-1 flex items-center justify-center p-8 min-w-0 bg-black">
@@ -261,41 +332,27 @@ export default function IssueList({
             </div>
           </div>
 
-          {/* Mobile: dark backdrop */}
+          {/* Mobile: backdrop — click to close */}
           <div
             className="lg:hidden fixed inset-0 z-40 bg-black/50 transition-opacity duration-300"
-            style={{ opacity: modalIssue ? 1 : 0 }}
+            style={{ opacity: modalOpen ? 1 : 0 }}
             onClick={closeIssueModal}
           />
 
-          {/* Mobile: full-width slide-in from right, swipe-right to close */}
+          {/* Mobile: bottom drawer — drag handle + drag-down to close */}
           <div
-            className={`lg:hidden fixed inset-0 z-50 bg-white flex flex-col${swipeDx === 0 ? " transition-transform duration-300 ease-out" : ""}`}
-            style={{ transform: `translateX(${swipeDx}px)` }}
-            onTouchStart={(e) => {
-              swipeStartX.current = e.touches[0].clientX;
-              swipeStartY.current = e.touches[0].clientY;
-            }}
-            onTouchMove={(e) => {
-              const dx = e.touches[0].clientX - swipeStartX.current;
-              const dy = Math.abs(e.touches[0].clientY - swipeStartY.current);
-              if (dx > 0 && dx > dy) setSwipeDx(dx);
-            }}
-            onTouchEnd={() => {
-              if (swipeDx > 80) {
-                closeIssueModal();
-              } else {
-                setSwipeDx(0);
-              }
+            ref={drawerRef}
+            className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl flex flex-col${swipeDy === 0 ? " transition-transform duration-300 ease-out" : ""}`}
+            style={{
+              transform: modalOpen ? `translateY(${swipeDy}px)` : "translateY(100%)",
+              maxHeight: "92dvh",
             }}>
-            <div className="flex items-center justify-end px-4 py-3 border-b border-zinc-100 shrink-0">
-              <button
-                onClick={closeIssueModal}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors">
-                <X size={20} />
-              </button>
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab">
+              <div className="h-1.5 w-12 rounded-full bg-zinc-300" />
             </div>
-            <div className="overflow-y-auto flex-1">
+            {/* Scrollable content */}
+            <div ref={drawerScrollRef} className="overflow-y-auto flex-1">
               <IssueDetail issue={modalIssue} userId={user?.id} />
             </div>
           </div>

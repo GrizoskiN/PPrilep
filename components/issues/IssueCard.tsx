@@ -299,7 +299,7 @@ export default function IssueCard({
         onClick={onClick}
         className="cursor-pointer bg-white border border-zinc-200 rounded-none lg:rounded-xl overflow-hidden hover:border-zinc-300 transition-colors">
         {/* ── Header ─────────────────────────────────────── */}
-        <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-2 px-4 py-3">
           <Link
             href={authorHref}
             onClick={(e) => e.stopPropagation()}
@@ -375,7 +375,7 @@ export default function IssueCard({
                   priority={eagerImage}
                   sizes="50vw"
                   rounded="rounded-none"
-                  className="h-72 w-full object-cover"
+                  className="h-96 w-full object-cover"
                 />
                 <span className="absolute top-1.5 left-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
                   Пред
@@ -391,7 +391,7 @@ export default function IssueCard({
                   priority={eagerImage}
                   sizes="50vw"
                   rounded="rounded-none"
-                  className="h-72 w-full object-cover"
+                  className="h-96 w-full object-cover"
                 />
                 <span className="absolute top-1.5 left-1.5 rounded-md bg-teal-600/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
                   Потоа
@@ -428,26 +428,26 @@ export default function IssueCard({
               priority={eagerImage}
               sizes="(max-width: 768px) 100vw, 640px"
               rounded="rounded-none"
-              className="h-80 w-full object-cover"
+              className="h-[427px] w-full object-cover"
             />
           ))}
 
         {/* ── Title ──────────────────────────────────────── */}
-        <div className={cn("px-3", hasPhoto ? "pt-2.5 pb-1" : "pt-2 pb-1")}>
+        <div className={cn("px-4", hasPhoto ? "pt-3 pb-1" : "pt-2 pb-1")}>
           <p className="text-sm font-semibold text-zinc-800 line-clamp-2 leading-snug">
             {issue.title}
           </p>
         </div>
 
         {/* ── Action bar ─────────────────────────────────── */}
-        <div className="flex items-center justify-between px-3 pt-1 pb-3">
+        <div className="flex items-center justify-between px-4 pt-1.5 pb-4">
           <div className="flex items-center gap-3 lg:gap-4">
             {/* Помогни */}
             <div className="relative flex items-center gap-1.5 lg:gap-2">
               <button
                 onClick={showHelpers}
                 className={cn(
-                  "text-[11px] lg:text-xs font-bold tabular-nums transition-colors",
+                  "text-[11px] lg:text-sm font-bold tabular-nums transition-colors",
                   helperCount > 0
                     ? "text-zinc-700 hover:text-[#427FFF] cursor-pointer"
                     : "text-zinc-400 cursor-default",
@@ -457,12 +457,12 @@ export default function IssueCard({
               <button
                 onClick={openHelper}
                 className={cn(
-                  "flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-xs font-medium transition-colors",
+                  "flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-sm font-medium transition-colors",
                   isHelper
                     ? "text-[#427FFF]"
                     : "text-zinc-500 hover:text-[#427FFF]",
                 )}>
-                <PomogniIcon className="h-5 w-5 lg:h-4.25 lg:w-4.25" />
+                <PomogniIcon className="h-5 w-5 lg:h-[18px] lg:w-[18px]" />
                 <span>Помогни</span>
               </button>
               {showHelperPop && helperUsers.length > 0 && (
@@ -478,7 +478,7 @@ export default function IssueCard({
               <button
                 onClick={showAffected}
                 className={cn(
-                  "text-[11px] lg:text-xs font-bold tabular-nums transition-colors",
+                  "text-[11px] lg:text-sm font-bold tabular-nums transition-colors",
                   affectedCount > 0
                     ? "text-zinc-700 hover:text-[#427FFF] cursor-pointer"
                     : "text-zinc-400 cursor-default",
@@ -489,12 +489,12 @@ export default function IssueCard({
                 onClick={toggleAffected}
                 disabled={loadingAff}
                 className={cn(
-                  "flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-xs font-medium transition-colors",
+                  "flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-sm font-medium transition-colors",
                   isAffected
                     ? "text-[#427FFF]"
                     : "text-zinc-500 hover:text-[#427FFF]",
                 )}>
-                <IstaMakaIcon className="h-5 w-5 lg:h-4.25 lg:w-4.25" />
+                <IstaMakaIcon className="h-5 w-5 lg:h-[18px] lg:w-[18px]" />
                 <span>Иста мака</span>
               </button>
               {showAffectedPop && affectedUsers.length > 0 && (
@@ -511,17 +511,17 @@ export default function IssueCard({
                 e.stopPropagation();
                 onClick?.();
               }}
-              className="flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-xs font-medium text-zinc-500 hover:text-[#427FFF] transition-colors">
+              className="flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-sm font-medium text-zinc-500 hover:text-[#427FFF] transition-colors">
               <span
                 className={cn(
-                  "text-[11px] lg:text-xs font-bold tabular-nums",
+                  "text-[11px] lg:text-sm font-bold tabular-nums",
                   (issue.comment_count ?? 0) > 0
                     ? "text-zinc-700"
                     : "text-zinc-400",
                 )}>
                 {issue.comment_count ?? 0}
               </span>
-              <KomentariIcon className="h-5 w-5 lg:h-4.25 lg:w-4.25" />
+              <KomentariIcon className="h-5 w-5 lg:h-[18px] lg:w-[18px]" />
               <span>Коментари</span>
             </button>
           </div>
@@ -529,8 +529,8 @@ export default function IssueCard({
           {/* Сподели */}
           <button
             onClick={openShareSheet}
-            className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-800 transition-colors">
-            <Send size={14} />
+            className="flex items-center gap-1.5 text-[10px] lg:text-sm font-medium text-zinc-500 hover:text-zinc-800 transition-colors">
+            <Send size={14} className="lg:w-[18px] lg:h-[18px]" />
             <span className="hidden lg:inline">Сподели</span>
           </button>
         </div>

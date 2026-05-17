@@ -13,7 +13,8 @@ export type District =
   | "Točila"
   | "Rid"
   | "Tipski"
-  | "Boncejca";
+  | "Boncejca"
+  | "KorzoMaalo";
 export type Category =
   | "road"
   | "water"

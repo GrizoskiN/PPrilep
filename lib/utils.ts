@@ -26,6 +26,7 @@ export function districtColor(district: District | string): string {
     Rid: "bg-zinc-400 text-black",
     Tipski: "bg-zinc-300 text-black",
     Boncejca: "bg-zinc-200 text-black",
+    KorzoMaalo: "bg-teal-700 text-white",
   };
   return map[district] ?? "bg-zinc-200 text-black";
 }
@@ -39,6 +40,7 @@ export const DISTRICT_LABELS: Record<string, string> = {
   Rid: "Рид",
   Tipski: "Типски",
   Boncejca: "Бончејца",
+  KorzoMaalo: "Корзо Маало",
 };
 
 export const CATEGORY_LABELS: Record<Category, string> = {
