@@ -18,6 +18,7 @@ const PROVIDER_LABELS: Record<Provider, string> = {
   power: "Осветлување",
   transport: "Градски превоз",
   parking: "Паркинзи",
+  kindergarten: "Градинки — Наша Иднина",
 };
 const PROVIDER_ICONS: Record<Provider, string> = {
   water: "💧",
@@ -25,6 +26,7 @@ const PROVIDER_ICONS: Record<Provider, string> = {
   power: "💡",
   transport: "🚌",
   parking: "🅿️",
+  kindergarten: "🌸",
 };
 
 interface Props {

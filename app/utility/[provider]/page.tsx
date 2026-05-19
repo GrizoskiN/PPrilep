@@ -19,6 +19,7 @@ const PROVIDER_LABELS: Record<Provider, string> = {
   power: "Осветлување",
   transport: "Градски превоз",
   parking: "Паркинзи",
+  kindergarten: "Градинки — Наша Иднина",
 };
 const PROVIDER_ICONS: Record<Provider, string> = {
   water: "💧",
@@ -26,6 +27,7 @@ const PROVIDER_ICONS: Record<Provider, string> = {
   power: "💡",
   transport: "🚌",
   parking: "🅿️",
+  kindergarten: "🌸",
 };
 
 const FB_PAGE_URL = "https://www.facebook.com/JKP.VIK.PP/";
