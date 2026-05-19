@@ -93,6 +93,7 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [swipeDy, setSwipeDy] = useState(0);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const dragHandleRef = useRef<HTMLDivElement>(null);
   const drawerScrollRef = useRef<HTMLDivElement>(null);
 
   // Entrance animation
@@ -108,26 +109,23 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
     setTimeout(onClose, 280);
   }, [onClose]);
 
-  // Native touch drag-to-close (passive:false to allow preventDefault)
+  // Drag-to-close — attached ONLY to the drag handle bar, nowhere else.
+  // The form content area is completely untouched.
   useEffect(() => {
-    const el = drawerRef.current;
+    const el = dragHandleRef.current;
     if (!el) return;
     let startY = 0;
-    let startX = 0;
     let dragging = false;
     let currentDy = 0;
 
     function onStart(e: TouchEvent) {
       startY = e.touches[0].clientY;
-      startX = e.touches[0].clientX;
       dragging = false;
       currentDy = 0;
     }
     function onMove(e: TouchEvent) {
       const dy = e.touches[0].clientY - startY;
-      const dx = Math.abs(e.touches[0].clientX - startX);
-      const scrollTop = drawerScrollRef.current?.scrollTop ?? 0;
-      if (!dragging && dy > 8 && scrollTop < 2 && dy > dx) dragging = true;
+      if (!dragging && dy > 8) dragging = true;
       if (dragging) {
         e.preventDefault();
         currentDy = Math.max(0, dy);
@@ -135,7 +133,7 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
       }
     }
     function onEnd() {
-      if (dragging && currentDy > 120) {
+      if (dragging && currentDy > 80) {
         handleClose();
       } else if (dragging) {
         setSwipeDy(0);
@@ -268,9 +266,11 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
             transform: drawerOpen ? `translateY(${swipeDy}px)` : "translateY(110%)",
             maxHeight: "95dvh",
           }}>
-          {/* Drag handle — mobile only */}
-          <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab sm:hidden">
-            <div className="h-1.5 w-12 rounded-full bg-zinc-300" />
+          {/* Drag handle — mobile only. This is the ONLY touch area that closes the drawer. */}
+          <div
+            ref={dragHandleRef}
+            className="flex justify-center pt-3 pb-3 shrink-0 cursor-grab active:cursor-grabbing sm:hidden touch-none">
+            <div className="h-1.5 w-12 rounded-full bg-zinc-300 pointer-events-none" />
           </div>
           {/* Sticky header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 shrink-0 bg-white">

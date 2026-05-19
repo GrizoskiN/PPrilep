@@ -2,6 +2,7 @@ import { createClient } from "../../lib/supabase/server";
 import Shell from "../../components/layout/Shell";
 import { DISTRICT_LABELS } from "../../lib/utils";
 import DistrictCard from "../../components/communities/DistrictCard";
+import CommunitiesExport from "../../components/communities/CommunitiesExport";
 import type { District, Category } from "../../lib/types/database";
 import type { DistrictStat, CategoryStat } from "../../components/communities/DistrictCard";
 
@@ -23,9 +24,16 @@ const CATEGORIES: Category[] = [
 
 export default async function CommunitiesPage() {
   const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const isAdmin = user
+    ? (await supabase.from("profiles").select("is_admin").eq("id", user.id).single()).data?.is_admin === true
+    : false;
+
   const { data: issues } = await supabase
     .from("issues")
-    .select("district, status, category");
+    .select("id, title, district, status, category, street_name, created_at")
+    .order("created_at", { ascending: false });
 
   const allIssues = issues ?? [];
 
@@ -42,7 +50,7 @@ export default async function CommunitiesPage() {
         progress: catIssues.filter((i) => i.status === "progress").length,
         resolved: catIssues.filter((i) => i.status === "resolved").length,
       };
-    }).filter((c) => c.total > 0); // only categories with data
+    }).filter((c) => c.total > 0);
 
     return {
       district: d,
@@ -73,34 +81,39 @@ export default async function CommunitiesPage() {
         </div>
 
         {/* City-wide summary banner */}
-        <div className="bg-zinc-900 text-white rounded-xl px-4 py-4">
-          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">
-            Прилеп — Вкупно
-          </p>
+        <div
+          className="rounded-xl px-4 py-4"
+          style={{ background: "linear-gradient(135deg, #2aa99d, #1d8f84)" }}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-white/70 uppercase tracking-wide">
+              Прилеп — Вкупно
+            </p>
+            {isAdmin && <CommunitiesExport stats={stats} issues={allIssues} />}
+          </div>
           <div className="grid grid-cols-4 gap-2 text-center">
             <div>
-              <p className="text-xl font-bold">{cityTotal}</p>
-              <p className="text-[10px] text-zinc-400 uppercase mt-0.5">Вкупно</p>
+              <p className="text-xl font-bold text-white">{cityTotal}</p>
+              <p className="text-[10px] text-white/60 uppercase mt-0.5">Вкупно</p>
             </div>
             <div>
-              <p className="text-xl font-bold text-red-400">{cityOpen}</p>
-              <p className="text-[10px] text-zinc-400 uppercase mt-0.5">Отворени</p>
+              <p className="text-xl font-bold text-red-200">{cityOpen}</p>
+              <p className="text-[10px] text-white/60 uppercase mt-0.5">Отворени</p>
             </div>
             <div>
-              <p className="text-xl font-bold text-amber-400">{cityProgress}</p>
-              <p className="text-[10px] text-zinc-400 uppercase mt-0.5">Во тек</p>
+              <p className="text-xl font-bold text-amber-200">{cityProgress}</p>
+              <p className="text-[10px] text-white/60 uppercase mt-0.5">Во тек</p>
             </div>
             <div>
-              <p className="text-xl font-bold text-emerald-400">{cityResolved}</p>
-              <p className="text-[10px] text-zinc-400 uppercase mt-0.5">Решени</p>
+              <p className="text-xl font-bold text-emerald-200">{cityResolved}</p>
+              <p className="text-[10px] text-white/60 uppercase mt-0.5">Решени</p>
             </div>
           </div>
           {/* City-wide progress bar */}
           {cityTotal > 0 && (
-            <div className="mt-3 h-1.5 w-full rounded-full bg-zinc-700 overflow-hidden flex">
-              <div className="h-full bg-red-400" style={{ width: `${(cityOpen / cityTotal) * 100}%` }} />
-              <div className="h-full bg-amber-400" style={{ width: `${(cityProgress / cityTotal) * 100}%` }} />
-              <div className="h-full bg-emerald-400" style={{ width: `${(cityResolved / cityTotal) * 100}%` }} />
+            <div className="mt-3 h-1.5 w-full rounded-full bg-white/20 overflow-hidden flex">
+              <div className="h-full bg-red-300/80" style={{ width: `${(cityOpen / cityTotal) * 100}%` }} />
+              <div className="h-full bg-amber-300/80" style={{ width: `${(cityProgress / cityTotal) * 100}%` }} />
+              <div className="h-full bg-white/70" style={{ width: `${(cityResolved / cityTotal) * 100}%` }} />
             </div>
           )}
         </div>

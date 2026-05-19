@@ -20,6 +20,7 @@ import {
   faBus,
   faSquareParking,
   faCalendarDays,
+  faChildren,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import NavItem from "../ui/NavItem";
@@ -223,6 +224,16 @@ export default function LeftNav() {
               <FontAwesomeIcon
                 icon={faSquareParking}
                 className="h-4 w-4 text-blue-700"
+              />
+            }
+          />
+          <NavItem
+            href="/kindergarten"
+            label="Градинки — Наша Иднина"
+            iconNode={
+              <FontAwesomeIcon
+                icon={faChildren}
+                className="h-4 w-4 text-rose-400"
               />
             }
           />

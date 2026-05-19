@@ -32,7 +32,10 @@ export type Provider =
   | "garbage"
   | "power"
   | "transport"
-  | "parking";
+  | "parking"
+  | "kindergarten";
+
+export type KindergartenPostType = "menu" | "programme" | "idea" | "announcement";
 export type CampaignStatus = "active" | "completed" | "cancelled";
 export type NotificationType =
   | "issue_comment"
@@ -123,6 +126,7 @@ export interface UtilityPost {
   body: string | null;
   source_url: string | null;
   status: IssueStatus | null;
+  post_type: KindergartenPostType | null;
   posted_at: string;
 }
 

@@ -33,9 +33,12 @@ const STATUS_FILTERS = [
 
 type FilterKey = (typeof STATUS_FILTERS)[number]["key"];
 
+const CATEGORY_PREVIEW = 4;
+
 export default function DistrictCard({ stat }: { stat: DistrictStat }) {
   const [expanded, setExpanded] = useState(false);
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [showAll, setShowAll] = useState(false);
 
   const resolveRate =
     stat.total > 0 ? Math.round((stat.resolved / stat.total) * 100) : 0;
@@ -142,7 +145,7 @@ export default function DistrictCard({ stat }: { stat: DistrictStat }) {
                   return (
                     <button
                       key={f.key}
-                      onClick={() => setFilter(f.key)}
+                      onClick={() => { setFilter(f.key); setShowAll(false); }}
                       className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                         filter === f.key
                           ? "bg-zinc-800 text-white"
@@ -181,7 +184,7 @@ export default function DistrictCard({ stat }: { stat: DistrictStat }) {
                     </div>
 
                     {/* Rows */}
-                    {visibleCategories.map((c) => (
+                    {(showAll ? visibleCategories : visibleCategories.slice(0, CATEGORY_PREVIEW)).map((c) => (
                       <Link
                         key={c.category}
                         href={`/issues?district=${stat.district}&category=${c.category}${statusParam(filter)}`}
@@ -209,12 +212,27 @@ export default function DistrictCard({ stat }: { stat: DistrictStat }) {
                   </div>
                 )}
 
-                {/* View all link */}
-                <div className="pt-3 border-t border-zinc-100 mt-2">
+                {/* Show more / view all */}
+                <div className="pt-3 border-t border-zinc-100 mt-2 flex items-center justify-between">
+                  {!showAll && visibleCategories.length > CATEGORY_PREVIEW ? (
+                    <button
+                      onClick={() => setShowAll(true)}
+                      className="text-xs font-semibold text-teal-600 hover:text-teal-700 transition-colors">
+                      Прегледај ги сите категории ({visibleCategories.length - CATEGORY_PREVIEW} повеќе) →
+                    </button>
+                  ) : showAll ? (
+                    <button
+                      onClick={() => setShowAll(false)}
+                      className="text-xs font-semibold text-zinc-400 hover:text-zinc-600 transition-colors">
+                      ↑ Помалку
+                    </button>
+                  ) : (
+                    <span />
+                  )}
                   <Link
                     href={`/issues?district=${stat.district}${statusParam(filter)}`}
-                    className="text-xs font-semibold text-teal-600 hover:text-teal-700 transition-colors">
-                    Прегледај ги сите проблеми →
+                    className="text-xs font-medium text-zinc-400 hover:text-zinc-600 transition-colors">
+                    Сите пријави →
                   </Link>
                 </div>
               </div>
