@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+
+const HelperModal = dynamic(() => import("./HelperModal"), { ssr: false });
 import BlurImage from "../ui/BlurImage";
 import Image from "next/image";
 import Link from "next/link";
@@ -13,20 +16,19 @@ import {
   Trash2,
   AlertTriangle,
   HandHelping,
+  Users,
+  MoreHorizontal,
+  Check,
+  Camera,
+  ImagePlus,
+  X as XIcon,
 } from "lucide-react";
-import StatusPill from "../ui/StatusPill";
+
+import SendIcon from "../ui/SendIcon";
+
 import AvatarInitials from "../ui/AvatarInitials";
 import ImageLightbox from "../ui/ImageLightbox";
-import {
-  formatDays,
-  districtColor,
-  categoryIcon,
-  cn,
-  DISTRICT_LABELS,
-  CATEGORY_LABELS,
-  getIssuePath,
-  cdnUrl,
-} from "../../lib/utils";
+import { formatDays, cn, getIssuePath, cdnUrl } from "../../lib/utils";
 import type { Issue, IssueStatus } from "../../lib/types/database";
 import { toast } from "sonner";
 import { createClient } from "../../lib/supabase/client";
@@ -36,6 +38,7 @@ interface Props {
   issue: Issue;
   userId?: string;
   onClose?: () => void;
+  onOpenDates?: () => void;
   variant?: "full" | "engagement";
   hideImage?: boolean;
 }
@@ -205,6 +208,7 @@ export default function IssueDetail({
   issue,
   userId,
   onClose,
+  onOpenDates,
   variant = "full",
   hideImage = false,
 }: Props) {
@@ -212,6 +216,14 @@ export default function IssueDetail({
 
   function redirectToAuth() {
     const next = `${window.location.pathname}${window.location.search}`;
+    // Prevent redirect on localhost during development
+    if (
+      typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1")
+    ) {
+      return;
+    }
     window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
   }
 
@@ -249,6 +261,14 @@ export default function IssueDetail({
   const [pendingRequests, setPendingRequests] = useState<ChangeRequest[]>([]);
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const approvingInFlight = useRef(false);
+  const commentRef = useRef<HTMLTextAreaElement>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showModMenu, setShowModMenu] = useState(false);
+  const [commentImage, setCommentImage] = useState<File | null>(null);
+  const [commentImagePreview, setCommentImagePreview] = useState<string | null>(
+    null,
+  );
+  const [uploadingCommentImage, setUploadingCommentImage] = useState(false);
   // proposal modal
   const [showProposeModal, setShowProposeModal] = useState(false);
   const [proposeStatus, setProposeStatus] = useState<
@@ -262,6 +282,8 @@ export default function IssueDetail({
   const [isHelperDirect, setIsHelperDirect] = useState(
     Boolean(currentIssue.is_helper),
   );
+  const [helperOpen, setHelperOpen] = useState(false);
+  const [isAffected, setIsAffected] = useState(Boolean(issue.is_affected));
   // resolver info & upvote state
   const [resolver, setResolver] = useState<{
     id: string;
@@ -320,7 +342,7 @@ export default function IssueDetail({
     const { data, error } = await supabase
       .from("issue_comments")
       .select(
-        "id, user_id, body, created_at, profiles(full_name, avatar_url, username)",
+        "id, user_id, body, photo_url, created_at, profiles:user_id(full_name, avatar_url, username)",
       )
       .eq("issue_id", currentIssue.id)
       .order("created_at", { ascending: false });
@@ -516,12 +538,13 @@ export default function IssueDetail({
     const { data: offersData, error: offersError } = await supabase
       .from("issue_help_offers")
       .select(
-        "id, issue_id, user_id, note, service_date, created_at, profiles(full_name, avatar_url, username)",
+        "id, issue_id, user_id, note, service_date, created_at, profiles:user_id(full_name, avatar_url, username)",
       )
       .eq("issue_id", currentIssue.id)
       .order("created_at", { ascending: true });
 
     if (offersError) {
+      console.error("[loadHelpOffers]", offersError.code, offersError.message);
       setLoadingOffers(false);
       if (offersError.code === "42P01") {
         setOffersUnavailable(true);
@@ -564,7 +587,7 @@ export default function IssueDetail({
         supabase
           .from("issue_help_offer_comments")
           .select(
-            "id, offer_id, user_id, body, created_at, profiles(full_name, avatar_url, username)",
+            "id, offer_id, user_id, body, created_at, profiles:user_id(full_name, avatar_url, username)",
           )
           .in("offer_id", offerIds)
           .order("created_at", { ascending: true }),
@@ -903,13 +926,38 @@ export default function IssueDetail({
       redirectToAuth();
       return;
     }
-    if (!body) return;
+    if (!body && !commentImage) return;
 
     setSavingComment(true);
 
-    const { error } = await supabase
-      .from("issue_comments")
-      .insert({ issue_id: currentIssue.id, user_id: userId, body });
+    // Upload image if present
+    let photoUrl: string | null = null;
+    if (commentImage) {
+      setUploadingCommentImage(true);
+      const ext = commentImage.name.split(".").pop() ?? "jpg";
+      const { data, error: upErr } = await supabase.storage
+        .from("issue-photos")
+        .upload(
+          `comments/${currentIssue.id}/${userId}-${Date.now()}.${ext}`,
+          commentImage,
+          {
+            contentType: commentImage.type,
+            upsert: false,
+          },
+        );
+      if (!upErr && data) {
+        photoUrl = supabase.storage.from("issue-photos").getPublicUrl(data.path)
+          .data.publicUrl;
+      }
+      setUploadingCommentImage(false);
+    }
+
+    const { error } = await supabase.from("issue_comments").insert({
+      issue_id: currentIssue.id,
+      user_id: userId,
+      body: body || null,
+      photo_url: photoUrl,
+    });
 
     if (error) {
       if (error.code === "42P01") {
@@ -925,14 +973,66 @@ export default function IssueDetail({
     }
 
     setCommentText("");
+    setCommentImage(null);
+    setCommentImagePreview(null);
     await loadComments();
     setSavingComment(false);
     toast.success("Коментарот е објавен");
   }
 
+  const EMOJIS = [
+    "😊",
+    "😂",
+    "❤️",
+    "👍",
+    "🙏",
+    "😍",
+    "😢",
+    "😅",
+    "🔥",
+    "✅",
+    "🤔",
+    "👏",
+    "😎",
+    "🥰",
+    "💪",
+    "🙌",
+    "😩",
+    "🤣",
+    "😭",
+    "🎉",
+    "👀",
+    "💯",
+    "🤦",
+    "😡",
+    "🥺",
+    "💔",
+    "😳",
+    "🤝",
+    "🙁",
+    "😤",
+  ];
+
+  function insertEmoji(emoji: string) {
+    const el = commentRef.current;
+    if (!el) {
+      setCommentText((t) => t + emoji);
+      return;
+    }
+    const start = el.selectionStart ?? commentText.length;
+    const end = el.selectionEnd ?? commentText.length;
+    const next = commentText.slice(0, start) + emoji + commentText.slice(end);
+    setCommentText(next);
+    // restore cursor after emoji
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + emoji.length, start + emoji.length);
+    });
+  }
+
   const commentsSection = (
-    <div className="rounded-xl border border-zinc-200 bg-white p-3">
-      <div className="mb-2 flex items-center gap-1.5">
+    <div className="">
+      <div className="mb-3 flex items-center gap-1.5">
         <MessageCircle size={13} className="text-zinc-500" />
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
           Коментари
@@ -947,27 +1047,142 @@ export default function IssueDetail({
       )}
 
       {userId ? (
-        <div className="mb-3 space-y-2">
-          <textarea
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            rows={3}
-            maxLength={400}
-            placeholder="Напиши краток коментар..."
-            className="w-full resize-none rounded-lg border border-zinc-200 px-2.5 py-2 text-xs text-zinc-700 outline-none transition-colors focus:border-teal-400"
-          />
-          <button
-            onClick={submitComment}
-            disabled={savingComment || commentText.trim().length === 0}
-            className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
-            {savingComment ? "Се зачувува..." : "Објави коментар"}
-          </button>
+        <div className="relative mb-3">
+          {/* Emoji picker */}
+          {showEmojiPicker && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowEmojiPicker(false)}
+              />
+              <div className="absolute bottom-full left-0 mb-1 z-50 w-64 rounded-2xl border border-zinc-200 bg-white shadow-xl p-2">
+                <div className="grid grid-cols-10 gap-0.5">
+                  {EMOJIS.map((e) => (
+                    <button
+                      key={e}
+                      onClick={() => {
+                        insertEmoji(e);
+                        setShowEmojiPicker(false);
+                      }}
+                      className="flex items-center justify-center h-7 w-7 rounded-lg text-base hover:bg-zinc-100 transition-colors">
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="flex items-start gap-2">
+            <AvatarInitials
+              name={authProfile?.full_name ?? authProfile?.username ?? null}
+              avatarUrl={authProfile?.avatar_url ?? null}
+              size="sm"
+              className="mt-1 shrink-0"
+            />
+            {/* Unified input container */}
+            <div className="flex-1 rounded-2xl bg-zinc-100 px-3 pt-2 pb-1.5">
+              <textarea
+                ref={commentRef}
+                value={commentText}
+                onChange={(e) => {
+                  setCommentText(e.target.value);
+                  // auto-grow
+                  e.target.style.height = "auto";
+                  e.target.style.height = e.target.scrollHeight + "px";
+                }}
+                rows={1}
+                maxLength={400}
+                placeholder={`Коментирај како ${authProfile?.full_name ?? authProfile?.username ?? ""}…`}
+                className="w-full resize-none bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400 leading-snug"
+                style={{ minHeight: "1.25rem", maxHeight: "8rem" }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (commentText.trim()) submitComment();
+                  }
+                }}
+              />
+              {/* Image preview */}
+              {commentImagePreview && (
+                <div className="relative mt-1.5 mb-1 inline-block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={commentImagePreview}
+                    alt="preview"
+                    className="max-h-24 rounded-lg object-cover border border-zinc-200"
+                  />
+                  <button
+                    onClick={() => {
+                      setCommentImage(null);
+                      setCommentImagePreview(null);
+                    }}
+                    className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-800 text-white hover:bg-zinc-900">
+                    <XIcon size={10} />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between mt-1.5">
+                <div className="flex items-center gap-1">
+                  {/* Emoji */}
+                  <button
+                    onClick={() => setShowEmojiPicker((v) => !v)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-zinc-200 transition-colors text-xl leading-none">
+                    😊
+                  </button>
+                  {/* Photo */}
+                  <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 transition-colors">
+                    <ImagePlus size={19} strokeWidth={2} />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) {
+                          setCommentImage(f);
+                          setCommentImagePreview(URL.createObjectURL(f));
+                        }
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+                <button
+                  onClick={submitComment}
+                  disabled={
+                    savingComment ||
+                    uploadingCommentImage ||
+                    (!commentText.trim() && !commentImage)
+                  }
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full transition-all",
+                    commentText.trim() || commentImage
+                      ? "bg-[#427FFF] text-white hover:bg-[#3570ee] active:scale-95"
+                      : "bg-zinc-200 text-zinc-400 cursor-default",
+                  )}
+                  aria-label="Испрати коментар">
+                  <SendIcon
+                    size={16}
+                    active={Boolean(commentText.trim() || commentImage)}
+                    disabled={
+                      savingComment ||
+                      uploadingCommentImage ||
+                      (!commentText.trim() && !commentImage)
+                    }
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <button
           onClick={redirectToAuth}
-          className="mb-3 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:border-teal-300 hover:text-teal-700">
-          Најавете се за да додадете коментар
+          className="mb-3 flex w-full items-center gap-2 rounded-2xl bg-zinc-100 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-200 transition-colors text-left">
+          <MessageCircle size={14} />
+          Најавете се за да коментирате…
         </button>
       )}
 
@@ -976,33 +1191,77 @@ export default function IssueDetail({
           <p className="text-xs text-zinc-400">Се вчитуваат коментари...</p>
         )}
         {!loadingComments && comments.length === 0 && (
-          <p className="text-xs italic text-zinc-400">
-            Сe уште нема коментари.
-          </p>
+          <div className="flex flex-col items-center gap-2 py-6 text-center">
+            <svg
+              width="40"
+              height="35"
+              viewBox="0 0 55 48"
+              fill="none"
+              className="text-zinc-200">
+              <path
+                d="M32.1406 3.21976C28.7723 1.14232 24.7809 0 20.6578 0C9.43416 0 0 8.36197 0 19.0688C0 22.8226 1.16616 26.4212 3.38131 29.5291L0.286879 39.2442C-0.0400444 40.2704 0.728638 41.3156 1.80126 41.3156C2.0465 41.3156 2.29334 41.259 2.5211 41.1431L11.9317 36.3582C12.3128 36.5223 12.6986 36.6749 13.0884 36.8167C10.9095 33.4159 9.74625 29.5121 9.74625 25.425C9.74625 13.2531 19.9881 3.89553 32.1406 3.21976Z"
+                fill="currentColor"
+              />
+              <path
+                d="M50.8591 35.8855C53.0743 32.7776 54.2404 29.179 54.2404 25.4251C54.2404 14.7144 44.8022 6.35632 33.5826 6.35632C22.359 6.35632 12.9248 14.7183 12.9248 25.4251C12.9248 36.1358 22.363 44.4938 33.5826 44.4938C36.593 44.4938 39.5927 43.8803 42.3082 42.7143L51.7193 47.4994C52.2904 47.7898 52.9803 47.7087 53.4686 47.2938C53.9568 46.8788 54.1482 46.2112 53.9537 45.6007L50.8591 35.8855ZM27.1204 27.0141C26.2428 27.0141 25.5314 26.3027 25.5314 25.4251C25.5314 24.5475 26.2428 23.836 27.1204 23.836C27.998 23.836 28.7095 24.5475 28.7095 25.4251C28.7095 26.3027 27.998 27.0141 27.1204 27.0141ZM33.4767 27.0141C32.5991 27.0141 31.8876 26.3027 31.8876 25.4251C31.8876 24.5475 32.5991 23.836 33.4767 23.836C34.3543 23.836 35.0657 24.5475 35.0657 25.4251C35.0657 26.3027 34.3543 27.0141 33.4767 27.0141ZM39.8329 27.0141C38.9553 27.0141 38.2439 26.3027 38.2439 25.4251C38.2439 24.5475 38.9553 23.836 39.8329 23.836C40.7105 23.836 41.422 24.5475 41.422 25.4251C41.422 26.3027 40.7105 27.0141 39.8329 27.0141Z"
+                fill="currentColor"
+              />
+            </svg>
+            <p className="text-sm font-medium text-zinc-400">
+              Сe уште нема коментари
+            </p>
+            <p className="text-xs text-zinc-300">Биди прв/а да коментираш.</p>
+          </div>
         )}
         {comments.map((comment) => (
-          <div
-            key={comment.id}
-            className="rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2">
-            <div className="mb-1 flex items-center gap-2">
-              <AvatarInitials
-                name={
-                  comment.profiles?.full_name ??
-                  comment.profiles?.username ??
-                  "Анонимно"
-                }
-                avatarUrl={comment.profiles?.avatar_url ?? null}
-                size="sm"
-              />
-              <p className="text-xs font-semibold text-zinc-700">
-                {comment.profiles?.full_name ??
-                  comment.profiles?.username ??
-                  "Анонимно"}
-              </p>
+          <div key={comment.id} className="flex items-start gap-2">
+            <AvatarInitials
+              name={
+                comment.profiles?.full_name ??
+                comment.profiles?.username ??
+                "Анонимно"
+              }
+              avatarUrl={comment.profiles?.avatar_url ?? null}
+              size="sm"
+              className="shrink-0 mt-0.5"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="rounded-2xl bg-zinc-100 px-3 py-2 inline-block max-w-full">
+                <p className="text-xs font-semibold text-zinc-800 leading-tight">
+                  {comment.profiles?.full_name ??
+                    comment.profiles?.username ??
+                    "Анонимно"}
+                </p>
+                {comment.body && (
+                  <p className="text-sm leading-snug text-zinc-700 mt-0.5">
+                    {comment.body}
+                  </p>
+                )}
+                {(comment as { photo_url?: string | null }).photo_url && (
+                  <button
+                    onClick={() =>
+                      setLightboxSrc(
+                        (comment as { photo_url?: string | null }).photo_url!,
+                      )
+                    }
+                    className="mt-1.5 block cursor-zoom-in p-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={
+                        (comment as { photo_url?: string | null }).photo_url!
+                      }
+                      alt="Слика во коментар"
+                      className="max-h-48 rounded-xl object-cover"
+                    />
+                  </button>
+                )}
+              </div>
+              {comment.created_at && (
+                <p className="mt-0.5 px-1 text-[10px] text-zinc-400">
+                  {formatDays(comment.created_at)}
+                </p>
+              )}
             </div>
-            <p className="text-xs leading-relaxed text-zinc-600">
-              {comment.body}
-            </p>
           </div>
         ))}
       </div>
@@ -1144,137 +1403,78 @@ export default function IssueDetail({
   );
 
   const helpPlanningSection = (
-    <div className="rounded-xl border border-zinc-200 bg-white p-3">
+    <div>
+      {/* Header */}
       <div className="mb-2 flex items-center gap-1.5">
+        <Users size={13} className="text-teal-600" />
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-          Помош И Датуми
+          Предложени Датуми
         </p>
+        <span className={cn(
+          "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+          helpOffers.filter((o) => o.service_date).length >= 3
+            ? "bg-amber-100 text-amber-700"
+            : "bg-zinc-100 text-zinc-500",
+        )}>
+          {helpOffers.filter((o) => o.service_date).length}/3
+        </span>
+        {onOpenDates && (
+          <button
+            onClick={onOpenDates}
+            className="ml-auto text-[11px] font-semibold text-teal-600 hover:text-teal-700 transition-colors">
+            Отвори →
+          </button>
+        )}
       </div>
 
-      {offersUnavailable && (
-        <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-700">
-          Недостига migration за help planning табли. Пушти SQL за
-          `issue_help_offers`.
+      {/* Date hero cards only — full detail lives in the side panel */}
+      {!loadingOffers && helpOffers.filter((o) => o.service_date).length === 0 && (
+        <p className="text-xs italic text-zinc-400 py-1">
+          Сe уште нема предложени датуми.
         </p>
       )}
-
       {loadingOffers && (
-        <p className="text-xs text-zinc-400">Се вчитуваат понуди за помош...</p>
+        <div className="h-14 rounded-xl bg-zinc-100 animate-pulse" />
       )}
-
-      {!loadingOffers && helpOffers.length === 0 && (
-        <p className="text-xs italic text-zinc-400">
-          Сe уште нема понуди за помош.
-        </p>
-      )}
-
       <div className="space-y-2">
-        {helpOffers.map((offer, index) => (
-          <div
-            key={offer.id}
-            className="rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2">
-            <div className="mb-1.5 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <AvatarInitials
-                  name={
-                    offer.profiles?.full_name ??
-                    offer.profiles?.username ??
-                    "Анонимно"
-                  }
-                  avatarUrl={offer.profiles?.avatar_url ?? null}
-                  size="sm"
-                />
-                <div>
-                  <p className="text-xs font-semibold text-zinc-700">
-                    {offer.profiles?.full_name ??
-                      offer.profiles?.username ??
-                      "Анонимно"}
+        {helpOffers.filter((o) => o.service_date).map((offer) => {
+          const name = offer.profiles?.full_name ?? offer.profiles?.username ?? "Анонимно";
+          const [y, m, d] = (offer.service_date as string).split("-").map(Number);
+          const dt = new Date(y, m - 1, d);
+          return (
+            <button
+              key={offer.id}
+              onClick={onOpenDates}
+              className="w-full overflow-hidden rounded-xl text-left">
+              <div className={cn(
+                "px-4 py-3 flex items-center justify-between gap-3",
+                offer.voted_by_me ? "bg-teal-600" : "bg-zinc-800",
+              )}>
+                <div className="text-white min-w-0">
+                  <p className="text-[10px] opacity-60 capitalize">
+                    {dt.toLocaleDateString("mk-MK", { weekday: "long" })}
                   </p>
-                  <p className="text-[11px] text-zinc-500">
-                    {index === 0 ? "Прв помошник" : "Помошник"}
+                  <p className="text-sm font-bold leading-tight">
+                    {dt.toLocaleDateString("mk-MK", { day: "numeric", month: "long" })}
                   </p>
+                  <p className="text-[10px] opacity-50">{dt.getFullYear()}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <AvatarInitials
+                    name={name}
+                    avatarUrl={offer.profiles?.avatar_url ?? null}
+                    size="sm"
+                    className="ring-2 ring-white/30"
+                  />
+                  <div className="text-right">
+                    <p className="text-[11px] font-semibold text-white truncate max-w-20">{name}</p>
+                    <p className="text-[10px] text-white/60">предложил/а</p>
+                  </div>
                 </div>
               </div>
-
-              {offer.service_date ? (
-                <button
-                  onClick={() => toggleOfferVote(offer)}
-                  disabled={votingForOffer === offer.id}
-                  className={cn(
-                    "rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors",
-                    offer.voted_by_me
-                      ? "border-teal-300 bg-teal-50 text-teal-700"
-                      : "border-zinc-200 bg-white text-zinc-600 hover:border-teal-300",
-                  )}>
-                  👍 {offer.vote_count}
-                </button>
-              ) : (
-                <span className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-500">
-                  Без датум
-                </span>
-              )}
-            </div>
-
-            {offer.service_date && (
-              <p className="mb-1 text-xs font-medium text-teal-700">
-                Предложен датум:{" "}
-                {new Date(offer.service_date).toLocaleDateString("mk-MK")}
-              </p>
-            )}
-
-            {offer.note && (
-              <p className="mb-1.5 text-xs leading-relaxed text-zinc-600">
-                {offer.note}
-              </p>
-            )}
-
-            <div className="space-y-1.5 border-t border-zinc-200 pt-1.5">
-              {offer.comments.map((comment) => (
-                <div
-                  key={comment.id}
-                  className="rounded-md bg-white px-2 py-1.5">
-                  <p className="text-[11px] font-semibold text-zinc-700">
-                    {comment.profiles?.full_name ??
-                      comment.profiles?.username ??
-                      "Анонимно"}
-                  </p>
-                  <p className="text-xs text-zinc-600">{comment.body}</p>
-                </div>
-              ))}
-
-              {userId ? (
-                <div className="flex items-center gap-1.5">
-                  <input
-                    value={offerCommentDrafts[offer.id] ?? ""}
-                    onChange={(e) =>
-                      setOfferCommentDrafts((prev) => ({
-                        ...prev,
-                        [offer.id]: e.target.value,
-                      }))
-                    }
-                    placeholder="Коментар за оваа понуда..."
-                    className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-teal-400"
-                  />
-                  <button
-                    onClick={() => submitOfferComment(offer.id)}
-                    disabled={
-                      savingOfferCommentFor === offer.id ||
-                      !(offerCommentDrafts[offer.id] ?? "").trim()
-                    }
-                    className="rounded-md bg-primary px-2 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
-                    {savingOfferCommentFor === offer.id ? "..." : "Прати"}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={redirectToAuth}
-                  className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs font-semibold text-zinc-700 hover:border-teal-300 hover:text-teal-700">
-                  Најавете се за да коментирате како ќе помогнете
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -1294,7 +1494,9 @@ export default function IssueDetail({
     }
     // Award 1 applause to the helper when their "resolved" proposal is accepted
     if (req.payload.status === "resolved") {
-      await supabase.rpc("award_applause", { p_user_id: req.requester_user_id });
+      await supabase.rpc("award_applause", {
+        p_user_id: req.requester_user_id,
+      });
     }
     setCurrentIssue((prev) => ({
       ...prev,
@@ -1397,7 +1599,11 @@ export default function IssueDetail({
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg">🏆</span>
           <Link
-            href={resolver.username ? `/u/${resolver.username}` : `/u/${resolver.id}`}
+            href={
+              resolver.username
+                ? `/u/${resolver.username}`
+                : `/u/${resolver.id}`
+            }
             className="flex items-center gap-2 min-w-0 group">
             <AvatarInitials
               name={resolver.full_name ?? resolver.username ?? "Херој"}
@@ -1405,7 +1611,9 @@ export default function IssueDetail({
               size="sm"
             />
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-teal-800 leading-tight">Решено од</p>
+              <p className="text-[11px] font-semibold text-teal-800 leading-tight">
+                Решено од
+              </p>
               <p className="text-sm font-bold text-zinc-900 group-hover:underline truncate">
                 {resolver.full_name ?? resolver.username ?? "Херој"}
               </p>
@@ -1422,7 +1630,11 @@ export default function IssueDetail({
               : "bg-white border border-teal-300 text-teal-700 hover:bg-teal-50",
             resolver.id === userId && "opacity-50 cursor-not-allowed",
           )}
-          title={resolver.id === userId ? "Не можеш да гласаш за себе" : "Дај поени на херојот"}>
+          title={
+            resolver.id === userId
+              ? "Не можеш да гласаш за себе"
+              : "Дај поени на херојот"
+          }>
           <span className="text-sm">👏</span>
           <span>{resolverUpvotes}</span>
         </button>
@@ -1430,14 +1642,12 @@ export default function IssueDetail({
     </div>
   );
 
-  const helperProposalButton = userId && !isOwner && !isAdmin && (
-    <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3">
-      <button
-        onClick={() => setShowProposeModal(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3b9f95] hover:bg-[#338c84] text-white text-xs font-semibold py-2.5 transition-colors">
-        <HandHelping size={13} /> Предложи промена на статус
-      </button>
-    </div>
+  const helpActionsSection = userId && !isOwner && !isAdmin && (
+    <button
+      onClick={() => setShowProposeModal(true)}
+      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3b9f95] hover:bg-[#338c84] text-white text-xs font-semibold py-2.5 transition-colors">
+      <HandHelping size={13} /> Предложи промена на статус
+    </button>
   );
 
   const proposeModal = showProposeModal && (
@@ -1677,35 +1887,129 @@ export default function IssueDetail({
     return (
       <div className="space-y-3 p-3">
         {canModerate && (
-          <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3">
-            {isAdmin && !isOwner && (
-              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">
-                ⚠ Модератор
+          <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-zinc-100">
+              <p className="text-xs font-semibold text-zinc-500 flex items-center gap-1.5">
+                {isAdmin && !isOwner && (
+                  <span className="text-amber-500">⚠</span>
+                )}
+                Управување со пријава
               </p>
-            )}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setIsEditing((prev) => !prev);
-                  setEditTitle(currentIssue.title);
-                  setEditDescription(currentIssue.description ?? "");
-                  setEditStreet(currentIssue.street_name ?? "");
-                }}
-                className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
-                <Pencil size={12} /> {isEditing ? "Откажи" : "Измени"}
-              </button>
-              <button
-                onClick={deleteIssue}
-                disabled={deletingIssue}
-                className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
-                <Trash2 size={12} /> {deletingIssue ? "Се брише..." : "Избриши"}
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowModMenu((v) => !v)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 transition-colors">
+                  <MoreHorizontal size={15} />
+                </button>
+                {showModMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowModMenu(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-2xl bg-white shadow-2xl border border-zinc-100 overflow-hidden py-1.5">
+                      <button
+                        onClick={() => {
+                          setIsEditing((v) => !v);
+                          setEditTitle(currentIssue.title);
+                          setEditDescription(currentIssue.description ?? "");
+                          setEditStreet(currentIssue.street_name ?? "");
+                          setShowModMenu(false);
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50">
+                        <Pencil size={14} className="text-zinc-400" />
+                        {isEditing ? "Откажи измена" : "Измени пријава"}
+                      </button>
+                      <div className="my-1 h-px bg-zinc-100" />
+                      <p className="px-4 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                        Статус
+                      </p>
+                      {(["open", "progress", "resolved"] as const).map((s) => {
+                        const labels = {
+                          open: "Отворено",
+                          progress: "Во тек",
+                          resolved: "Завршено",
+                        };
+                        const colors = {
+                          open: "text-zinc-500",
+                          progress: "text-amber-600",
+                          resolved: "text-teal-600",
+                        };
+                        const isCurrent = currentIssue.status === s;
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => {
+                              changeStatus(s);
+                              setShowModMenu(false);
+                            }}
+                            disabled={isCurrent}
+                            className={cn(
+                              "flex w-full items-center gap-3 px-4 py-2 text-sm transition-colors",
+                              isCurrent
+                                ? "bg-zinc-50 font-semibold"
+                                : "hover:bg-zinc-50 text-zinc-700",
+                            )}>
+                            <span
+                              className={cn(
+                                "text-xs font-bold w-4 text-center",
+                                colors[s],
+                              )}>
+                              {isCurrent ? "●" : "○"}
+                            </span>
+                            <span className={isCurrent ? colors[s] : ""}>
+                              {labels[s]}
+                            </span>
+                            {isCurrent && (
+                              <Check
+                                size={12}
+                                className={cn("ml-auto", colors[s])}
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                      <div className="my-1 h-px bg-zinc-100" />
+                      <label className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50">
+                        <Camera size={14} className="text-zinc-400" />
+                        {currentIssue.after_photo_url
+                          ? "Замени фото по решавање"
+                          : "Додади фото по решавање"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingAfter}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) {
+                              uploadAfterPhoto(f);
+                              setShowModMenu(false);
+                            }
+                          }}
+                        />
+                      </label>
+                      <div className="my-1 h-px bg-zinc-100" />
+                      <button
+                        onClick={() => {
+                          deleteIssue();
+                          setShowModMenu(false);
+                        }}
+                        disabled={deletingIssue}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-60">
+                        <Trash2 size={14} />
+                        {deletingIssue ? "Се брише…" : "Избриши пријава"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-            {statusSelector}
-            {pendingRequestsSection}
-
+            {pendingRequestsSection && (
+              <div className="p-3">{pendingRequestsSection}</div>
+            )}
             {isEditing && (
-              <div className="space-y-2">
+              <div className="p-3 border-t border-zinc-100 space-y-2">
                 <input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
@@ -1728,7 +2032,7 @@ export default function IssueDetail({
                 <button
                   onClick={saveIssueEdits}
                   disabled={savingIssue}
-                  className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60">
+                  className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary/90 disabled:opacity-60">
                   {savingIssue ? "Се зачувува..." : "Зачувај промени"}
                 </button>
               </div>
@@ -1737,7 +2041,8 @@ export default function IssueDetail({
         )}
 
         {resolverSection}
-        {helperProposalButton}
+        {helpActionsSection}
+        {helpPlanningSection}
         {commentsSection}
 
         {showAffectedPopup && (
@@ -1759,6 +2064,20 @@ export default function IssueDetail({
           />
         )}
         {proposeModal}
+        {helperOpen && userId && (
+          <HelperModal
+            issueId={currentIssue.id}
+            issueTitle={currentIssue.title}
+            userId={userId}
+            onClose={() => setHelperOpen(false)}
+            onSuccess={(count) => {
+              setIsHelperDirect(true);
+              setHelperOpen(false);
+              loadHelpOffers();
+              loadPeopleStats();
+            }}
+          />
+        )}
         {lightboxSrc && (
           <ImageLightbox
             src={lightboxSrc}
@@ -1775,61 +2094,218 @@ export default function IssueDetail({
   return (
     <>
       <div className="p-4 space-y-4">
+        {/* Close button */}
+
+        {/* ── FB-style header: author + actions + close ── */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex flex-wrap gap-1.5">
-            <span
-              className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-md font-semibold",
-                districtColor(currentIssue.district),
-              )}>
-              {DISTRICT_LABELS[currentIssue.district] ?? currentIssue.district}
-            </span>
-            <span className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-md">
-              {categoryIcon(currentIssue.category)}{" "}
-              {CATEGORY_LABELS[currentIssue.category] ?? currentIssue.category}
-            </span>
-            <StatusPill status={currentIssue.status} />
+          <div className="flex items-center gap-3">
+            <AvatarInitials
+              name={
+                currentIssue.profiles?.full_name ??
+                currentIssue.profiles?.username ??
+                null
+              }
+              avatarUrl={currentIssue.profiles?.avatar_url ?? null}
+              size="md"
+            />
+            <div>
+              <p className="text-sm font-semibold text-zinc-800 leading-tight">
+                {currentIssue.profiles?.full_name ??
+                  currentIssue.profiles?.username ??
+                  "Анонимно"}
+              </p>
+              <p className="text-[11px] text-zinc-400 leading-tight mt-0.5">
+                {formatDays(currentIssue.created_at)}
+              </p>
+            </div>
           </div>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="text-zinc-400 hover:text-zinc-700 shrink-0 cursor-pointer">
-              <X size={14} />
-            </button>
-          )}
+          <div className="flex items-center gap-0.5 shrink-0">
+            {/* ··· mod menu */}
+            {canModerate && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowModMenu((v) => !v)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 transition-colors">
+                  <MoreHorizontal size={17} />
+                </button>
+                {showModMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowModMenu(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 z-50 w-60 rounded-2xl bg-white shadow-2xl border border-zinc-100 overflow-hidden py-1.5">
+                      {isAdmin && !isOwner && (
+                        <p className="px-4 py-1.5 text-[10px] font-bold text-amber-600 uppercase tracking-wider">
+                          ⚠ Модератор
+                        </p>
+                      )}
+
+                      {/* Edit */}
+                      <button
+                        onClick={() => {
+                          setIsEditing((v) => !v);
+                          setEditTitle(currentIssue.title);
+                          setEditDescription(currentIssue.description ?? "");
+                          setEditStreet(currentIssue.street_name ?? "");
+                          setShowModMenu(false);
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+                        <Pencil size={15} className="text-zinc-400 shrink-0" />
+                        {isEditing ? "Откажи измена" : "Измени пријава"}
+                      </button>
+
+                      <div className="my-1 h-px bg-zinc-100" />
+
+                      {/* Status */}
+                      <p className="px-4 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                        Промени статус
+                      </p>
+                      {(["open", "progress", "resolved"] as const).map((s) => {
+                        const labels = {
+                          open: "Отворено",
+                          progress: "Во тек",
+                          resolved: "Завршено",
+                        };
+                        const colors = {
+                          open: "text-zinc-500",
+                          progress: "text-amber-600",
+                          resolved: "text-teal-600",
+                        };
+                        const isCurrent = currentIssue.status === s;
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => {
+                              changeStatus(s);
+                              setShowModMenu(false);
+                            }}
+                            disabled={changingStatus || isCurrent}
+                            className={cn(
+                              "flex w-full items-center gap-3 px-4 py-2 text-sm transition-colors",
+                              isCurrent
+                                ? "bg-zinc-50 font-semibold"
+                                : "hover:bg-zinc-50 text-zinc-700",
+                            )}>
+                            <span
+                              className={cn(
+                                "text-xs font-bold w-4 text-center",
+                                colors[s],
+                              )}>
+                              {isCurrent ? "●" : "○"}
+                            </span>
+                            <span className={isCurrent ? colors[s] : ""}>
+                              {labels[s]}
+                            </span>
+                            {isCurrent && (
+                              <Check
+                                size={13}
+                                className={cn("ml-auto", colors[s])}
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+
+                      {/* Resolver when resolved */}
+                      {currentIssue.status === "resolved" && (
+                        <div className="px-4 py-2 border-t border-zinc-100 mt-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">
+                            Решено од
+                          </p>
+                          <select
+                            value={currentIssue.resolved_by ?? ""}
+                            disabled={savingResolver}
+                            onChange={(e) =>
+                              setResolverFor(e.target.value || null)
+                            }
+                            className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-700 outline-none focus:border-teal-400">
+                            <option value="">— Непознато —</option>
+                            {currentIssue.reported_by && (
+                              <option value={currentIssue.reported_by}>
+                                {currentIssue.profiles?.full_name ??
+                                  currentIssue.profiles?.username ??
+                                  "Авторот"}{" "}
+                                (автор)
+                              </option>
+                            )}
+                            {helperUsers
+                              .filter(
+                                (h) => h.user_id !== currentIssue.reported_by,
+                              )
+                              .map((h) => (
+                                <option key={h.user_id} value={h.user_id}>
+                                  {h.profiles?.full_name ??
+                                    h.profiles?.username ??
+                                    "Помошник"}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="my-1 h-px bg-zinc-100" />
+
+                      {/* After photo */}
+                      <label className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+                        <Camera size={15} className="text-zinc-400 shrink-0" />
+                        <span>
+                          {uploadingAfter
+                            ? "Се прикачува…"
+                            : currentIssue.after_photo_url
+                              ? "Замени фото по решавање"
+                              : "Додади фото по решавање"}
+                        </span>
+                        {currentIssue.after_photo_url && (
+                          <span className="ml-auto text-[10px] text-teal-600 font-semibold">
+                            ✓
+                          </span>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingAfter}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) {
+                              uploadAfterPhoto(f);
+                              setShowModMenu(false);
+                            }
+                          }}
+                        />
+                      </label>
+
+                      <div className="my-1 h-px bg-zinc-100" />
+
+                      {/* Delete */}
+                      <button
+                        onClick={() => {
+                          deleteIssue();
+                          setShowModMenu(false);
+                        }}
+                        disabled={deletingIssue}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-60">
+                        <Trash2 size={15} className="shrink-0" />
+                        {deletingIssue ? "Се брише…" : "Избриши пријава"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors">
+                <X size={16} />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2">
-          {canModerate && (
-            <>
-              {isAdmin && !isOwner && (
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">
-                  ⚠ Модератор
-                </p>
-              )}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setIsEditing((prev) => !prev);
-                    setEditTitle(currentIssue.title);
-                    setEditDescription(currentIssue.description ?? "");
-                    setEditStreet(currentIssue.street_name ?? "");
-                  }}
-                  className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
-                  <Pencil size={12} /> {isEditing ? "Откажи" : "Измени"}
-                </button>
-                <button
-                  onClick={deleteIssue}
-                  disabled={deletingIssue}
-                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
-                  <Trash2 size={12} />{" "}
-                  {deletingIssue ? "Се брише..." : "Избриши"}
-                </button>
-              </div>
-              {statusSelector}
-              {pendingRequestsSection}
-            </>
-          )}
+          {canModerate && <>{pendingRequestsSection}</>}
 
           {isEditing ? (
             <div className="space-y-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
@@ -1879,7 +2355,8 @@ export default function IssueDetail({
         </div>
 
         {/* Before / after photos */}
-        {!hideImage && (currentIssue.photo_url || currentIssue.after_photo_url) &&
+        {!hideImage &&
+          (currentIssue.photo_url || currentIssue.after_photo_url) &&
           (currentIssue.photo_url && currentIssue.after_photo_url ? (
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -1947,24 +2424,127 @@ export default function IssueDetail({
             </button>
           ))}
 
-        <div className="flex items-center gap-2">
-          {currentIssue.profiles && (
-            <AvatarInitials
-              name={currentIssue.profiles.full_name}
-              avatarUrl={currentIssue.profiles.avatar_url}
-              size="sm"
-            />
-          )}
-          <div className="text-xs text-zinc-500">
-            <span>{currentIssue.profiles?.full_name ?? "Анонимно"}</span>
-            <span className="mx-1">·</span>
-            <span>{formatDays(currentIssue.created_at)}</span>
+        {/* Counts row — same layout as IssueCard */}
+        <div className="flex items-center gap-3 lg:gap-4">
+          {/* Помогни */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => helperUsers.length > 0 && setShowHelperPopup(true)}
+              className={cn(
+                "text-[11px] lg:text-sm font-bold tabular-nums transition-colors",
+                helperUsers.length > 0
+                  ? "text-zinc-700 hover:text-[#427FFF] cursor-pointer"
+                  : "text-zinc-400 cursor-default",
+              )}>
+              {helperUsers.length || currentIssue.helper_count || 0}
+            </button>
+            <button
+              onClick={() => {
+                if (!userId) {
+                  redirectToAuth();
+                  return;
+                }
+                setHelperOpen(true);
+              }}
+              className={cn(
+                "flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-sm font-medium transition-colors",
+                isHelperDirect
+                  ? "text-[#427FFF]"
+                  : "text-zinc-500 hover:text-[#427FFF]",
+              )}>
+              {/* PomogniIcon */}
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 50 48"
+                fill="none"
+                className="shrink-0">
+                <path
+                  d="M28 1.30983L27.6266 0.974772C26.003 -0.481681 23.435 -0.252463 22 1.30535L25.0012 4L28 1.30983Z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M49.576 32.1351L46.4281 29C44.2775 31.143 39.6334 35.77 35.9831 39.4042C34.2457 41.1353 32.2348 42.5166 30 43.5172L34.0774 47.5779C34.6426 48.1408 35.5588 48.1407 36.124 47.5776L49.5762 34.1737C50.1413 33.6107 50.1413 32.698 49.576 32.1351Z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M45.9744 25.6748C49.0811 22.3975 44.4512 17.8594 41.1035 20.9029L42.3191 19.709C45.4258 16.4286 40.7966 11.8937 37.4396 14.937L38.6638 13.7432C41.7731 10.4599 37.135 5.92765 33.7844 8.97032L35.0086 7.77732C38.1197 4.49237 33.4749 -0.0371303 30.1291 3.00457L27.3444 5.72967L29.7823 8.11729C33.3551 11.5221 31.4979 17.7049 26.6251 18.677C26.1633 20.9584 24.1155 22.9887 21.7549 23.4475C21.293 25.7332 19.2416 27.7652 16.875 28.2218C15.861 32.9889 9.60033 34.8115 6.08725 31.3015L3.65104 28.9157L0.433365 32.0644C-0.144521 32.6299 -0.144422 33.5468 0.433463 34.1123L14.1944 47.5761C14.7723 48.1414 15.7091 48.1413 16.2868 47.5757L21.5944 42.3792C26.2756 42.3792 30.7671 40.5584 34.0775 37.3178C39.1035 32.4016 45.9744 25.6748 45.9744 25.6748Z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M7.64044 29.9682C10.9655 33.0935 15.5598 28.4359 12.4782 25.0675C15.8034 28.1926 20.3975 23.5352 17.3159 20.1667C20.6383 23.293 25.224 18.6283 22.1451 15.2667C25.4658 18.3906 30.0662 13.7376 26.9827 10.3659L19.7347 3.01426C18.3928 1.66191 16.2303 1.66191 14.8971 3.01426C13.5636 4.36662 13.5636 6.56275 14.8971 7.91511L16.1021 9.14009C12.7844 6.01275 8.17779 10.6854 11.273 14.0409L12.4781 15.2667C9.15451 12.1403 4.55843 16.7986 7.64044 20.1667L8.77998 21.3211C5.42347 18.3362 0.970948 22.9733 4.01629 26.2925L7.64044 29.9682Z"
+                  fill="currentColor"
+                />
+              </svg>
+              <span>Помогни</span>
+            </button>
+          </div>
+
+          {/* Иста мака */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() =>
+                affectedUsers.length > 0 && setShowAffectedPopup(true)
+              }
+              className={cn(
+                "text-[11px] lg:text-sm font-bold tabular-nums transition-colors",
+                affectedUsers.length > 0
+                  ? "text-zinc-700 hover:text-[#427FFF] cursor-pointer"
+                  : "text-zinc-400 cursor-default",
+              )}>
+              {affectedUsers.length || currentIssue.affected_count || 0}
+            </button>
+            <button
+              onClick={async () => {
+                if (!userId) {
+                  redirectToAuth();
+                  return;
+                }
+                const { createClient } =
+                  await import("../../lib/supabase/client");
+                const sb = createClient();
+                // Optimistic — update immediately so the color changes on tap
+                setIsAffected(!isAffected);
+                if (isAffected) {
+                  await sb
+                    .from("issue_affected")
+                    .delete()
+                    .eq("issue_id", currentIssue.id)
+                    .eq("user_id", userId);
+                } else {
+                  await sb
+                    .from("issue_affected")
+                    .insert({ issue_id: currentIssue.id, user_id: userId });
+                }
+                loadPeopleStats();
+              }}
+              className={cn(
+                "flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-sm font-medium transition-colors",
+                isAffected
+                  ? "text-[#427FFF]"
+                  : "text-zinc-500 hover:text-[#427FFF]",
+              )}>
+              {/* IstaMakaIcon */}
+              <svg
+                width="14"
+                height="18"
+                viewBox="0 0 35 49"
+                fill="none"
+                className="shrink-0">
+                <path
+                  d="M31.6967 22.5259C31.437 22.1027 18.8969 1.5043 18.3718 0.667791C17.811 -0.221342 16.509 -0.22525 15.9447 0.671986C14.889 2.36722 2.58627 22.5886 2.58627 22.5886C0.893804 25.3019 0 28.4341 0 31.6487C9.5329e-05 41.1111 7.69734 48.8084 17.1597 48.8084C26.622 48.8084 34.3193 41.1112 34.3193 31.6488C34.3193 28.4105 33.4117 25.2559 31.6967 22.5259ZM17.1597 43.0886C16.3693 43.0886 15.7298 42.449 15.7298 41.6587C15.7298 40.8683 16.3693 40.2287 17.1597 40.2287C21.8909 40.2287 25.7395 36.3801 25.7395 31.6489C25.7395 30.8586 26.379 30.219 27.1694 30.219C27.9598 30.219 28.5994 30.8586 28.5994 31.6489C28.5994 37.9567 23.4688 43.0886 17.1597 43.0886Z"
+                  fill="currentColor"
+                />
+              </svg>
+              <span>Иста мака</span>
+            </button>
           </div>
         </div>
 
         <div className="space-y-3 border-t border-zinc-100 pt-3">
           {resolverSection}
-          {helperProposalButton}
+          {helpActionsSection}
+          {helpPlanningSection}
           {commentsSection}
         </div>
       </div>
@@ -1988,6 +2568,20 @@ export default function IssueDetail({
         />
       )}
       {proposeModal}
+      {helperOpen && userId && (
+        <HelperModal
+          issueId={currentIssue.id}
+          issueTitle={currentIssue.title}
+          userId={userId}
+          onClose={() => setHelperOpen(false)}
+          onSuccess={(count) => {
+            setIsHelperDirect(true);
+            setHelperOpen(false);
+            loadHelpOffers();
+            loadPeopleStats();
+          }}
+        />
+      )}
       {lightboxSrc && (
         <ImageLightbox
           src={lightboxSrc}

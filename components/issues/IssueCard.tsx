@@ -181,6 +181,14 @@ export default function IssueCard({
 
   function redirectToAuth() {
     const next = `${location.pathname}${location.search}`;
+    // Prevent redirect on localhost during development
+    if (
+      typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1")
+    ) {
+      return;
+    }
     location.href = `/auth/login?next=${encodeURIComponent(next)}`;
   }
 
@@ -239,7 +247,6 @@ export default function IssueCard({
       redirectToAuth();
       return;
     }
-    if (isHelper) return;
     setHelperOpen(true);
   }
 
@@ -317,23 +324,23 @@ export default function IssueCard({
                 {formatDays(issue.created_at)}
               </p>
             </div>
-          </Link>
 
-          {/* Desktop: original row layout, district+street truncated with gradient */}
-          <div className="hidden lg:flex items-center gap-1.5 justify-end shrink-0 max-w-[60%] min-w-0">
-            <div className="relative min-w-0 overflow-hidden">
-              <span className="text-[10px] text-zinc-500 font-medium whitespace-nowrap block">
-                {DISTRICT_LABELS[issue.district] ?? issue.district}
-                {issue.street_name ? ` | ${issue.street_name}` : ""}
+            {/* Desktop: original row layout, district+street truncated with gradient */}
+            <div className="hidden lg:flex items-center gap-1.5 justify-end shrink-0 max-w-[60%] min-w-0">
+              <div className="relative min-w-0 overflow-hidden">
+                <span className="text-[10px] text-zinc-500 font-medium whitespace-nowrap block">
+                  {DISTRICT_LABELS[issue.district] ?? issue.district}
+                  {issue.street_name ? ` | ${issue.street_name}` : ""}
+                </span>
+                <div className="absolute inset-y-0 right-0 w-8 bg-linear-to-l from-white to-transparent pointer-events-none" />
+              </div>
+              <span className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-md font-medium whitespace-nowrap shrink-0">
+                {categoryIcon(issue.category)}{" "}
+                {CATEGORY_LABELS[issue.category] ?? issue.category}
               </span>
-              <div className="absolute inset-y-0 right-0 w-8 bg-linear-to-l from-white to-transparent pointer-events-none" />
+              <StatusPill status={issue.status} />
             </div>
-            <span className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-md font-medium whitespace-nowrap shrink-0">
-              {categoryIcon(issue.category)}{" "}
-              {CATEGORY_LABELS[issue.category] ?? issue.category}
-            </span>
-            <StatusPill status={issue.status} />
-          </div>
+          </Link>
 
           {/* Mobile: category+status on top, street below with gradient */}
           <div className="lg:hidden flex flex-col items-end gap-0.5 shrink-0 max-w-[60%]">
@@ -428,7 +435,7 @@ export default function IssueCard({
               priority={eagerImage}
               sizes="(max-width: 768px) 100vw, 640px"
               rounded="rounded-none"
-              className="h-[427px] w-full object-cover"
+              className="h-106.75 w-full object-cover"
             />
           ))}
 
@@ -462,7 +469,7 @@ export default function IssueCard({
                     ? "text-[#427FFF]"
                     : "text-zinc-500 hover:text-[#427FFF]",
                 )}>
-                <PomogniIcon className="h-5 w-5 lg:h-[18px] lg:w-[18px]" />
+                <PomogniIcon className="h-5 w-5 lg:h-4.5 lg:w-4.5" />
                 <span>Помогни</span>
               </button>
               {showHelperPop && helperUsers.length > 0 && (
@@ -494,7 +501,7 @@ export default function IssueCard({
                     ? "text-[#427FFF]"
                     : "text-zinc-500 hover:text-[#427FFF]",
                 )}>
-                <IstaMakaIcon className="h-5 w-5 lg:h-[18px] lg:w-[18px]" />
+                <IstaMakaIcon className="h-5 w-5 lg:h-4.5 lg:w-4.5" />
                 <span>Иста мака</span>
               </button>
               {showAffectedPop && affectedUsers.length > 0 && (
@@ -521,7 +528,7 @@ export default function IssueCard({
                 )}>
                 {issue.comment_count ?? 0}
               </span>
-              <KomentariIcon className="h-5 w-5 lg:h-[18px] lg:w-[18px]" />
+              <KomentariIcon className="h-5 w-5 lg:h-4.5 lg:w-4.5" />
               <span>Коментари</span>
             </button>
           </div>
@@ -530,7 +537,7 @@ export default function IssueCard({
           <button
             onClick={openShareSheet}
             className="flex items-center gap-1.5 text-[10px] lg:text-sm font-medium text-zinc-500 hover:text-zinc-800 transition-colors">
-            <Send size={14} className="lg:w-[18px] lg:h-[18px]" />
+            <Send size={14} className="lg:w-4.5 lg:h-4.5" />
             <span className="hidden lg:inline">Сподели</span>
           </button>
         </div>

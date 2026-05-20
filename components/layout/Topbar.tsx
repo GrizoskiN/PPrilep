@@ -37,7 +37,10 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
     const supabase = createClient();
     async function loadCounts() {
       const [{ count: active }, { count: total }] = await Promise.all([
-        supabase.from("issues").select("id", { count: "exact", head: true }).neq("status", "resolved"),
+        supabase
+          .from("issues")
+          .select("id", { count: "exact", head: true })
+          .neq("status", "resolved"),
         supabase.from("issues").select("id", { count: "exact", head: true }),
       ]);
       if (mounted) {
@@ -46,7 +49,9 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
       }
     }
     loadCounts();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -101,6 +106,14 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
   function handleReportClick() {
     if (!user) {
       const next = `${pathname ?? "/"}`;
+      // Prevent redirect on localhost during development
+      if (
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1")
+      ) {
+        return;
+      }
       window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
       return;
     }
@@ -165,10 +178,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
                   <Plus size={13} /> Пријави проблем
                 </Button>
                 <NotificationBell userId={user.id} />
-                <UserMenu
-                  profile={profile}
-                  onSignOut={signOut}
-                />
+                <UserMenu profile={profile} onSignOut={signOut} />
               </>
             ) : (
               <>

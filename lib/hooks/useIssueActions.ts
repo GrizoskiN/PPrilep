@@ -11,6 +11,14 @@ export function useIssueActions(issueId: number, userId: string | undefined) {
 
   function redirectToAuth() {
     const next = `${location.pathname}${location.search}`;
+    // Prevent redirect on localhost during development
+    if (
+      typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1")
+    ) {
+      return;
+    }
     window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
   }
 

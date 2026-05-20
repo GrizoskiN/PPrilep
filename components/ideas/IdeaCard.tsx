@@ -22,6 +22,14 @@ export default function IdeaCard({ idea, userId }: Props) {
 
   function redirectToAuth() {
     const next = `${location.pathname}${location.search}`;
+    // Prevent redirect on localhost during development
+    if (
+      typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1")
+    ) {
+      return;
+    }
     location.href = `/auth/login?next=${encodeURIComponent(next)}`;
   }
 

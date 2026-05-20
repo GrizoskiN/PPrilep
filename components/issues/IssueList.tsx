@@ -6,6 +6,7 @@ import { useAuth } from "../../lib/hooks/useAuth";
 import IssueCard from "./IssueCard";
 import IssueCardSkeleton from "./IssueCardSkeleton";
 import IssueDetail from "./IssueDetail";
+import DateOffersPanel from "./DateOffersPanel";
 import FilterSelect from "../ui/FilterSelect";
 import ImageLightbox from "../ui/ImageLightbox";
 import BeforeAfterSlider from "../ui/BeforeAfterSlider";
@@ -72,6 +73,8 @@ export default function IssueList({
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [swipeDy, setSwipeDy] = useState(0);
+  const [datesOpen, setDatesOpen] = useState(false);
+  const [datesAnimOpen, setDatesAnimOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   const drawerScrollRef = useRef<HTMLDivElement>(null);
   const mounted = useSyncExternalStore(
@@ -90,10 +93,21 @@ export default function IssueList({
     setModalIssue(issue);
   }
 
+  function openDates() {
+    setDatesOpen(true);
+    requestAnimationFrame(() => setDatesAnimOpen(true));
+  }
+
+  function closeDates() {
+    setDatesAnimOpen(false);
+    setTimeout(() => setDatesOpen(false), 280);
+  }
+
   function closeIssueModal() {
     setModalOpen(false);
+    setDatesAnimOpen(false);
+    setDatesOpen(false);
     setSwipeDy(0);
-    // Wait for exit transitions (both desktop fade + mobile slide-down) to finish
     setTimeout(() => setModalIssue(null), 280);
   }
 
@@ -276,59 +290,63 @@ export default function IssueList({
       {/* ── Issue modal overlay ─────────────────────────── */}
       {modalIssue && (
         <>
-          {/* Desktop: Facebook-style two-panel */}
+          {/* Desktop: Facebook-style multi-panel */}
           <div
             className="hidden lg:flex fixed inset-0 z-50 transition-opacity duration-300"
             style={{ backgroundColor: "rgba(0,0,0,0.92)", opacity: modalOpen ? 1 : 0 }}
             onClick={closeIssueModal}>
-            {/* Left: black bg — clicking the bg area closes modal */}
-            <div className="flex-1 flex items-center justify-center p-8 min-w-0 bg-black">
+
+            {/* Photo area — flex-1, shrinks naturally when side panels appear */}
+            <div className="flex-1 flex items-center justify-center min-w-0 bg-black p-6">
               {modalIssue.photo_url && modalIssue.after_photo_url ? (
-                /* Before/after: embedded interactive slider */
-                <div
-                  className="w-full max-w-3xl"
-                  onClick={(e) => e.stopPropagation()}>
+                <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
                   <BeforeAfterSlider
                     beforeSrc={modalIssue.photo_url}
                     afterSrc={modalIssue.after_photo_url}
                     alt={modalIssue.title}
-                    maxHeight="85vh"
+                    maxHeight="82vh"
                     showLabels
                   />
                 </div>
               ) : modalIssue.photo_url || modalIssue.after_photo_url ? (
-                /* Single photo: click to open lightbox */
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={(modalIssue.photo_url ?? modalIssue.after_photo_url)!}
                   alt="Фотографија"
-                  className="max-w-full max-h-[90vh] object-contain rounded-xl cursor-zoom-in"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLightboxSrc(
-                      (modalIssue!.photo_url ?? modalIssue!.after_photo_url)!,
-                    );
-                  }}
+                  className="max-w-full object-contain rounded-xl cursor-zoom-in"
+                  style={{ maxHeight: "82vh" }}
+                  onClick={(e) => { e.stopPropagation(); setLightboxSrc((modalIssue!.photo_url ?? modalIssue!.after_photo_url)!); }}
                 />
               ) : (
                 <div className="text-zinc-600 text-sm">Нема фотографија</div>
               )}
             </div>
 
-            {/* Right: flex-col panel — sticky header with X, scrollable content below */}
+            {/* Dates panel — slides in from the left of the detail panel */}
             <div
-              className="w-105 shrink-0 bg-white flex flex-col"
+              className={`shrink-0 bg-white border-r border-zinc-100 flex flex-col overflow-hidden transition-all duration-300 ease-out ${datesOpen ? "w-80 opacity-100" : "w-0 opacity-0 pointer-events-none"}`}
               onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-end px-4 py-3 border-b border-zinc-100 shrink-0">
-                <button
-                  onClick={closeIssueModal}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="overflow-y-auto flex-1">
-                <IssueDetail issue={modalIssue} userId={user?.id} hideImage />
-              </div>
+              {datesOpen && (
+                <DateOffersPanel
+                  issueId={modalIssue.id}
+                  issueTitle={modalIssue.title}
+                  userId={user?.id}
+                  onClose={closeDates}
+                />
+              )}
+            </div>
+
+            {/* Issue detail panel */}
+            <div
+              className="w-105 shrink-0 bg-white flex flex-col overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}>
+              <IssueDetail
+                issue={modalIssue}
+                userId={user?.id}
+                hideImage
+                onClose={closeIssueModal}
+                onOpenDates={() => datesOpen ? closeDates() : openDates()}
+              />
             </div>
           </div>
 
@@ -339,7 +357,7 @@ export default function IssueList({
             onClick={closeIssueModal}
           />
 
-          {/* Mobile: bottom drawer — drag handle + drag-down to close */}
+          {/* Mobile: issue bottom drawer */}
           <div
             ref={drawerRef}
             className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl flex flex-col${swipeDy === 0 ? " transition-transform duration-300 ease-out" : ""}`}
@@ -347,15 +365,43 @@ export default function IssueList({
               transform: modalOpen ? `translateY(${swipeDy}px)` : "translateY(100%)",
               maxHeight: "92dvh",
             }}>
-            {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab">
               <div className="h-1.5 w-12 rounded-full bg-zinc-300" />
             </div>
-            {/* Scrollable content */}
             <div ref={drawerScrollRef} className="overflow-y-auto flex-1">
-              <IssueDetail issue={modalIssue} userId={user?.id} />
+              <IssueDetail
+                issue={modalIssue}
+                userId={user?.id}
+                onOpenDates={openDates}
+              />
             </div>
           </div>
+
+          {/* Mobile: dates panel — second sheet, slides over the issue drawer */}
+          {datesOpen && (
+            <>
+              <div
+                className="lg:hidden fixed inset-0 z-[58] bg-black/30 transition-opacity duration-300"
+                style={{ opacity: datesAnimOpen ? 1 : 0 }}
+                onClick={closeDates}
+              />
+              <div
+                className="lg:hidden fixed bottom-0 left-0 right-0 z-[59] bg-white rounded-t-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-out"
+                style={{ maxHeight: "85dvh", transform: datesAnimOpen ? "translateY(0)" : "translateY(100%)" }}>
+                <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab">
+                  <div className="h-1.5 w-12 rounded-full bg-zinc-300" />
+                </div>
+                <div className="overflow-y-auto flex-1">
+                  <DateOffersPanel
+                    issueId={modalIssue.id}
+                    issueTitle={modalIssue.title}
+                    userId={user?.id}
+                    onClose={closeDates}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           {lightboxSrc && (
             <ImageLightbox
