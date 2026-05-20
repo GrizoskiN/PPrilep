@@ -78,7 +78,7 @@ export default function DateOffersPanel({ issueId, issueTitle, userId, onClose }
           .order("created_at", { ascending: true }),
       ]);
       voteRows = votes ?? [];
-      commentRows = (comments ?? []) as typeof commentRows;
+      commentRows = (comments ?? []) as unknown as typeof commentRows;
     }
 
     const voteCount: Record<number, number> = {};
@@ -141,7 +141,7 @@ export default function DateOffersPanel({ issueId, issueTitle, userId, onClose }
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-4 shrink-0">
         <button
@@ -165,7 +165,7 @@ export default function DateOffersPanel({ issueId, issueTitle, userId, onClose }
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto space-y-0 divide-y divide-zinc-100">
+      <div className="divide-y divide-zinc-100">
         {loading && (
           <div className="space-y-3 p-4">
             {[1, 2].map((i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-zinc-100" />)}
@@ -230,8 +230,8 @@ export default function DateOffersPanel({ issueId, issueTitle, userId, onClose }
                     className={cn(
                       "w-full rounded-xl py-2.5 text-sm font-semibold transition-all active:scale-[0.98]",
                       offer.voted_by_me
-                        ? "bg-teal-600 text-white hover:bg-teal-700"
-                        : "bg-white border-2 border-teal-300 text-teal-700 hover:bg-teal-50",
+                        ? "bg-[#427FFF] text-white hover:bg-[#3570ee]"
+                        : "bg-white border-2 border-[#427FFF] text-[#427FFF] hover:bg-blue-50",
                     )}>
                     {offer.voted_by_me ? "✓ Идам на оваа акција" : "Идам и јас"}
                   </button>
@@ -286,7 +286,7 @@ export default function DateOffersPanel({ issueId, issueTitle, userId, onClose }
                         onClick={() => submitComment(offer.id)}
                         disabled={savingFor === offer.id || !(commentDrafts[offer.id] ?? "").trim()}
                         className={cn(
-                          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all",
+                          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all active:scale-95",
                           (commentDrafts[offer.id] ?? "").trim()
                             ? "bg-[#427FFF] text-white hover:bg-[#3570ee]"
                             : "bg-zinc-200 text-zinc-400 cursor-default",
