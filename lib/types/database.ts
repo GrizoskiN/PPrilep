@@ -83,6 +83,7 @@ export interface Issue {
   is_affected?: boolean;
   is_helper?: boolean;
   user_helper_note?: string | null;
+  views?: number;
 }
 
 export interface IssueAffected {

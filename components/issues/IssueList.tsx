@@ -324,7 +324,7 @@ export default function IssueList({
 
             {/* Dates panel — slides in from the left of the detail panel */}
             <div
-              className={`shrink-0 bg-white border-r border-zinc-100 flex flex-col overflow-hidden transition-all duration-300 ease-out ${datesOpen ? "w-80 opacity-100" : "w-0 opacity-0 pointer-events-none"}`}
+              className={`shrink-0 h-full bg-white border-r border-zinc-100 flex flex-col overflow-hidden transition-all duration-300 ease-out ${datesOpen ? "w-80 opacity-100" : "w-0 opacity-0 pointer-events-none"}`}
               onClick={(e) => e.stopPropagation()}>
               {datesOpen && (
                 <DateOffersPanel

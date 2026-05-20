@@ -3,6 +3,63 @@
 Patterns and corrections from past work on **Мој Прилеп**. Read this at
 the start of every session so we don't repeat past mistakes.
 
+---
+
+## PostgREST / Supabase joins (May 2026)
+
+### Always use `profiles:user_id(...)` not `profiles(...)`
+- Implicit `profiles(...)` join fails when PostgREST can't auto-detect the FK
+  → query returns an error we catch → array stays `[]` → UI shows "нема data"
+  despite rows existing in DB. Hardest kind of bug to find.
+- ✅ Always qualify: `profiles:user_id(full_name, avatar_url, username)`.
+  Applies to `issue_help_offers`, `issue_help_offer_comments`, `issue_comments`,
+  `issue_affected`, `issue_helpers`.
+
+### Postgres `date` column rejects ISO-8601 datetime strings
+- Storing `"2025-05-20T10:30"` into a `date` column → Postgres error on upsert.
+- ✅ Pass only `"YYYY-MM-DD"` (the raw value from `<input type="date">`).
+  Fold time into a text `note` field if needed. Consider `timestamptz` column
+  if date+time storage is actually required.
+
+---
+
+## React / state (May 2026)
+
+### Optimistic state updates for instant mobile tap feedback
+- `await db.call()` then `setState()` feels broken on mobile — color/UI
+  doesn't change until the network round-trip completes.
+- ✅ Call `setState(!current)` BEFORE the `await`. Revert on error if needed.
+  Used for `isAffected`, `isHelper` toggles.
+
+### `flex-1 overflow-y-auto` must pair with `min-h-0`
+- Inside a flex column, a `flex-1 overflow-y-auto` child won't scroll unless
+  it also has `min-h-0` (allows it to shrink below intrinsic content height).
+- ✅ Pattern: `<div class="flex flex-col"><div class="flex-1 min-h-0 overflow-y-auto">`.
+
+### Bottom sheet slide-up animation: two-tick pattern
+- Mounting a sheet at `transform: translateY(0)` gives no animation because
+  the browser never saw the `translateY(100%)` start state.
+- ✅ Mount with translateY(100%), then `requestAnimationFrame(() => setAnimOpen(true))`
+  to fire the CSS transition on the next paint.
+
+---
+
+## IssueList / modal (May 2026)
+
+### The X close button was in IssueList's own header, not in IssueDetail
+- The X rendered in a separate `<div>` above IssueDetail's own header row,
+  causing author + X to be on different rows.
+- ✅ Remove IssueList's sticky X header; pass `onClose` prop to `IssueDetail`
+  so it places the X inside its own FB-style author row.
+
+### Shared `/issues/[id]` URL needs its own modal-style layout
+- The route was wrapped in `Shell` (sidebar nav) — looked nothing like the
+  in-feed popup modal.
+- ✅ Created `app/issues/[id]/IssuePageClient.tsx` — client wrapper that
+  replicates the exact two-panel layout (dark bg + photo + detail on desktop,
+  white full-page on mobile). Pass `onClose={() => router.back()}`.
+  Add `generateMetadata` for OG previews when links are shared.
+
 Format: brief title → context (one line) → rule. Add to the top when new.
 
 ---

@@ -22,6 +22,7 @@ import {
   Camera,
   ImagePlus,
   X as XIcon,
+  ChevronRight,
 } from "lucide-react";
 
 import SendIcon from "../ui/SendIcon";
@@ -33,6 +34,7 @@ import type { Issue, IssueStatus } from "../../lib/types/database";
 import { toast } from "sonner";
 import { createClient } from "../../lib/supabase/client";
 import { useAuth } from "../../lib/hooks/useAuth";
+import { createNotification } from "../../lib/notifications";
 
 interface Props {
   issue: Issue;
@@ -47,6 +49,7 @@ interface IssueComment {
   id: number;
   user_id: string;
   body: string;
+  parent_comment_id?: number | null;
   created_at?: string;
   profiles?: {
     full_name: string | null;
@@ -249,10 +252,12 @@ export default function IssueDetail({
   const [showHelperPopup, setShowHelperPopup] = useState(false);
   const [helpOffers, setHelpOffers] = useState<HelpOffer[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [offersUnavailable, setOffersUnavailable] = useState(false);
   const [offerCommentDrafts, setOfferCommentDrafts] = useState<
     Record<number, string>
   >({});
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [savingOfferCommentFor, setSavingOfferCommentFor] = useState<
     number | null
   >(null);
@@ -264,6 +269,21 @@ export default function IssueDetail({
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showModMenu, setShowModMenu] = useState(false);
+  const [likedComments, setLikedComments] = useState<Set<number>>(new Set());
+  const [commentLimit, setCommentLimit] = useState(4);
+  const [commentLikeCounts, setCommentLikeCounts] = useState<
+    Record<number, number>
+  >({});
+  const [openCommentMenu, setOpenCommentMenu] = useState<number | null>(null);
+  const [reportingCommentId, setReportingCommentId] = useState<number | null>(
+    null,
+  );
+  const [reportReason, setReportReason] = useState("");
+  const [submittingReport, setSubmittingReport] = useState(false);
+  const [replyToUserId, setReplyToUserId] = useState<string | null>(null);
+  const [replyToCommentId, setReplyToCommentId] = useState<number | null>(null);
+  const [inlineReplyText, setInlineReplyText] = useState("");
+  const inlineReplyRef = useRef<HTMLTextAreaElement>(null);
   const [commentImage, setCommentImage] = useState<File | null>(null);
   const [commentImagePreview, setCommentImagePreview] = useState<string | null>(
     null,
@@ -342,7 +362,7 @@ export default function IssueDetail({
     const { data, error } = await supabase
       .from("issue_comments")
       .select(
-        "id, user_id, body, photo_url, created_at, profiles:user_id(full_name, avatar_url, username)",
+        "id, user_id, body, photo_url, parent_comment_id, created_at, profiles:user_id(full_name, avatar_url, username)",
       )
       .eq("issue_id", currentIssue.id)
       .order("created_at", { ascending: false });
@@ -359,12 +379,32 @@ export default function IssueDetail({
       id: row.id,
       user_id: row.user_id,
       body: row.body,
+      parent_comment_id: (row as { parent_comment_id?: number | null }).parent_comment_id ?? null,
       created_at: (row as { created_at?: string }).created_at,
       profiles: Array.isArray(row.profiles) ? row.profiles[0] : row.profiles,
     })) as IssueComment[];
 
     setCommentsUnavailable(false);
     setComments(normalized);
+
+    // Load like counts + which ones the current user has liked
+    const commentIds = normalized.map((c) => c.id);
+    if (commentIds.length > 0) {
+      const [{ data: likeRows }, { data: myLikeRows }] = await Promise.all([
+        supabase.from("comment_likes").select("comment_id").in("comment_id", commentIds),
+        userId
+          ? supabase.from("comment_likes").select("comment_id").eq("user_id", userId).in("comment_id", commentIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+      const counts: Record<number, number> = {};
+      for (const row of likeRows ?? []) {
+        counts[(row as { comment_id: number }).comment_id] =
+          (counts[(row as { comment_id: number }).comment_id] ?? 0) + 1;
+      }
+      setCommentLikeCounts(counts);
+      setLikedComments(new Set((myLikeRows ?? []).map((r) => (r as { comment_id: number }).comment_id)));
+    }
+
     setLoadingComments(false);
   }
 
@@ -471,6 +511,14 @@ export default function IssueDetail({
 
   const [savingResolver, setSavingResolver] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [viewCount, setViewCount] = useState<number | null>(issue.views ?? null);
+
+  useEffect(() => {
+    supabase
+      .rpc("increment_issue_views", { p_issue_id: issue.id })
+      .then(({ data }) => { if (typeof data === "number") setViewCount(data); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [issue.id]);
 
   async function setResolverFor(newResolverId: string | null) {
     if (!canModerate || !userId || savingResolver) return;
@@ -632,7 +680,7 @@ export default function IssueDetail({
         ? offer.profiles[0]
         : offer.profiles,
       vote_count: voteCountByOffer[offer.id] ?? 0,
-      voted_by_me: votedByMe.has(offer.id),
+      voted_by_me: votedByMe.has(offer.id) || offer.user_id === userId,
       comments: commentsByOffer[offer.id] ?? [],
     }));
 
@@ -650,6 +698,7 @@ export default function IssueDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIssue.id, userId]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function toggleOfferVote(offer: HelpOffer) {
     if (!userId) {
       redirectToAuth();
@@ -688,6 +737,7 @@ export default function IssueDetail({
     setVotingForOffer(null);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function submitOfferComment(offerId: number) {
     const body = (offerCommentDrafts[offerId] ?? "").trim();
     if (!userId) {
@@ -1030,15 +1080,106 @@ export default function IssueDetail({
     });
   }
 
-  const commentsSection = (
-    <div className="">
-      <div className="mb-3 flex items-center gap-1.5">
-        <MessageCircle size={13} className="text-zinc-500" />
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-          Коментари
-        </p>
-      </div>
+  function toggleCommentLike(commentId: number) {
+    if (!userId) {
+      redirectToAuth();
+      return;
+    }
+    const isLiked = likedComments.has(commentId);
+    setLikedComments((prev) => {
+      const next = new Set(prev);
+      if (isLiked) next.delete(commentId);
+      else next.add(commentId);
+      return next;
+    });
+    setCommentLikeCounts((prev) => ({
+      ...prev,
+      [commentId]: Math.max(0, (prev[commentId] ?? 0) + (isLiked ? -1 : 1)),
+    }));
+    if (isLiked) {
+      supabase
+        .from("comment_likes")
+        .delete()
+        .eq("comment_id", commentId)
+        .eq("user_id", userId)
+        .then(() => {});
+    } else {
+      supabase
+        .from("comment_likes")
+        .upsert({ comment_id: commentId, user_id: userId }, { ignoreDuplicates: true })
+        .then(() => {});
+      const target = comments.find((c) => c.id === commentId);
+      if (target?.user_id) {
+        createNotification(supabase, {
+          recipientUserId: target.user_id,
+          actorUserId: userId,
+          type: "comment_like",
+          title: currentIssue.title,
+          body: "се допадна твојот коментар",
+          link: getIssuePath(currentIssue.id, currentIssue.title),
+        });
+      }
+    }
+  }
 
+  function replyToComment(authorName: string, authorUserId: string, commentId: number, rootParentId?: number | null) {
+    setReplyToUserId(authorUserId);
+    const rootId = rootParentId ?? commentId;
+    setReplyToCommentId(rootId);
+    setInlineReplyText(`@${authorName} `);
+    // Focus the inline input after it renders
+    setTimeout(() => inlineReplyRef.current?.focus(), 30);
+  }
+
+  async function submitInlineReply() {
+    const body = inlineReplyText.trim();
+    if (!userId || !body || !replyToCommentId || savingComment) return;
+    setSavingComment(true);
+    const { error } = await supabase.from("issue_comments").insert({
+      issue_id: currentIssue.id,
+      user_id: userId,
+      body,
+      parent_comment_id: replyToCommentId,
+    });
+    if (error) { toast.error(error.message); setSavingComment(false); return; }
+    if (replyToUserId) {
+      createNotification(supabase, {
+        recipientUserId: replyToUserId,
+        actorUserId: userId,
+        type: "comment_reply",
+        title: currentIssue.title,
+        body: "одговори на твојот коментар",
+        link: getIssuePath(currentIssue.id, currentIssue.title),
+      });
+    }
+    setInlineReplyText("");
+    setReplyToCommentId(null);
+    setReplyToUserId(null);
+    await loadComments();
+    setSavingComment(false);
+  }
+
+  async function submitReport(commentId: number) {
+    if (!userId || submittingReport) return;
+    setSubmittingReport(true);
+    const { error } = await supabase.from("comment_reports").insert({
+      comment_id: commentId,
+      issue_id: currentIssue.id,
+      reported_by: userId,
+      reason: reportReason.trim() || null,
+    });
+    setSubmittingReport(false);
+    if (error && error.code !== "42P01") {
+      toast.error("Грешка при пријавувањето");
+      return;
+    }
+    toast.success("Коментарот е пријавен. Ти благодариме!");
+    setReportingCommentId(null);
+    setReportReason("");
+  }
+
+  const commentsSection = (
+    <div className="border-t border-zinc-100 pt-3">
       {commentsUnavailable && (
         <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-700">
           Коментари не се достапни додека не се пушти SQL migration за
@@ -1157,10 +1298,10 @@ export default function IssueDetail({
                     (!commentText.trim() && !commentImage)
                   }
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full transition-all",
+                    "flex h-8 w-8 items-center justify-center transition-all",
                     commentText.trim() || commentImage
-                      ? "bg-[#427FFF] text-white hover:bg-[#3570ee] active:scale-95"
-                      : "bg-zinc-200 text-zinc-400 cursor-default",
+                      ? "text-[#427FFF] hover:text-[#3570ee] active:scale-95"
+                      : "text-zinc-300 cursor-default",
                   )}
                   aria-label="Испрати коментар">
                   <SendIcon
@@ -1213,61 +1354,229 @@ export default function IssueDetail({
             <p className="text-xs text-zinc-300">Биди прв/а да коментираш.</p>
           </div>
         )}
-        {comments.map((comment) => (
-          <div key={comment.id} className="flex items-start gap-2">
-            <AvatarInitials
-              name={
-                comment.profiles?.full_name ??
-                comment.profiles?.username ??
-                "Анонимно"
-              }
-              avatarUrl={comment.profiles?.avatar_url ?? null}
-              size="sm"
-              className="shrink-0 mt-0.5"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="rounded-2xl bg-zinc-100 px-3 py-2 inline-block max-w-full">
-                <p className="text-xs font-semibold text-zinc-800 leading-tight">
-                  {comment.profiles?.full_name ??
-                    comment.profiles?.username ??
-                    "Анонимно"}
-                </p>
-                {comment.body && (
-                  <p className="text-sm leading-snug text-zinc-700 mt-0.5">
-                    {comment.body}
-                  </p>
-                )}
-                {(comment as { photo_url?: string | null }).photo_url && (
-                  <button
-                    onClick={() =>
-                      setLightboxSrc(
-                        (comment as { photo_url?: string | null }).photo_url!,
-                      )
-                    }
-                    className="mt-1.5 block cursor-zoom-in p-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={
-                        (comment as { photo_url?: string | null }).photo_url!
-                      }
-                      alt="Слика во коментар"
-                      className="max-h-48 rounded-xl object-cover"
-                    />
-                  </button>
+        {(() => {
+          const topLevel = comments.filter((c) => !c.parent_comment_id);
+          const visibleTopLevel = topLevel.slice(0, commentLimit);
+          const hiddenCount = topLevel.length - commentLimit;
+          const repliesMap: Record<number, IssueComment[]> = {};
+          for (const c of comments) {
+            if (c.parent_comment_id) {
+              repliesMap[c.parent_comment_id] ??= [];
+              repliesMap[c.parent_comment_id].push(c);
+            }
+          }
+
+          const renderBubble = (comment: IssueComment, isReply: boolean) => {
+            const cid = comment.id;
+            const isLiked = likedComments.has(cid);
+            const likeCount = commentLikeCounts[cid] ?? 0;
+            const aName = comment.profiles?.full_name ?? comment.profiles?.username ?? "Анонимно";
+            const rootParent = isReply ? comment.parent_comment_id : null;
+            return (
+              <div key={cid} className="flex items-start gap-2">
+                <AvatarInitials
+                  name={aName}
+                  avatarUrl={comment.profiles?.avatar_url ?? null}
+                  size="sm"
+                  className="shrink-0 mt-0.5"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className={cn("rounded-2xl px-3 py-2 inline-block max-w-full", isReply ? "bg-zinc-50 border border-zinc-150" : "bg-zinc-100")}>
+                    <p className="text-xs font-semibold text-zinc-800 leading-tight">{aName}</p>
+                    {comment.body && (
+                      <p className={cn("leading-snug text-zinc-700 mt-0.5", isReply ? "text-xs" : "text-sm")}>
+                        {comment.body}
+                      </p>
+                    )}
+                    {(comment as { photo_url?: string | null }).photo_url && (
+                      <button
+                        onClick={() => setLightboxSrc((comment as { photo_url?: string | null }).photo_url!)}
+                        className="mt-1.5 block cursor-zoom-in p-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={(comment as { photo_url?: string | null }).photo_url!}
+                          alt="Слика во коментар"
+                          className="max-h-48 rounded-xl object-cover"
+                        />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-0.5 px-1">
+                    {comment.created_at && <p className="text-[10px] text-zinc-400">{formatDays(comment.created_at)}</p>}
+                    <button
+                      onClick={() => toggleCommentLike(cid)}
+                      className={cn("text-[10px] font-semibold transition-colors", isLiked ? "text-[#427FFF]" : "text-zinc-400 hover:text-zinc-700")}>
+                      {likeCount > 0 ? `А така · ${likeCount}` : "А така"}
+                    </button>
+                    <button
+                      onClick={() => replyToComment(aName, comment.user_id, cid, rootParent)}
+                      className="text-[10px] font-semibold text-zinc-400 hover:text-zinc-700 transition-colors">
+                      Коментирај
+                    </button>
+                    <div className="relative ml-auto">
+                      <button
+                        onClick={() => setOpenCommentMenu(openCommentMenu === cid ? null : cid)}
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-zinc-300 hover:bg-zinc-100 hover:text-zinc-500 transition-colors">
+                        <MoreHorizontal size={12} />
+                      </button>
+                      {openCommentMenu === cid && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setOpenCommentMenu(null)} />
+                          <div className="absolute right-0 bottom-full mb-1 z-50 w-44 rounded-xl bg-white shadow-xl border border-zinc-100 py-1 overflow-hidden">
+                            <button
+                              onClick={() => { setReportingCommentId(cid); setOpenCommentMenu(null); }}
+                              className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">
+                              <AlertTriangle size={12} />
+                              Пријави коментар
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {reportingCommentId === cid && (
+                    <div className="mt-1.5 rounded-xl border border-red-100 bg-red-50 p-2.5 space-y-2">
+                      <p className="text-[11px] font-semibold text-red-700">Пријави го коментарот</p>
+                      <textarea
+                        value={reportReason}
+                        onChange={(e) => setReportReason(e.target.value)}
+                        placeholder="Причина (опционално)..."
+                        rows={2}
+                        maxLength={300}
+                        className="w-full resize-none rounded-lg border border-red-200 bg-white px-2 py-1.5 text-xs text-zinc-700 outline-none focus:border-red-400"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setReportingCommentId(null); setReportReason(""); }}
+                          className="flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors">
+                          Откажи
+                        </button>
+                        <button
+                          onClick={() => submitReport(cid)}
+                          disabled={submittingReport}
+                          className="flex-1 rounded-lg bg-red-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60 transition-colors">
+                          {submittingReport ? "Се испраќа..." : "Пријави"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          };
+
+          return (
+            <>
+              {hiddenCount > 0 && (
+                <button
+                  onClick={() => setCommentLimit((n) => n + 10)}
+                  className="w-full py-1.5 text-xs font-semibold text-zinc-400 hover:text-zinc-600 transition-colors text-center">
+                  ↑ Прикажи постари ({hiddenCount})
+                </button>
+              )}
+              {visibleTopLevel.map((comment) => {
+            const replies = repliesMap[comment.id] ?? [];
+            const showInline = replyToCommentId === comment.id;
+            return (
+              <div key={comment.id} className="space-y-1.5">
+                {renderBubble(comment, false)}
+                {(replies.length > 0 || showInline) && (
+                  <div className="ml-8 space-y-2">
+                    {replies.map((reply, idx) => {
+                      const isLast = idx === replies.length - 1 && !showInline;
+                      return (
+                        <div key={reply.id} className="relative pl-4">
+                          {/* Curved L-connector */}
+                          <div className="absolute left-0 top-0 h-4 w-4 border-l-2 border-b-2 border-zinc-200 rounded-bl-xl" />
+                          {/* Vertical line continuing to next item */}
+                          {!isLast && (
+                            <div className="absolute left-0 top-4 -bottom-2 border-l-2 border-zinc-200" />
+                          )}
+                          {renderBubble(reply, true)}
+                        </div>
+                      );
+                    })}
+
+                    {/* Inline reply input */}
+                    {showInline && (
+                      <div className="relative pl-4">
+                        <div className="absolute left-0 top-0 h-4 w-4 border-l-2 border-b-2 border-zinc-200 rounded-bl-xl" />
+                        <div className="flex items-start gap-2">
+                          <AvatarInitials
+                            name={authProfile?.full_name ?? authProfile?.username ?? null}
+                            avatarUrl={authProfile?.avatar_url ?? null}
+                            size="sm"
+                            className="shrink-0 mt-0.5"
+                          />
+                          <div className="flex-1 rounded-2xl bg-zinc-100 px-3 pt-2 pb-1.5">
+                            <textarea
+                              ref={inlineReplyRef}
+                              value={inlineReplyText}
+                              onChange={(e) => {
+                                setInlineReplyText(e.target.value);
+                                e.target.style.height = "auto";
+                                e.target.style.height = e.target.scrollHeight + "px";
+                              }}
+                              rows={1}
+                              maxLength={400}
+                              placeholder="Одговори..."
+                              className="w-full resize-none bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400 leading-snug"
+                              style={{ minHeight: "1.25rem", maxHeight: "8rem" }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  if (inlineReplyText.trim()) submitInlineReply();
+                                }
+                                if (e.key === "Escape") {
+                                  setReplyToCommentId(null);
+                                  setInlineReplyText("");
+                                  setReplyToUserId(null);
+                                }
+                              }}
+                            />
+                            <div className="flex items-center justify-between mt-1">
+                              <button
+                                onClick={() => {
+                                  setReplyToCommentId(null);
+                                  setInlineReplyText("");
+                                  setReplyToUserId(null);
+                                }}
+                                className="text-[10px] text-zinc-400 hover:text-zinc-600 transition-colors">
+                                Откажи
+                              </button>
+                              <button
+                                onClick={submitInlineReply}
+                                disabled={!inlineReplyText.trim() || savingComment}
+                                className={cn(
+                                  "flex items-center justify-center transition-all",
+                                  inlineReplyText.trim()
+                                    ? "text-primary hover:opacity-80 active:scale-95"
+                                    : "text-zinc-300 cursor-default",
+                                )}>
+                                <SendIcon
+                                  size={15}
+                                  active={!!inlineReplyText.trim()}
+                                  disabled={!inlineReplyText.trim() || savingComment}
+                                />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-              {comment.created_at && (
-                <p className="mt-0.5 px-1 text-[10px] text-zinc-400">
-                  {formatDays(comment.created_at)}
-                </p>
-              )}
-            </div>
-          </div>
-        ))}
+            );
+          })}
+            </>
+          );
+        })()}
       </div>
     </div>
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const shareSection = (
     <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-2">
       <button
@@ -1351,6 +1660,7 @@ export default function IssueDetail({
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const peopleSection = (affectedUsers.length > 0 ||
     helperUsers.length > 0) && (
     <div className="rounded-xl border border-zinc-200 bg-white p-3 space-y-3">
@@ -1410,71 +1720,88 @@ export default function IssueDetail({
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
           Предложени Датуми
         </p>
-        <span className={cn(
-          "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
-          helpOffers.filter((o) => o.service_date).length >= 3
-            ? "bg-amber-100 text-amber-700"
-            : "bg-zinc-100 text-zinc-500",
-        )}>
+        <span
+          className={cn(
+            "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+            helpOffers.filter((o) => o.service_date).length >= 3
+              ? "bg-amber-100 text-amber-700"
+              : "bg-zinc-100 text-zinc-500",
+          )}>
           {helpOffers.filter((o) => o.service_date).length}/3
         </span>
         {onOpenDates && (
           <button
             onClick={onOpenDates}
-            className="ml-auto text-[11px] font-semibold text-teal-600 hover:text-teal-700 transition-colors">
-            Отвори →
+            className="ml-auto flex items-center gap-0.5 text-[11px] font-semibold text-teal-600 hover:text-teal-700 transition-colors">
+            Отвори <ChevronRight size={13} />
           </button>
         )}
       </div>
 
       {/* Date hero cards only — full detail lives in the side panel */}
-      {!loadingOffers && helpOffers.filter((o) => o.service_date).length === 0 && (
-        <p className="text-xs italic text-zinc-400 py-1">
-          Сe уште нема предложени датуми.
-        </p>
-      )}
+      {!loadingOffers &&
+        helpOffers.filter((o) => o.service_date).length === 0 && (
+          <p className="text-xs italic text-zinc-400 py-1">
+            Сe уште нема предложени датуми.
+          </p>
+        )}
       {loadingOffers && (
         <div className="h-14 rounded-xl bg-zinc-100 animate-pulse" />
       )}
       <div className="space-y-2">
-        {helpOffers.filter((o) => o.service_date).map((offer) => {
-          const name = offer.profiles?.full_name ?? offer.profiles?.username ?? "Анонимно";
-          const [y, m, d] = (offer.service_date as string).split("-").map(Number);
-          const dt = new Date(y, m - 1, d);
-          return (
-            <button
-              key={offer.id}
-              onClick={onOpenDates}
-              className="w-full overflow-hidden rounded-xl text-left">
-              <div className={cn(
-                "px-4 py-3 flex items-center justify-between gap-3",
-                offer.voted_by_me ? "bg-teal-600" : "bg-zinc-800",
-              )}>
-                <div className="text-white min-w-0">
-                  <p className="text-[10px] opacity-60 capitalize">
-                    {dt.toLocaleDateString("mk-MK", { weekday: "long" })}
-                  </p>
-                  <p className="text-sm font-bold leading-tight">
-                    {dt.toLocaleDateString("mk-MK", { day: "numeric", month: "long" })}
-                  </p>
-                  <p className="text-[10px] opacity-50">{dt.getFullYear()}</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <AvatarInitials
-                    name={name}
-                    avatarUrl={offer.profiles?.avatar_url ?? null}
-                    size="sm"
-                    className="ring-2 ring-white/30"
-                  />
-                  <div className="text-right">
-                    <p className="text-[11px] font-semibold text-white truncate max-w-20">{name}</p>
-                    <p className="text-[10px] text-white/60">предложил/а</p>
+        {helpOffers
+          .filter((o) => o.service_date)
+          .map((offer) => {
+            const name =
+              offer.profiles?.full_name ??
+              offer.profiles?.username ??
+              "Анонимно";
+            const [y, m, d] = (offer.service_date as string)
+              .split("-")
+              .map(Number);
+            const dt = new Date(y, m - 1, d);
+            return (
+              <button
+                key={offer.id}
+                onClick={onOpenDates}
+                className="w-full overflow-hidden rounded-xl text-left">
+                <div
+                  className={cn(
+                    "px-4 py-3 flex items-center justify-between gap-3 border-l-[3px]",
+                    offer.voted_by_me
+                      ? "bg-primary border-primary"
+                      : "bg-zinc-100 border-zinc-200",
+                  )}>
+                  <div className={cn("min-w-0", offer.voted_by_me ? "text-white" : "text-zinc-800")}>
+                    <p className="text-[10px] opacity-70 capitalize">
+                      {dt.toLocaleDateString("mk-MK", { weekday: "long" })}
+                    </p>
+                    <p className="text-sm font-bold leading-tight">
+                      {dt.toLocaleDateString("mk-MK", {
+                        day: "numeric",
+                        month: "long",
+                      })}
+                    </p>
+                    <p className="text-[10px] opacity-60">{dt.getFullYear()}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <AvatarInitials
+                      name={name}
+                      avatarUrl={offer.profiles?.avatar_url ?? null}
+                      size="sm"
+                      className="ring-2 ring-white/40"
+                    />
+                    <div className="text-right">
+                      <p className={cn("text-[11px] font-semibold truncate max-w-20", offer.voted_by_me ? "text-white" : "text-zinc-700")}>
+                        {name}
+                      </p>
+                      <p className={cn("text-[10px]", offer.voted_by_me ? "text-white/70" : "text-zinc-400")}>предложил/а</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </button>
-          );
-        })}
+              </button>
+            );
+          })}
       </div>
     </div>
   );
@@ -1790,6 +2117,7 @@ export default function IssueDetail({
     },
   ];
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const statusSelector = (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -2070,7 +2398,7 @@ export default function IssueDetail({
             issueTitle={currentIssue.title}
             userId={userId}
             onClose={() => setHelperOpen(false)}
-            onSuccess={(count) => {
+            onSuccess={() => {
               setIsHelperDirect(true);
               setHelperOpen(false);
               loadHelpOffers();
@@ -2098,7 +2426,15 @@ export default function IssueDetail({
 
         {/* ── FB-style header: author + actions + close ── */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3">
+          <Link
+            href={
+              currentIssue.profiles?.username
+                ? `/u/${currentIssue.profiles.username}`
+                : currentIssue.reported_by
+                  ? `/u/${currentIssue.reported_by}`
+                  : "#"
+            }
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <AvatarInitials
               name={
                 currentIssue.profiles?.full_name ??
@@ -2114,11 +2450,18 @@ export default function IssueDetail({
                   currentIssue.profiles?.username ??
                   "Анонимно"}
               </p>
-              <p className="text-[11px] text-zinc-400 leading-tight mt-0.5">
-                {formatDays(currentIssue.created_at)}
-              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-[11px] text-zinc-400 leading-tight">
+                  {formatDays(currentIssue.created_at)}
+                </p>
+                {viewCount !== null && (
+                  <p className="text-[11px] text-zinc-300 leading-tight">
+                    · {viewCount.toLocaleString()} прегледи
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-0.5 shrink-0">
             {/* ··· mod menu */}
             {canModerate && (
@@ -2336,7 +2679,7 @@ export default function IssueDetail({
               </button>
             </div>
           ) : (
-            <div>
+            <div className="mt-8 mb-2">
               <h2 className="text-sm font-semibold leading-snug">
                 {currentIssue.title}
               </h2>
@@ -2574,7 +2917,7 @@ export default function IssueDetail({
           issueTitle={currentIssue.title}
           userId={userId}
           onClose={() => setHelperOpen(false)}
-          onSuccess={(count) => {
+          onSuccess={() => {
             setIsHelperDirect(true);
             setHelperOpen(false);
             loadHelpOffers();

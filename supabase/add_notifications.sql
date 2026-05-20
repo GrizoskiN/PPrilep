@@ -4,7 +4,7 @@ create table if not exists public.notifications (
   id bigserial primary key,
   recipient_user_id uuid not null references public.profiles(id) on delete cascade,
   actor_user_id uuid not null references public.profiles(id) on delete cascade,
-  type text not null check (type in ('issue_comment','issue_affected','issue_helper','issue_help_comment','issue_help_vote','idea_upvote')),
+  type text not null check (type in ('issue_comment','issue_affected','issue_helper','issue_help_comment','issue_help_vote','idea_upvote','comment_like','comment_reply')),
   title text not null,
   body text not null,
   link text not null,

@@ -102,7 +102,7 @@ export default function HelperModal({
           note: o.note,
           service_date: o.service_date,
           vote_count: voteCount[o.id] ?? 0,
-          voted_by_me: votedByMe.has(o.id),
+          voted_by_me: votedByMe.has(o.id) || o.user_id === userId,
           profiles: Array.isArray(o.profiles) ? o.profiles[0] : o.profiles,
         })),
       );
@@ -285,7 +285,7 @@ export default function HelperModal({
           {showDateOffers && (
             <div
               className={cn(
-                "rounded-xl border overflow-hidden",
+                "rounded-xl border overflow-hidden ",
                 hasDate ? "border-teal-200" : "border-zinc-200",
               )}>
               <div
@@ -310,7 +310,7 @@ export default function HelperModal({
               </div>
 
               {dateOffers.length === 0 ? (
-                <p className="px-4 py-4 text-xs text-zinc-400 italic">
+                <p className="px-4 py-4  text-xs text-zinc-400 italic">
                   Сe уште нема предложени датуми — биди прв!
                 </p>
               ) : (
@@ -330,21 +330,22 @@ export default function HelperModal({
                     return (
                       <div key={offer.id}
                         className={cn(
-                          "overflow-hidden rounded-xl border",
-                          offer.voted_by_me ? "border-teal-300" : "border-zinc-200"
+                          "overflow-hidden rounded-xl border border-zinc-200",
                         )}>
                         {/* Date hero row */}
                         <div className={cn(
-                          "flex items-center justify-between gap-2 px-4 py-2.5",
-                          offer.voted_by_me ? "bg-teal-600" : "bg-zinc-800"
+                          "flex items-center justify-between gap-2 px-4 py-2.5 border-l-[3px]",
+                          offer.voted_by_me
+                            ? "bg-primary border-primary"
+                            : "bg-zinc-900 border-transparent"
                         )}>
-                          <div className="text-white min-w-0">
-                            <p className="text-[10px] opacity-60 capitalize">{dayName}</p>
+                          <div className="min-w-0 text-white">
+                            <p className="text-[10px] opacity-70 capitalize">{dayName}</p>
                             <p className="text-sm font-bold leading-tight">{dayNum}</p>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <AvatarInitials name={name} avatarUrl={offer.profiles?.avatar_url ?? null} size="sm" className="ring-2 ring-white/30" />
-                            <p className="text-[11px] text-white/80 font-medium truncate max-w-20">{name}</p>
+                            <p className="text-[11px] font-medium truncate max-w-20 text-white/90">{name}</p>
                           </div>
                         </div>
                         {/* Note + action */}
@@ -358,10 +359,10 @@ export default function HelperModal({
                             className={cn(
                               "shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold transition-all whitespace-nowrap active:scale-95",
                               offer.voted_by_me
-                                ? "bg-teal-600 text-white"
+                                ? "bg-zinc-200 text-zinc-500 cursor-default"
                                 : isOwn
                                   ? "bg-zinc-100 text-zinc-400 cursor-default"
-                                  : "bg-white border border-teal-300 text-teal-700 hover:bg-teal-50",
+                                  : "bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-50",
                             )}>
                             {offer.voted_by_me ? "✓ Идам" : isOwn ? "Твој предлог" : "Идам и јас"}
                           </button>

@@ -31,6 +31,54 @@ _(empty — add items here when starting a sprint)_
 - **Cloudflare CDN** — `cdn.mojprilep.mk` Worker proxying Supabase Storage;
   ~10× egress reduction.
 - **Vertical column dividers removed** in Shell.
+- **Communities page redesign** — softer banner (green gradient), full-width
+  status pills grid, "show more categories" expand in-place, admin-only
+  CSV export with pivot tables + per-issue detail rows (UTF-8 BOM, Cyrillic).
+- **Градинки — Наша Иднина** — new `/kindergarten` page with tab UI
+  (Мени/Програма/Идеи/Соопштенија); `kindergarten` added to `utility_posts`
+  provider + `post_type` column; nav entry with `faChildren` icon.
+- **HelperModal redesign** — wider modal, date+time pickers (date stored as
+  Postgres `date` = YYYY-MM-DD, time folded into note), "Предложени датуми"
+  section always visible; "Идам и јас" joins+votes in one click.
+- **IssueDetail overhaul**:
+  - FB-style header (avatar + name + time, author on top)
+  - Full-width district/category/status grid pills
+  - `...` three-dot menu for all mod controls (status, edit, delete, photo)
+  - Counts row: number = popup, icon+text = action (blue `#427FFF` when active)
+  - Optimistic `isAffected` update (instant tap response on mobile)
+  - helpPlanningSection inline = date hero cards only (no comments)
+  - FB-style comment input (gray pill, emoji picker, image upload, send SVG icon)
+  - Empty comment state with our KomentariIcon
+- **DateOffersPanel** — dedicated side panel for date coordination:
+  - Desktop: slides in as `w-80` between photo and detail, photo shrinks
+  - Mobile: second bottom sheet at `z-59` with slide-up animation
+  - Full interaction: propose date, "Идам и јас" vote, per-date comments,
+    participant count, slot counter (X/3)
+- **help_offer trigger** — updated to allow 3 date offers per issue
+  (was restricted to first helper only); Macedonian error message.
+- **issue_comments photo_url** — `ALTER TABLE issue_comments ADD COLUMN photo_url text`
+  added; image upload + lightbox display in comments.
+- **Shared issue URL** (`/issues/[slug]-[id]`) — now renders the same
+  modal-style layout (dark bg + photo left + detail right on desktop,
+  clean white page on mobile) instead of the Shell page. OG metadata added.
+- **`profiles(...)` join bug** — fixed `loadHelpOffers` and `loadComments`
+  to use `profiles:user_id(...)` syntax; was silently returning empty arrays.
+
+---
+
+## Pending migrations (run in Supabase SQL editor)
+
+```sql
+-- 1. Kindergarten provider + post_type
+-- File: supabase/add_kindergarten.sql
+
+-- 2. Allow 3 date offers per issue (was 1)
+-- File: supabase/update_help_offer_limit.sql
+
+-- 3. Comment photos
+ALTER TABLE issue_comments ADD COLUMN IF NOT EXISTS photo_url text;
+NOTIFY pgrst, 'reload schema';
+```
 
 ---
 
@@ -64,13 +112,22 @@ _(empty — add items here when starting a sprint)_
   flag reports, etc.).
 - Audit log for admin actions on issues.
 
+### Comments
+- GIF support via GIPHY free API (~2–3h work, free tier).
+- `service_time time` column on `issue_help_offers` (currently time
+  is stored as text in note field).
+
 ### Polish
-- Move PostGIS extension out of `public` schema once we have a quiet
-  hour to test all proximity queries against the new search_path.
+- Move PostGIS extension out of `public` schema.
 - Migrate avatars upload paths to `userId/avatar.jpg` consistently.
+- The `... menu` in IssueDetail engagement variant (side panel) is a
+  separate instance from the full variant — keep in sync.
 
 ---
 
 ## Review log
 
-_(Append a brief retrospective after closing each sprint here.)_
+**Sprint — May 2026**: Major UX overhaul of the issue detail flow.
+Highlights: modal-style layout on shared URLs, DateOffersPanel side panel,
+FB-style comment input with emoji+image, three-dot mod menu, full-width
+status pills, blue active-state buttons throughout.

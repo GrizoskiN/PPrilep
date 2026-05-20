@@ -1,11 +1,36 @@
 import { createClient } from "@/lib/supabase/server";
-import Shell from "@/components/layout/Shell";
-import IssueDetail from "@/components/issues/IssueDetail";
 import { getIssuePath, parseIssueIdFromSegment } from "@/lib/utils";
 import { notFound, redirect } from "next/navigation";
+import IssuePageClient from "./IssuePageClient";
+import type { Metadata } from "next";
 
 interface Props {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const issueId = parseIssueIdFromSegment(id);
+  if (!issueId) return {};
+
+  const supabase = await createClient();
+  const { data: issue } = await supabase
+    .from("issues")
+    .select("title, description, photo_url")
+    .eq("id", issueId)
+    .maybeSingle();
+
+  if (!issue) return {};
+
+  return {
+    title: `${issue.title} — Подобар Прилеп`,
+    description: issue.description ?? undefined,
+    openGraph: {
+      title: issue.title,
+      description: issue.description ?? undefined,
+      images: issue.photo_url ? [{ url: issue.photo_url }] : [],
+    },
+  };
 }
 
 export default async function IssueDetailPage({ params }: Props) {
@@ -14,12 +39,8 @@ export default async function IssueDetailPage({ params }: Props) {
   if (!issueId) notFound();
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // Fetch issue + everything else in parallel on the server.
-  // This replaces ~5 client-side round-trips with one server round.
   const [
     issueRes,
     affectedCountRes,
@@ -59,17 +80,10 @@ export default async function IssueDetailPage({ params }: Props) {
   ]);
 
   const { data: issue, error: issueError } = issueRes;
-  if (issueError) {
-    console.error("[IssueDetailPage] issue fetch error:", issueError);
-    notFound();
-  }
-
-  if (!issue) notFound();
+  if (issueError || !issue) notFound();
 
   const canonicalPath = getIssuePath(issue.id, issue.title);
-  if (`/issues/${id}` !== canonicalPath) {
-    redirect(canonicalPath);
-  }
+  if (`/issues/${id}` !== canonicalPath) redirect(canonicalPath);
 
   const enriched = {
     ...issue,
@@ -80,11 +94,5 @@ export default async function IssueDetailPage({ params }: Props) {
     user_helper_note: isHelperRes.data?.note ?? null,
   };
 
-  return (
-    <Shell>
-      <div className="max-w-xl mx-auto py-6 px-4">
-        <IssueDetail issue={enriched} userId={user?.id} />
-      </div>
-    </Shell>
-  );
+  return <IssuePageClient issue={enriched} userId={user?.id} />;
 }

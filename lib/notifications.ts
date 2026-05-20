@@ -4,7 +4,9 @@ export type NotificationType =
   | "issue_helper"
   | "issue_help_comment"
   | "issue_help_vote"
-  | "idea_upvote";
+  | "idea_upvote"
+  | "comment_like"
+  | "comment_reply";
 
 interface NotificationErrorLike {
   code?: string | null;
