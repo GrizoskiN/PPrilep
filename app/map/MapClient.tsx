@@ -1,0 +1,292 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import Link from "next/link";
+import { X } from "lucide-react";
+import { CATEGORY_LABELS, getIssuePath } from "../../lib/utils";
+import { cn } from "../../lib/utils";
+import type { Category, District } from "../../lib/types/database";
+
+export type PinnedIssue = {
+  id: number;
+  title: string;
+  category: Category;
+  status: string;
+  street_name: string | null;
+  photo_url: string | null;
+  district: District;
+  lat: number | null;
+  lng: number | null;
+};
+
+const CATEGORY_COLORS: Record<Category, string> = {
+  road:      "#ef4444",
+  water:     "#3b82f6",
+  power:     "#f59e0b",
+  garbage:   "#84cc16",
+  park:      "#22c55e",
+  negligent: "#f97316",
+  transport: "#8b5cf6",
+  parking:   "#06b6d4",
+  admin:     "#6b7280",
+  other:     "#94a3b8",
+};
+
+const STATUS_MK: Record<string, string> = {
+  open:     "Отворено",
+  progress: "Во тек",
+  resolved: "Завршено",
+};
+
+// Approximate district centers for issues without a pin
+const DISTRICT_CENTERS: Record<District, [number, number]> = {
+  Center:     [21.5551, 41.3458],
+  Varoš:      [21.5490, 41.3510],
+  Trizla:     [21.5620, 41.3380],
+  Točila:     [21.5700, 41.3520],
+  Rid:        [21.5780, 41.3600],
+  Tipski:     [21.5450, 41.3540],
+  Boncejca:   [21.5350, 41.3480],
+  KorzoMaalo: [21.5510, 41.3430],
+};
+
+// Prileple bounding box — users can't pan outside the city
+const PRILEP_BOUNDS: [[number, number], [number, number]] = [
+  [21.44, 41.28], // SW
+  [21.67, 41.42], // NE
+];
+
+function createMarkerEl(color: string, isPinned: boolean) {
+  const size = isPinned ? 14 : 11;
+
+  // Outer wrapper — fixed 28px hit area so hover never flickers when the
+  // inner dot scales up (scaling changes the visual size but the wrapper
+  // stays the same, so mouseenter/leave don't rapidly toggle).
+  const wrapper = document.createElement("div");
+  wrapper.style.cssText = `
+    width:28px;height:28px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  `;
+
+  const dot = document.createElement("div");
+  dot.style.cssText = `
+    width:${size}px;height:${size}px;border-radius:50%;
+    background:${isPinned ? color : "white"};
+    border:2px solid ${color};
+    box-shadow:0 1px 6px rgba(0,0,0,0.3);
+    transition:transform 0.12s ease, box-shadow 0.12s ease;
+    opacity:${isPinned ? 1 : 0.8};
+    pointer-events:none;
+  `;
+
+  wrapper.appendChild(dot);
+  wrapper.addEventListener("mouseenter", () => {
+    dot.style.transform = "scale(1.6)";
+    dot.style.boxShadow = "0 2px 10px rgba(0,0,0,0.35)";
+  });
+  wrapper.addEventListener("mouseleave", () => {
+    dot.style.transform = "scale(1)";
+    dot.style.boxShadow = "0 1px 6px rgba(0,0,0,0.3)";
+  });
+  return wrapper;
+}
+
+export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
+  const [selected, setSelected] = useState<PinnedIssue | null>(null);
+  const [activeCategories, setActiveCategories] = useState<Set<Category>>(new Set());
+
+  const allCategories = Array.from(
+    new Set(issues.map((i) => i.category))
+  ) as Category[];
+
+  const visible = activeCategories.size === 0
+    ? issues
+    : issues.filter((i) => activeCategories.has(i.category));
+
+  const pinnedCount = visible.filter((i) => i.lat && i.lng).length;
+  const streetCount = visible.filter((i) => (!i.lat || !i.lng) && i.street_name).length;
+
+  // Init map once
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: "https://tiles.openfreemap.org/styles/positron",
+      center: [21.5551, 41.3458],
+      zoom: 13,
+      minZoom: 11,
+      maxZoom: 19,
+      maxBounds: PRILEP_BOUNDS,
+      attributionControl: { compact: true },
+    });
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    mapRef.current = map;
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  // Re-render markers whenever visible set changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    visible.forEach((issue) => {
+      const isPinned = !!(issue.lat && issue.lng);
+      const lngLat: [number, number] = isPinned
+        ? [issue.lng!, issue.lat!]
+        : DISTRICT_CENTERS[issue.district] ?? [21.5551, 41.3458];
+
+      const el = createMarkerEl(CATEGORY_COLORS[issue.category], isPinned);
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat(lngLat)
+        .addTo(map);
+
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        setSelected(issue);
+      });
+      // el is the wrapper; click is already on wrapper ✓
+
+      markersRef.current.push(marker);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible.length, activeCategories]);
+
+  function toggleCategory(cat: Category) {
+    setActiveCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  }
+
+  return (
+    <div className="relative w-full h-full flex flex-col">
+      {/* Category filter chips */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex flex-wrap justify-center gap-1.5 px-3 max-w-2xl">
+        {allCategories.map((cat) => {
+          const active = activeCategories.size === 0 || activeCategories.has(cat);
+          return (
+            <button
+              key={cat}
+              onClick={() => toggleCategory(cat)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold shadow border transition-all",
+                active
+                  ? "bg-white border-zinc-200 text-zinc-700"
+                  : "bg-white/60 border-zinc-100 text-zinc-400",
+              )}>
+              <span
+                className="inline-block w-2 h-2 rounded-full shrink-0 transition-opacity"
+                style={{ background: CATEGORY_COLORS[cat], opacity: active ? 1 : 0.35 }}
+              />
+              {CATEGORY_LABELS[cat]}
+            </button>
+          );
+        })}
+        {activeCategories.size > 0 && (
+          <button
+            onClick={() => setActiveCategories(new Set())}
+            className="rounded-full px-3 py-1 text-[11px] font-semibold shadow border bg-zinc-800 border-zinc-800 text-white">
+            Сите ×
+          </button>
+        )}
+      </div>
+
+      {/* Map */}
+      <div ref={containerRef} className="flex-1 w-full" onClick={() => setSelected(null)} />
+
+      {/* Legend / count */}
+      <div className="absolute bottom-6 left-3 z-10 flex flex-col gap-1.5 bg-white rounded-xl shadow px-3 py-2.5 border border-zinc-100 text-xs text-zinc-600">
+        <div className="flex items-center gap-2 font-semibold text-zinc-700 border-b border-zinc-100 pb-1.5 mb-0.5">
+          {visible.length} пријави прикажани
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-3 h-3 rounded-full bg-zinc-500 border-2 border-zinc-500" />
+          Точна локација ({pinnedCount})
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-3 h-3 rounded-full bg-white border-2 border-zinc-500" />
+          По населба ({streetCount})
+        </div>
+      </div>
+
+      {/* Issue popup */}
+      {selected && (
+        <div
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-80 bg-white rounded-2xl shadow-2xl border border-zinc-100 overflow-hidden"
+          onClick={(e) => e.stopPropagation()}>
+          {/* Photo */}
+          {selected.photo_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={selected.photo_url}
+              alt={selected.title}
+              className="w-full h-36 object-cover"
+            />
+          )}
+          <div className="p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                {/* Category + approximate badge */}
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span
+                    className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ background: CATEGORY_COLORS[selected.category] }}
+                  />
+                  <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">
+                    {CATEGORY_LABELS[selected.category]}
+                  </p>
+                  {!(selected.lat && selected.lng) && (
+                    <span className="text-[10px] text-zinc-300">· приближно</span>
+                  )}
+                </div>
+                {/* Title */}
+                <p className="text-sm font-semibold text-zinc-800 leading-snug line-clamp-2">
+                  {selected.title}
+                </p>
+                {/* Street */}
+                {selected.street_name && (
+                  <p className="text-[11px] text-zinc-400 mt-0.5">{selected.street_name}</p>
+                )}
+              </div>
+              <button
+                onClick={() => setSelected(null)}
+                className="shrink-0 h-6 w-6 flex items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 transition-colors">
+                <X size={13} />
+              </button>
+            </div>
+
+            {/* Footer: status + CTA */}
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-zinc-100">
+              <span className={cn(
+                "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                selected.status === "resolved" ? "bg-teal-50 text-teal-700" :
+                selected.status === "progress"  ? "bg-amber-50 text-amber-700" :
+                                                  "bg-zinc-100 text-zinc-600",
+              )}>
+                {STATUS_MK[selected.status] ?? selected.status}
+              </span>
+              <Link
+                href={getIssuePath(selected.id, selected.title)}
+                className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors">
+                Отвори пријава →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

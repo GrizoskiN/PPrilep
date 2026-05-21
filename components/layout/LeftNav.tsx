@@ -23,6 +23,7 @@ import {
   faChildren,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Map } from "lucide-react";
 import NavItem from "../ui/NavItem";
 import { cn } from "../../lib/utils";
 import { createClient } from "../../lib/supabase/client";
@@ -86,6 +87,11 @@ export default function LeftNav() {
                 className="h-4 w-4"
               />
             }
+          />
+          <NavItem
+            href="/map"
+            label="Мапа"
+            iconNode={<Map className="h-4 w-4" />}
           />
           <NavItem
             href="/heroes"

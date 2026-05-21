@@ -85,6 +85,7 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [pinLat, setPinLat] = useState<number | null>(null);
   const [pinLng, setPinLng] = useState<number | null>(null);
+  const [streetNumber, setStreetNumber] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [similar, setSimilar] = useState<SimilarIssue[]>([]);
   const [duplicateDismissed, setDuplicateDismissed] = useState(false);
@@ -232,7 +233,11 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
 
     const { error } = await supabase.from("issues").insert({
       ...values,
-      street_name: values.street_name?.trim() || null,
+      street_name: (() => {
+        const base = values.street_name?.trim() || null;
+        const num = streetNumber.trim();
+        return base && num ? `${base} ${num}` : base;
+      })(),
       reported_by: userId,
       photo_url: photoUrl,
       lat: pinLat,
@@ -310,20 +315,31 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
 
               <div>
                 <label className="text-sm font-medium text-zinc-700">Улица / локација</label>
-                <Controller
-                  name="street_name"
-                  control={control}
-                  render={({ field }) => (
-                    <StreetAutocomplete
-                      value={field.value ?? ""}
-                      onChange={field.onChange}
-                      placeholder="пр. Партизанска"
-                      onSelect={(s) => {
-                        if (s.district) setValue("district", s.district, { shouldDirty: true });
-                      }}
+                <div className="flex items-stretch gap-2 mt-1.5">
+                  <div className="flex-1 min-w-0">
+                    <Controller
+                      name="street_name"
+                      control={control}
+                      render={({ field }) => (
+                        <StreetAutocomplete
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          placeholder="пр. Партизанска"
+                          onSelect={(s) => {
+                            if (s.district) setValue("district", s.district, { shouldDirty: true });
+                          }}
+                        />
+                      )}
                     />
-                  )}
-                />
+                  </div>
+                  <input
+                    value={streetNumber}
+                    onChange={(e) => setStreetNumber(e.target.value.replace(/[^\d\w/]/g, ""))}
+                    placeholder="Бр."
+                    maxLength={8}
+                    className="w-14 shrink-0 border border-zinc-200 rounded-xl px-2 text-sm text-center outline-none focus:border-teal-500 transition-colors"
+                  />
+                </div>
                 <div className="mt-1.5 flex items-center justify-between gap-2">
                   <p className="text-[10px] text-zinc-400 leading-snug">Не ја знаете точната адреса?</p>
                   <button
@@ -407,16 +423,21 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
           initialLat={pinLat}
           initialLng={pinLng}
           onClose={() => setPickerOpen(false)}
-          onConfirm={(lat, lng, street, matched) => {
+          onConfirm={(lat, lng, streetOnly, matched, houseNumber) => {
             setPinLat(lat);
             setPinLng(lng);
-            if (street) {
+            // Auto-fill street name (without number) and number separately
+            if (streetOnly) {
               const current = (getValues("street_name") ?? "").trim();
-              if (!current) setValue("street_name", street, { shouldDirty: true });
+              if (!current) setValue("street_name", streetOnly, { shouldDirty: true });
             }
+            if (houseNumber) setStreetNumber(houseNumber);
             if (matched?.district) setValue("district", matched.district, { shouldDirty: true });
             setPickerOpen(false);
-            toast.success(street ? `Локацијата е зачувана: ${street}` : "Локацијата е зачувана");
+            const display = streetOnly
+              ? `${streetOnly}${houseNumber ? " " + houseNumber : ""}`
+              : null;
+            toast.success(display ? `Локацијата е зачувана: ${display}` : "Локацијата е зачувана");
           }}
         />
       )}

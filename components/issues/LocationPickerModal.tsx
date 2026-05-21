@@ -12,15 +12,16 @@ interface Props {
   onClose: () => void;
   /**
    * Called when the user clicks "Зачувај локација".
-   * `street` is the reverse-geocoded street name (best-effort, may be empty).
-   * `matched` is the canonical Street entry (if found in the local DB) —
-   * lets the parent auto-fill district etc.
+   * `streetOnly` is the canonical street name without house number.
+   * `matched` is the canonical Street entry from the local DB.
+   * `houseNumber` is the house number extracted from OSM (may be empty).
    */
   onConfirm: (
     lat: number,
     lng: number,
-    street: string,
+    streetOnly: string,
     matched: Street | null,
+    houseNumber: string,
   ) => void;
 }
 
@@ -33,7 +34,7 @@ interface NominatimReverse {
     suburb?: string;
     neighbourhood?: string;
   };
-  display_name?: string;
+  display_name?: string; // e.g. "42, Partizanska, Prilepe, ..." — number is first segment
 }
 
 /**
@@ -50,15 +51,17 @@ interface NominatimReverse {
  *      pollute the form with bad data.
  */
 interface GeocodeResult {
-  display: string;          // What to show / save in the form
-  matched: Street | null;   // Canonical Street entry from local DB
+  display: string;       // Full display (street + number) — shown in footer
+  streetOnly: string;    // Street name only — saved to form field
+  houseNumber: string;   // House number only — saved to separate Бр. field
+  matched: Street | null;
 }
 
 async function reverseGeocode(
   lat: number,
   lng: number,
 ): Promise<GeocodeResult> {
-  const empty: GeocodeResult = { display: "", matched: null };
+  const empty: GeocodeResult = { display: "", streetOnly: "", houseNumber: "", matched: null };
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1&accept-language=mk`;
     const res = await fetch(url, {
@@ -77,9 +80,21 @@ async function reverseGeocode(
     if (!matched) return empty;
 
     const canonical = prettyStreetName(matched.name);
-    const house = data.address?.house_number;
+
+    // Primary: address.house_number (only set when pin lands on a registered building)
+    // Fallback: first segment of display_name when it looks like a number (e.g. "42, ...")
+    let house = data.address?.house_number ?? "";
+    if (!house && data.display_name) {
+      const firstSegment = data.display_name.split(",")[0]?.trim() ?? "";
+      if (/^\d+[a-zA-ZаА-ЯА-Ш]?$/.test(firstSegment)) {
+        house = firstSegment;
+      }
+    }
+
     return {
       display: house ? `${canonical} ${house}` : canonical,
+      streetOnly: canonical,
+      houseNumber: house,
       matched,
     };
   } catch {
@@ -110,6 +125,8 @@ export default function LocationPickerModal({
       : PRILEP_CENTER,
   );
   const [detectedStreet, setDetectedStreet] = useState<string>("");
+  const [detectedStreetOnly, setDetectedStreetOnly] = useState<string>("");
+  const [detectedHouseNumber, setDetectedHouseNumber] = useState<string>("");
   const [detectedMatch, setDetectedMatch] = useState<Street | null>(null);
   const [geocoding, setGeocoding] = useState(false);
   // Token used to cancel stale reverse-geocode requests when the pin moves
@@ -167,6 +184,8 @@ export default function LocationPickerModal({
       // Drop the result if the user has moved the pin again since
       if (myToken !== geocodeToken.current) return;
       setDetectedStreet(result.display);
+      setDetectedStreetOnly(result.streetOnly);
+      setDetectedHouseNumber(result.houseNumber);
       setDetectedMatch(result.matched);
       setGeocoding(false);
     }, 500);
@@ -224,9 +243,7 @@ export default function LocationPickerModal({
               {geocoding ? (
                 <>
                   <Loader2 size={11} className="animate-spin text-zinc-400 shrink-0" />
-                  <span className="text-[11px] text-zinc-400">
-                    Се пребарува улицата…
-                  </span>
+                  <span className="text-[11px] text-zinc-400">Се пребарува улицата…</span>
                 </>
               ) : detectedStreet ? (
                 <>
@@ -234,6 +251,12 @@ export default function LocationPickerModal({
                   <span className="text-[11px] font-medium text-slate-700 truncate">
                     {detectedStreet}
                   </span>
+                  {/* OSM address data in Прилеп is sparse — number often missing */}
+                  {!detectedHouseNumber && (
+                    <span className="text-[11px] text-amber-500 shrink-0">
+                      · бројот не е детектиран, внесете го рачно
+                    </span>
+                  )}
                 </>
               ) : (
                 <span className="font-mono text-[10px] text-zinc-400">
@@ -252,7 +275,7 @@ export default function LocationPickerModal({
             <button
               type="button"
               onClick={() =>
-                onConfirm(coords[1], coords[0], detectedStreet, detectedMatch)
+                onConfirm(coords[1], coords[0], detectedStreetOnly, detectedMatch, detectedHouseNumber)
               }
               className="rounded-lg bg-teal-600 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-700">
               Зачувај локација
