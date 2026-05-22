@@ -514,6 +514,11 @@ export default function IssueDetail({
   const [viewCount, setViewCount] = useState<number | null>(issue.views ?? null);
 
   useEffect(() => {
+    // Only count once per browser session per issue — prevents double-count
+    // from React Strict Mode double-mount and back/forward navigations.
+    const sessionKey = `viewed_issue_${issue.id}`;
+    if (sessionStorage.getItem(sessionKey)) return;
+    sessionStorage.setItem(sessionKey, "1");
     supabase
       .rpc("increment_issue_views", { p_issue_id: issue.id })
       .then(({ data }) => { if (typeof data === "number") setViewCount(data); });

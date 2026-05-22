@@ -2,6 +2,7 @@ import { createClient } from "../../lib/supabase/server";
 import type { Metadata } from "next";
 import type { PinnedIssue } from "./MapClient";
 import MapWrapper from "./MapWrapper";
+import Shell from "../../components/layout/Shell";
 
 export const metadata: Metadata = {
   title: "Мапа на пријави | Подобар Прилеп",
@@ -19,8 +20,8 @@ export default async function MapPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-4rem)]">
+    <Shell fullWidth>
       <MapWrapper issues={(issues ?? []) as PinnedIssue[]} />
-    </div>
+    </Shell>
   );
 }

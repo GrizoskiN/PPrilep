@@ -20,19 +20,45 @@ export default function RegisterPage() {
   const supabase = useMemo(() => createClient(), [])
   const [done, setDone] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
+  const [existingEmail, setExistingEmail] = useState<string | null>(null)
+  const [sendingLink, setSendingLink] = useState(false)
+  const [linkSentTo, setLinkSentTo] = useState<string | null>(null)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Fields>({
     resolver: zodResolver(schema),
   })
 
   async function onSubmit(values: Fields) {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
-      options: { data: { full_name: values.full_name } },
+      options: {
+        data: { full_name: values.full_name },
+        emailRedirectTo: `${location.origin}/auth/callback`,
+      },
     })
     if (error) { toast.error(error.message); return }
+
+    // Supabase returns success but with empty identities[] when the email
+    // is already registered — it silently skips sending to prevent email
+    // enumeration. Detect this and offer the user a recovery path.
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
+      setExistingEmail(values.email)
+      return
+    }
+
     setDone(true)
+  }
+
+  async function sendMagicLink(email: string) {
+    setSendingLink(true)
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${location.origin}/auth/callback` },
+    })
+    setSendingLink(false)
+    if (error) { toast.error(error.message); return }
+    setLinkSentTo(email)
   }
 
   async function signUpWithGoogle() {
@@ -49,6 +75,22 @@ export default function RegisterPage() {
     }
   }
 
+  // After magic link sent (from recovery flow)
+  if (linkSentTo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
+        <div className="w-full max-w-sm bg-white border border-zinc-200 rounded-lg p-6 shadow-sm text-center space-y-2">
+          <p className="font-medium">Линкот е испратен</p>
+          <p className="text-sm text-zinc-500">
+            Испративме линк за најава на <strong>{linkSentTo}</strong>. Проверете го вашиот сандак (и spam папка).
+          </p>
+          <Link href="/auth/login" className="text-xs underline text-zinc-400">Назад кон најава</Link>
+        </div>
+      </div>
+    )
+  }
+
+  // After successful signup
   if (done) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
@@ -56,6 +98,42 @@ export default function RegisterPage() {
           <p className="font-medium">Проверете ја вашата е-пошта</p>
           <p className="text-sm text-zinc-500">Испративме потврден линк. Кликнете на него за да ја активирате сметката.</p>
           <Link href="/auth/login" className="text-xs underline text-zinc-400">Назад кон најава</Link>
+        </div>
+      </div>
+    )
+  }
+
+  // Recovery UI when email already exists
+  if (existingEmail) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
+        <div className="w-full max-w-sm bg-white border border-zinc-200 rounded-lg p-6 shadow-sm space-y-4">
+          <div className="text-center">
+            <p className="font-medium">Оваа е-пошта е веќе регистрирана</p>
+            <p className="text-sm text-zinc-500 mt-1">
+              Веќе постои сметка со <strong>{existingEmail}</strong>.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Button
+              type="button"
+              className="w-full"
+              disabled={sendingLink}
+              onClick={() => sendMagicLink(existingEmail)}>
+              {sendingLink ? 'Се испраќа…' : 'Испрати ми линк за најава'}
+            </Button>
+            <Link href="/auth/login" className="block">
+              <Button type="button" variant="outline" className="w-full">
+                Најави се со лозинка
+              </Button>
+            </Link>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExistingEmail(null)}
+            className="block w-full text-xs text-zinc-400 underline">
+            Назад
+          </button>
         </div>
       </div>
     )

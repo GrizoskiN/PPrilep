@@ -13,9 +13,10 @@ import { useAuth } from "../../lib/hooks/useAuth";
 interface Props {
   children: React.ReactNode;
   rightPanel?: React.ReactNode;
+  fullWidth?: boolean;
 }
 
-export default function Shell({ children, rightPanel }: Props) {
+export default function Shell({ children, rightPanel, fullWidth }: Props) {
   const { user, profile } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuOpenedAt, setMenuOpenedAt] = useState<number>(0);
@@ -119,7 +120,7 @@ export default function Shell({ children, rightPanel }: Props) {
               ref={mainRef}
               tabIndex={-1}
               className="scrollbar-hidden min-h-0 overflow-y-auto pb-16 outline-none lg:pb-0">
-              <div className="mx-auto w-full max-w-166.75">
+              <div className={fullWidth ? "w-full" : "mx-auto w-full max-w-166.75"}>
                 {children}
               </div>
             </main>

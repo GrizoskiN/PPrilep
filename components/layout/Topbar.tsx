@@ -29,10 +29,16 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const lastMenuOpenRef = useRef(0);
   const pathname = usePathname();
-  const [activeCount, setActiveCount] = useState<number>(0);
-  const [totalCount, setTotalCount] = useState<number>(0);
+  const [activeCount, setActiveCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
+    // Seed from cache immediately (runs after hydration — no SSR mismatch)
+    const cachedActive = parseInt(localStorage.getItem("issues_active_count") ?? "0", 10);
+    const cachedTotal  = parseInt(localStorage.getItem("issues_total_count")  ?? "0", 10);
+    if (cachedActive) setActiveCount(cachedActive);
+    if (cachedTotal)  setTotalCount(cachedTotal);
+
     let mounted = true;
     const supabase = createClient();
     async function loadCounts() {
@@ -44,14 +50,16 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
         supabase.from("issues").select("id", { count: "exact", head: true }),
       ]);
       if (mounted) {
-        setActiveCount(active ?? 0);
-        setTotalCount(total ?? 0);
+        const a = active ?? 0;
+        const t = total ?? 0;
+        setActiveCount(a);
+        setTotalCount(t);
+        localStorage.setItem("issues_active_count", String(a));
+        localStorage.setItem("issues_total_count", String(t));
       }
     }
     loadCounts();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {

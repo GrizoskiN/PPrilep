@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import BlurImage from "../ui/BlurImage";
 import Link from "next/link";
-import { Send, X, Link2, Mail } from "lucide-react";
+import { Send, X, Link2 } from "lucide-react";
 import StatusPill from "../ui/StatusPill";
 import AvatarInitials from "../ui/AvatarInitials";
 import {
@@ -171,6 +171,8 @@ export default function IssueCard({
   const [showAffectedPop, setShowAffectedPop] = useState(false);
   const [showHelperPop, setShowHelperPop] = useState(false);
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const [sharePos, setSharePos] = useState({ top: 0, right: 0 });
+  const shareButtonRef = useRef<HTMLButtonElement>(null);
 
   const issuePath = getIssuePath(issue.id, issue.title);
   const authorHref = issue.profiles?.username
@@ -192,16 +194,28 @@ export default function IssueCard({
     location.href = `/auth/login?next=${encodeURIComponent(next)}`;
   }
 
-  function openShareSheet(e: React.MouseEvent) {
-    e.stopPropagation();
+  function openShareSheet() {
+    if (shareButtonRef.current) {
+      const r = shareButtonRef.current.getBoundingClientRect();
+      setSharePos({ top: r.bottom + 8, right: window.innerWidth - r.right - 15 });
+    }
     setShareSheetOpen(true);
   }
 
-  function copyLink(e: React.MouseEvent) {
-    e.stopPropagation();
+  function closeShareSheet() {
+    setShareSheetOpen(false);
+  }
+
+  function copyLink() {
     navigator.clipboard.writeText(`${location.origin}${issuePath}`);
     toast.success("Линкот е копиран!");
-    setShareSheetOpen(false);
+    closeShareSheet();
+  }
+
+  function shareInstagram() {
+    navigator.clipboard.writeText(`${location.origin}${issuePath}`);
+    toast.message("Линкот е копиран — залепи го во Instagram порака или bio.");
+    closeShareSheet();
   }
 
   async function toggleAffected(e: React.MouseEvent) {
@@ -534,119 +548,84 @@ export default function IssueCard({
           </div>
 
           {/* Сподели */}
-          <button
-            onClick={openShareSheet}
-            className="flex items-center gap-1.5 text-[10px] lg:text-sm font-medium text-zinc-500 hover:text-zinc-800 transition-colors">
-            <Send size={14} className="lg:w-4.5 lg:h-4.5" />
-            <span className="hidden lg:inline">Сподели</span>
-          </button>
+          <div className="relative">
+            <button
+              ref={shareButtonRef}
+              onClick={(e) => { e.stopPropagation(); openShareSheet(); }}
+              className="flex items-center gap-1.5 text-[10px] lg:text-sm font-medium text-zinc-500 hover:text-zinc-800 transition-colors">
+              <Send size={14} className="lg:w-4.5 lg:h-4.5" />
+              <span className="hidden lg:inline">Сподели</span>
+            </button>
+
+            {shareSheetOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={(e) => { e.stopPropagation(); closeShareSheet(); }}
+                />
+                <div
+                  className="fixed z-50 w-48 overflow-hidden rounded-xl bg-white shadow-lg"
+                  style={{ top: sharePos.top, right: sharePos.right }}
+                  onClick={(e) => e.stopPropagation()}>
+                  {[
+                    {
+                      label: "Копирај линк",
+                      icon: <Link2 size={15} />,
+                      href: null as string | null,
+                      action: copyLink,
+                    },
+                    {
+                      label: "Facebook",
+                      icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.75 h-3.75"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>,
+                      href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath)}`,
+                      action: null as (() => void) | null,
+                    },
+                    {
+                      label: "Instagram",
+                      icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-3.75 h-3.75"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none" /></svg>,
+                      href: null,
+                      action: shareInstagram,
+                    },
+                    {
+                      label: "WhatsApp",
+                      icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.75 h-3.75"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>,
+                      href: `https://wa.me/?text=${encodeURIComponent(`${issue.title} ${typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath}`)}`,
+                      action: null,
+                    },
+                    {
+                      label: "Viber",
+                      icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.75 h-3.75"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.35A9.96 9.96 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 14.5c-.28 0-.53-.11-.71-.29l-2-2a1 1 0 0 1 0-1.42l.5-.5c.2-.2.2-.51 0-.71l-2-2a.5.5 0 0 0-.71 0l-.5.5C7.08 11.08 7 12 7 12c0 2.76 2.24 5 5 5 0 0 .92-.08 1.92-1.08l.5-.5c.2-.2.2-.51 0-.71l-2-2a.5.5 0 0 0-.71 0l-.5.5c-.2.2-.51.2-.71 0z" /></svg>,
+                      href: `viber://forward?text=${encodeURIComponent(`${issue.title} ${typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath}`)}`,
+                      action: null,
+                    },
+                  ].map((item) =>
+                    item.href ? (
+                      <a
+                        key={item.label}
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={closeShareSheet}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-zinc-700 lg:hover:bg-zinc-50 transition-colors">
+                        <span className="text-zinc-400">{item.icon}</span>
+                        {item.label}
+                      </a>
+                    ) : (
+                      <button
+                        key={item.label}
+                        onClick={item.action ?? closeShareSheet}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-zinc-700 lg:hover:bg-zinc-50 transition-colors">
+                        <span className="text-zinc-400">{item.icon}</span>
+                        {item.label}
+                      </button>
+                    )
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </article>
-
-      {shareSheetOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-50 bg-black/40"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShareSheetOpen(false);
-            }}
-          />
-          <div
-            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-white shadow-2xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-center pt-2 pb-1">
-              <div className="h-1 w-10 rounded-full bg-zinc-200" />
-            </div>
-            <div className="flex items-center justify-between px-4 pb-2">
-              <p className="text-sm font-semibold text-zinc-800">Сподели</p>
-              <button
-                onClick={() => setShareSheetOpen(false)}
-                className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="border-t border-zinc-100 px-4 py-4">
-              <div className="grid grid-cols-4 gap-3">
-                {[
-                  {
-                    label: "Facebook",
-                    bg: "bg-[#1877F2]",
-                    href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath)}`,
-                    icon: (
-                      <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
-                        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-                      </svg>
-                    ),
-                  },
-                  {
-                    label: "WhatsApp",
-                    bg: "bg-[#25D366]",
-                    href: `https://wa.me/?text=${encodeURIComponent(`${issue.title} ${typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath}`)}`,
-                    icon: (
-                      <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
-                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                      </svg>
-                    ),
-                  },
-                  {
-                    label: "Viber",
-                    bg: "bg-[#7360F2]",
-                    href: `viber://forward?text=${encodeURIComponent(`${issue.title} ${typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath}`)}`,
-                    icon: (
-                      <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
-                        <path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.35A9.96 9.96 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 14.5c-.28 0-.53-.11-.71-.29l-2-2a1 1 0 0 1 0-1.42l.5-.5c.2-.2.2-.51 0-.71l-2-2a.5.5 0 0 0-.71 0l-.5.5C7.08 11.08 7 12 7 12c0 2.76 2.24 5 5 5 0 0 .92-.08 1.92-1.08l.5-.5c.2-.2.2-.51 0-.71l-2-2a.5.5 0 0 0-.71 0l-.5.5c-.2.2-.51.2-.71 0z" />
-                      </svg>
-                    ),
-                  },
-                  {
-                    label: "LinkedIn",
-                    bg: "bg-[#0A66C2]",
-                    href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath)}`,
-                    icon: (
-                      <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
-                        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z" />
-                        <circle cx="4" cy="4" r="2" />
-                      </svg>
-                    ),
-                  },
-                ].map((item) => (
-                  <a
-                    key={item.label}
-                    href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setShareSheetOpen(false)}
-                    className="flex flex-col items-center gap-1.5">
-                    <div
-                      className={`w-12 h-12 rounded-2xl ${item.bg} flex items-center justify-center shadow-sm`}>
-                      {item.icon}
-                    </div>
-                    <span className="text-[10px] text-zinc-600 font-medium">
-                      {item.label}
-                    </span>
-                  </a>
-                ))}
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <a
-                  href={`mailto:?subject=${encodeURIComponent(issue.title)}&body=${encodeURIComponent(typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath)}`}
-                  onClick={() => setShareSheetOpen(false)}
-                  className="flex items-center gap-2 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
-                  <Mail size={16} className="text-zinc-400" />
-                  Email
-                </a>
-                <button
-                  onClick={copyLink}
-                  className="flex items-center gap-2 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
-                  <Link2 size={16} className="text-zinc-400" />
-                  Копирај линк
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
 
       {helperOpen && userId && (
         <HelperModal

@@ -42,6 +42,7 @@ export default function BottomNav() {
   const [accountOpen, setAccountOpen] = useState(false);
   const supabase = useMemo(() => createClient(), []);
 
+  const notifCacheKey = user ? `notif_unread_${user.id}` : null;
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -56,7 +57,9 @@ export default function BottomNav() {
       .eq("recipient_user_id", user.id)
       .is("read_at", null);
     if (!error && !isMissingNotificationsTableError(error)) {
-      setUnreadCount(count ?? 0);
+      const n = count ?? 0;
+      setUnreadCount(n);
+      if (notifCacheKey) localStorage.setItem(notifCacheKey, String(n));
     }
   }
 
@@ -106,6 +109,7 @@ export default function BottomNav() {
         .is("read_at", null);
       if (!markErr) {
         setUnreadCount(0);
+        if (notifCacheKey) localStorage.setItem(notifCacheKey, "0");
         setNotifications((prev) =>
           prev.map((n) => ({ ...n, read_at: now })),
         );
@@ -115,6 +119,9 @@ export default function BottomNav() {
 
   useEffect(() => {
     if (!user) return;
+    // Seed from cache after hydration — avoids SSR mismatch
+    const cached = parseInt(localStorage.getItem(`notif_unread_${user.id}`) ?? "0", 10);
+    if (cached) setUnreadCount(cached);
     const initialId = setTimeout(() => loadUnreadCount(), 0);
 
     const channel = supabase

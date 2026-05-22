@@ -89,6 +89,14 @@ label[for] {
   cursor: pointer;
 }
 
+/* MapLibre attribution — keep the © button but hide the expanded text */
+.maplibregl-ctrl-attrib-inner {
+  display: none !important;
+}
+.maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button {
+  display: block;
+}
+
 /* Hide scrollbar while keeping scroll behavior */
 .scrollbar-hidden {
   -ms-overflow-style: none;

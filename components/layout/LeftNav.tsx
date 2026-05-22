@@ -42,9 +42,15 @@ const districts = [
 export default function LeftNav() {
   const searchParams = useSearchParams();
   const activeDistrict = searchParams.get("district") ?? "all";
-  const [activeIssuesCount, setActiveIssuesCount] = useState<number>(0);
+  const CACHE_KEY = "nav_active_issues_count";
+
+  const [activeIssuesCount, setActiveIssuesCount] = useState(0);
 
   useEffect(() => {
+    // Seed from cache after hydration — avoids SSR mismatch
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) setActiveIssuesCount(parseInt(cached, 10));
+
     let mounted = true;
     const supabase = createClient();
 
@@ -54,14 +60,16 @@ export default function LeftNav() {
         .select("id", { count: "exact", head: true })
         .neq("status", "resolved");
 
-      if (mounted) setActiveIssuesCount(count ?? 0);
+      if (mounted) {
+        const n = count ?? 0;
+        setActiveIssuesCount(n);
+        localStorage.setItem(CACHE_KEY, String(n));
+      }
     }
 
     loadActiveIssuesCount();
 
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   return (

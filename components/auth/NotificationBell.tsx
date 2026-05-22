@@ -27,9 +27,14 @@ interface Props {
 }
 
 export default function NotificationBell({ userId }: Props) {
+  const CACHE_KEY = `notif_unread_${userId}`;
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState<number>(() =>
+    typeof window !== "undefined"
+      ? parseInt(localStorage.getItem(`notif_unread_${userId}`) ?? "0", 10)
+      : 0,
+  );
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const openRef = useRef(open);
@@ -46,7 +51,9 @@ export default function NotificationBell({ userId }: Props) {
       .eq("recipient_user_id", userId)
       .is("read_at", null);
     if (!error && !isMissingNotificationsTableError(error)) {
-      setUnreadCount(count ?? 0);
+      const n = count ?? 0;
+      setUnreadCount(n);
+      localStorage.setItem(CACHE_KEY, String(n));
     }
   }
 
@@ -92,6 +99,7 @@ export default function NotificationBell({ userId }: Props) {
         .is("read_at", null);
       if (!markErr) {
         setUnreadCount(0);
+        localStorage.setItem(CACHE_KEY, "0");
         setNotifications((prev) => prev.map((n) => ({ ...n, read_at: now })));
       }
     }

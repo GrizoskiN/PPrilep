@@ -109,9 +109,6 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
     ? issues
     : issues.filter((i) => activeCategories.has(i.category));
 
-  const pinnedCount = visible.filter((i) => i.lat && i.lng).length;
-  const streetCount = visible.filter((i) => (!i.lat || !i.lng) && i.street_name).length;
-
   // Init map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -172,9 +169,9 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
   }
 
   return (
-    <div className="relative w-full h-full flex flex-col">
+    <div className="flex flex-col gap-3 px-4 py-4">
       {/* Category filter chips */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex flex-wrap justify-center gap-1.5 px-3 max-w-2xl">
+      <div className="flex flex-wrap gap-1.5">
         {allCategories.map((cat) => {
           const active = activeCategories.size === 0 || activeCategories.has(cat);
           return (
@@ -204,23 +201,10 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
         )}
       </div>
 
+      {/* Map frame */}
+      <div className="relative rounded-2xl overflow-hidden border border-zinc-200 h-[600px]">
       {/* Map */}
-      <div ref={containerRef} className="flex-1 w-full" onClick={() => setSelected(null)} />
-
-      {/* Legend / count */}
-      <div className="absolute bottom-6 left-3 z-10 flex flex-col gap-1.5 bg-white rounded-xl shadow px-3 py-2.5 border border-zinc-100 text-xs text-zinc-600">
-        <div className="flex items-center gap-2 font-semibold text-zinc-700 border-b border-zinc-100 pb-1.5 mb-0.5">
-          {visible.length} пријави прикажани
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full bg-zinc-500 border-2 border-zinc-500" />
-          Точна локација ({pinnedCount})
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full bg-white border-2 border-zinc-500" />
-          По населба ({streetCount})
-        </div>
-      </div>
+      <div ref={containerRef} className="w-full h-full" onClick={() => setSelected(null)} />
 
       {/* Issue popup */}
       {selected && (
@@ -287,6 +271,7 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
           </div>
         </div>
       )}
+      </div>{/* end map frame */}
     </div>
   );
 }
