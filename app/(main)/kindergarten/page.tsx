@@ -1,6 +1,5 @@
 import { createClient } from "../../../lib/supabase/server";
 import KindergartenFeed from "../../../components/kindergarten/KindergartenFeed";
-import type { KindergartenPostType } from "../../../lib/types/database";
 
 export default async function KindergartenPage() {
   const supabase = await createClient();

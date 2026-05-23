@@ -37,8 +37,10 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
     // Seed from cache immediately (runs after hydration — no SSR mismatch)
     const cachedActive = parseInt(localStorage.getItem("issues_active_count") ?? "0", 10);
     const cachedTotal  = parseInt(localStorage.getItem("issues_total_count")  ?? "0", 10);
-    if (cachedActive) setActiveCount(cachedActive);
-    if (cachedTotal)  setTotalCount(cachedTotal);
+    const seedId = setTimeout(() => {
+      if (cachedActive) setActiveCount(cachedActive);
+      if (cachedTotal) setTotalCount(cachedTotal);
+    }, 0);
 
     let mounted = true;
     const supabase = createClient();
@@ -60,7 +62,10 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
       }
     }
     loadCounts();
-    return () => { mounted = false; };
+    return () => {
+      clearTimeout(seedId);
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {

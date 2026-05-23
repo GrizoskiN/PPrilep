@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "mojprilep.mk",
       },
+      {
+        protocol: "https",
+        hostname: "cdn.sanity.io",
+      },
     ],
     // Serve modern formats with smaller payloads
     formats: ["image/avif", "image/webp"],

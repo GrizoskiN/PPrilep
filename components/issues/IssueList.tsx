@@ -10,7 +10,6 @@ import DateOffersPanel from "./DateOffersPanel";
 import FilterSelect from "../ui/FilterSelect";
 import ImageLightbox from "../ui/ImageLightbox";
 import BeforeAfterSlider from "../ui/BeforeAfterSlider";
-import { X } from "lucide-react";
 import {
   DISTRICT_LABELS,
   CATEGORY_LABELS,
@@ -116,8 +115,6 @@ export default function IssueList({
     if (modalIssue) {
       const id = requestAnimationFrame(() => setModalOpen(true));
       return () => cancelAnimationFrame(id);
-    } else {
-      setModalOpen(false);
     }
   }, [modalIssue]);
 
@@ -174,7 +171,6 @@ export default function IssueList({
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalIssue]);
 
   // Close modal on Escape
@@ -185,7 +181,6 @@ export default function IssueList({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalIssue]);
 
   // Prevent body scroll when modal is open
@@ -381,12 +376,12 @@ export default function IssueList({
           {datesOpen && (
             <>
               <div
-                className="lg:hidden fixed inset-0 z-[58] bg-black/30 transition-opacity duration-300"
+                className="lg:hidden fixed inset-0 z-58 bg-black/30 transition-opacity duration-300"
                 style={{ opacity: datesAnimOpen ? 1 : 0 }}
                 onClick={closeDates}
               />
               <div
-                className="lg:hidden fixed bottom-0 left-0 right-0 z-[59] bg-white rounded-t-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-out"
+                className="lg:hidden fixed bottom-0 left-0 right-0 z-59 bg-white rounded-t-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-out"
                 style={{ maxHeight: "88dvh", transform: datesAnimOpen ? "translateY(0)" : "translateY(100%)" }}>
                 {/* Drag handle */}
                 <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab">

@@ -13,7 +13,7 @@ export default function StatusPill({ status }: { status: IssueStatus }) {
       className={cn(
         'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
         status === 'resolved' && 'bg-teal-600 text-white',
-        status === 'open'     && 'bg-red-50 border border-red-300 text-red-600',
+        status === 'open'     && 'bg-red-600 text-white',
         status === 'progress' && 'bg-amber-50 border border-amber-300 text-amber-700'
       )}
     >

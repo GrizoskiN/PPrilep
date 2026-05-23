@@ -49,7 +49,9 @@ export default function LeftNav() {
   useEffect(() => {
     // Seed from cache after hydration — avoids SSR mismatch
     const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) setActiveIssuesCount(parseInt(cached, 10));
+    const seedId = setTimeout(() => {
+      if (cached) setActiveIssuesCount(parseInt(cached, 10));
+    }, 0);
 
     let mounted = true;
     const supabase = createClient();
@@ -69,7 +71,10 @@ export default function LeftNav() {
 
     loadActiveIssuesCount();
 
-    return () => { mounted = false; };
+    return () => {
+      clearTimeout(seedId);
+      mounted = false;
+    };
   }, []);
 
   return (

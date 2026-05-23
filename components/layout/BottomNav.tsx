@@ -121,7 +121,9 @@ export default function BottomNav() {
     if (!user) return;
     // Seed from cache after hydration — avoids SSR mismatch
     const cached = parseInt(localStorage.getItem(`notif_unread_${user.id}`) ?? "0", 10);
-    if (cached) setUnreadCount(cached);
+    const seedId = setTimeout(() => {
+      if (cached) setUnreadCount(cached);
+    }, 0);
     const initialId = setTimeout(() => loadUnreadCount(), 0);
 
     const channel = supabase
@@ -142,6 +144,7 @@ export default function BottomNav() {
       .subscribe();
 
     return () => {
+      clearTimeout(seedId);
       clearTimeout(initialId);
       supabase.removeChannel(channel);
     };

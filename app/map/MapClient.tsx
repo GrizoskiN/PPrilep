@@ -202,7 +202,7 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
       </div>
 
       {/* Map frame */}
-      <div className="relative rounded-2xl overflow-hidden border border-zinc-200 h-[600px]">
+      <div className="relative rounded-2xl overflow-hidden border border-zinc-200 h-150">
       {/* Map */}
       <div ref={containerRef} className="w-full h-full" onClick={() => setSelected(null)} />
 

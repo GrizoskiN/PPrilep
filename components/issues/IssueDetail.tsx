@@ -42,7 +42,6 @@ import {
   fetchIssueResolverInfo,
   fetchIssueHelpOffers,
   type IssueComment,
-  type HelpOfferComment,
   type HelpOffer,
   type PeopleUser,
   type ChangeRequest,
@@ -277,9 +276,10 @@ export default function IssueDetail({
     return () => clearTimeout(id);
   }, [issue]);
 
-  const [shareUrl, setShareUrl] = useState("");
-  useEffect(() => {
-    setShareUrl(`${location.origin}${getIssuePath(currentIssue.id, currentIssue.title)}`);
+  const shareUrl = useMemo(() => {
+    const path = getIssuePath(currentIssue.id, currentIssue.title);
+    if (typeof window === "undefined") return path;
+    return `${window.location.origin}${path}`;
   }, [currentIssue.id, currentIssue.title]);
 
   async function loadComments() {

@@ -113,7 +113,9 @@ export default function NotificationBell({ userId }: Props) {
   useEffect(() => {
     // Seed from cache after hydration — avoids SSR mismatch
     const cached = parseInt(localStorage.getItem(CACHE_KEY) ?? "0", 10);
-    if (cached) setUnreadCount(cached);
+    const seedId = setTimeout(() => {
+      if (cached) setUnreadCount(cached);
+    }, 0);
 
     const initialId = setTimeout(() => {
       void loadUnreadCount();
@@ -136,6 +138,7 @@ export default function NotificationBell({ userId }: Props) {
       )
       .subscribe();
     return () => {
+      clearTimeout(seedId);
       clearTimeout(initialId);
       supabase.removeChannel(channel);
     };
