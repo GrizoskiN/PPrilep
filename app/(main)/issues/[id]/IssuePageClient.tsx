@@ -81,7 +81,7 @@ export default function IssuePageClient({ issue, userId }: Props) {
             userId={userId}
             hideImage
             onClose={goBack}
-            onOpenDates={() => datesOpen ? closeDates() : openDates()}
+            onOpenDates={() => (datesOpen ? closeDates() : openDates())}
           />
         </div>
       </div>
@@ -105,7 +105,10 @@ export default function IssuePageClient({ issue, userId }: Props) {
             />
             <div
               className="fixed bottom-0 left-0 right-0 z-59 bg-white rounded-t-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-out"
-              style={{ maxHeight: "88dvh", transform: datesAnimOpen ? "translateY(0)" : "translateY(100%)" }}>
+              style={{
+                maxHeight: "88dvh",
+                transform: datesAnimOpen ? "translateY(0)" : "translateY(100%)",
+              }}>
               <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab">
                 <div className="h-1.5 w-12 rounded-full bg-zinc-300" />
               </div>

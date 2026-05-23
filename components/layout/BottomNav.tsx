@@ -17,11 +17,17 @@ import { useAuth } from "../../lib/hooks/useAuth";
 import AvatarInitials from "../ui/AvatarInitials";
 import { createClient } from "../../lib/supabase/client";
 import { isMissingNotificationsTableError } from "../../lib/notifications";
-import { formatDays, getIssuePath, parseIssueIdFromSegment } from "../../lib/utils";
+import {
+  formatDays,
+  getIssuePath,
+  parseIssueIdFromSegment,
+} from "../../lib/utils";
 import type { AppNotification, Profile } from "../../lib/types/database";
 
 function resolveNotifLink(link: string, title: string): string {
-  const segment = link.startsWith("/issues/") ? link.slice("/issues/".length) : null;
+  const segment = link.startsWith("/issues/")
+    ? link.slice("/issues/".length)
+    : null;
   if (!segment) return link;
   const id = parseIssueIdFromSegment(segment);
   if (!id) return link;
@@ -90,9 +96,7 @@ export default function BottomNav() {
         .from("profiles")
         .select("id, full_name, avatar_url, username, points, created_at")
         .in("id", actorIds);
-      actorMap = new Map(
-        (actors ?? []).map((a) => [a.id, a as Profile]),
-      );
+      actorMap = new Map((actors ?? []).map((a) => [a.id, a as Profile]));
     }
 
     setNotifications(
@@ -110,9 +114,7 @@ export default function BottomNav() {
       if (!markErr) {
         setUnreadCount(0);
         if (notifCacheKey) localStorage.setItem(notifCacheKey, "0");
-        setNotifications((prev) =>
-          prev.map((n) => ({ ...n, read_at: now })),
-        );
+        setNotifications((prev) => prev.map((n) => ({ ...n, read_at: now })));
       }
     }
   }
@@ -120,7 +122,10 @@ export default function BottomNav() {
   useEffect(() => {
     if (!user) return;
     // Seed from cache after hydration — avoids SSR mismatch
-    const cached = parseInt(localStorage.getItem(`notif_unread_${user.id}`) ?? "0", 10);
+    const cached = parseInt(
+      localStorage.getItem(`notif_unread_${user.id}`) ?? "0",
+      10,
+    );
     const seedId = setTimeout(() => {
       if (cached) setUnreadCount(cached);
     }, 0);
@@ -148,7 +153,7 @@ export default function BottomNav() {
       clearTimeout(initialId);
       supabase.removeChannel(channel);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   function openNotifPanel() {
@@ -177,16 +182,21 @@ export default function BottomNav() {
   return (
     <>
       {/* Bottom nav bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 flex h-16 items-stretch border-t border-[#e4ece8] bg-white lg:hidden"
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-30 flex h-16 items-stretch border-t border-[#e4ece8] bg-white lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || (href !== "/" && pathname?.startsWith(href));
+          const active =
+            pathname === href || (href !== "/" && pathname?.startsWith(href));
           return (
             <Link
               key={href}
               href={href}
               className="flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors"
-              onClick={() => { closeNotifPanel(); setAccountOpen(false); }}>
+              onClick={() => {
+                closeNotifPanel();
+                setAccountOpen(false);
+              }}>
               <Icon
                 size={20}
                 strokeWidth={active ? 2.4 : 1.8}
@@ -226,7 +236,9 @@ export default function BottomNav() {
         <button
           onClick={() => {
             if (!user) {
-              router.push(`/auth/login?next=${encodeURIComponent(pathname ?? "/")}`);
+              router.push(
+                `/auth/login?next=${encodeURIComponent(pathname ?? "/")}`,
+              );
               return;
             }
             setAccountOpen((o) => !o);
@@ -247,7 +259,8 @@ export default function BottomNav() {
               className="text-slate-400"
             />
           )}
-          <span className={`text-[10px] font-semibold ${accountOpen ? "text-primary" : "text-slate-400"}`}>
+          <span
+            className={`text-[10px] font-semibold ${accountOpen ? "text-primary" : "text-slate-400"}`}>
             Профил
           </span>
         </button>
@@ -272,24 +285,35 @@ export default function BottomNav() {
                   size="md"
                 />
                 <div>
-                  <p className="text-sm font-semibold text-zinc-800">{profile?.full_name ?? "Профил"}</p>
-                  {profile?.username && <p className="text-xs text-zinc-400">@{profile.username}</p>}
+                  <p className="text-sm font-semibold text-zinc-800">
+                    {profile?.full_name ?? "Профил"}
+                  </p>
+                  {profile?.username && (
+                    <p className="text-xs text-zinc-400">@{profile.username}</p>
+                  )}
                 </div>
               </div>
-              <button onClick={() => setAccountOpen(false)} className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100">
+              <button
+                onClick={() => setAccountOpen(false)}
+                className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100">
                 <X size={16} />
               </button>
             </div>
             <div className="border-t border-zinc-100 px-4 py-3 space-y-1">
               <Link
-                href={profile?.username ? `/u/${profile.username}` : `/u/${user.id}`}
+                href={
+                  profile?.username ? `/u/${profile.username}` : `/u/${user.id}`
+                }
                 onClick={() => setAccountOpen(false)}
                 className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
                 <UserCircle2 size={16} className="text-zinc-400" />
                 Мој профил
               </Link>
               <button
-                onClick={async () => { setAccountOpen(false); await signOut(); }}
+                onClick={async () => {
+                  setAccountOpen(false);
+                  await signOut();
+                }}
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
                 <LogOut size={16} />
                 Одјави се
@@ -315,7 +339,9 @@ export default function BottomNav() {
             <div className="flex items-center justify-between px-4 pb-2">
               <div className="flex items-center gap-2">
                 <Bell size={13} className="text-zinc-500" />
-                <p className="text-sm font-semibold text-zinc-800">Известувања</p>
+                <p className="text-sm font-semibold text-zinc-800">
+                  Известувања
+                </p>
               </div>
               <button
                 onClick={closeNotifPanel}
@@ -346,7 +372,9 @@ export default function BottomNav() {
                     }`}>
                     <p className="text-sm font-semibold text-zinc-800">
                       {n.actor?.full_name ?? n.actor?.username ?? "Некој"}{" "}
-                      <span className="font-normal text-zinc-600">{n.body}</span>
+                      <span className="font-normal text-zinc-600">
+                        {n.body}
+                      </span>
                     </p>
                     <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">
                       {n.title}

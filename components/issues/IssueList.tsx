@@ -288,13 +288,17 @@ export default function IssueList({
           {/* Desktop: Facebook-style multi-panel */}
           <div
             className="hidden lg:flex fixed inset-0 z-50 transition-opacity duration-300"
-            style={{ backgroundColor: "rgba(0,0,0,0.92)", opacity: modalOpen ? 1 : 0 }}
+            style={{
+              backgroundColor: "rgba(0,0,0,0.92)",
+              opacity: modalOpen ? 1 : 0,
+            }}
             onClick={closeIssueModal}>
-
             {/* Photo area — flex-1, shrinks naturally when side panels appear */}
             <div className="flex-1 flex items-center justify-center min-w-0 bg-black p-6">
               {modalIssue.photo_url && modalIssue.after_photo_url ? (
-                <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="w-full max-w-3xl"
+                  onClick={(e) => e.stopPropagation()}>
                   <BeforeAfterSlider
                     beforeSrc={modalIssue.photo_url}
                     afterSrc={modalIssue.after_photo_url}
@@ -310,7 +314,12 @@ export default function IssueList({
                   alt="Фотографија"
                   className="max-w-full object-contain rounded-xl cursor-zoom-in"
                   style={{ maxHeight: "82vh" }}
-                  onClick={(e) => { e.stopPropagation(); setLightboxSrc((modalIssue!.photo_url ?? modalIssue!.after_photo_url)!); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxSrc(
+                      (modalIssue!.photo_url ?? modalIssue!.after_photo_url)!,
+                    );
+                  }}
                 />
               ) : (
                 <div className="text-zinc-600 text-sm">Нема фотографија</div>
@@ -340,7 +349,7 @@ export default function IssueList({
                 userId={user?.id}
                 hideImage
                 onClose={closeIssueModal}
-                onOpenDates={() => datesOpen ? closeDates() : openDates()}
+                onOpenDates={() => (datesOpen ? closeDates() : openDates())}
               />
             </div>
           </div>
@@ -357,7 +366,9 @@ export default function IssueList({
             ref={drawerRef}
             className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl flex flex-col${swipeDy === 0 ? " transition-transform duration-300 ease-out" : ""}`}
             style={{
-              transform: modalOpen ? `translateY(${swipeDy}px)` : "translateY(100%)",
+              transform: modalOpen
+                ? `translateY(${swipeDy}px)`
+                : "translateY(100%)",
               maxHeight: "92dvh",
             }}>
             <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab">
@@ -382,7 +393,12 @@ export default function IssueList({
               />
               <div
                 className="lg:hidden fixed bottom-0 left-0 right-0 z-59 bg-white rounded-t-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-out"
-                style={{ maxHeight: "88dvh", transform: datesAnimOpen ? "translateY(0)" : "translateY(100%)" }}>
+                style={{
+                  maxHeight: "88dvh",
+                  transform: datesAnimOpen
+                    ? "translateY(0)"
+                    : "translateY(100%)",
+                }}>
                 {/* Drag handle */}
                 <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab">
                   <div className="h-1.5 w-12 rounded-full bg-zinc-300" />

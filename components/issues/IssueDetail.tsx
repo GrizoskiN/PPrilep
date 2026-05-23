@@ -307,7 +307,10 @@ export default function IssueDetail({
   }, [currentIssue.id]);
 
   async function loadPeopleStats() {
-    const { affected, helpers } = await fetchIssuePeopleStats(supabase, currentIssue.id);
+    const { affected, helpers } = await fetchIssuePeopleStats(
+      supabase,
+      currentIssue.id,
+    );
     setAffectedUsers(affected);
     setHelperUsers(helpers);
   }
@@ -322,7 +325,11 @@ export default function IssueDetail({
     const result = await fetchIssueChangeRequests(supabase, currentIssue.id);
     if (!result.ok) {
       if (process.env.NODE_ENV !== "production") {
-        console.error("loadChangeRequests error:", result.error.message, result.error.code);
+        console.error(
+          "loadChangeRequests error:",
+          result.error.message,
+          result.error.code,
+        );
       }
       return;
     }
@@ -367,7 +374,9 @@ export default function IssueDetail({
 
   const [savingResolver, setSavingResolver] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-  const [viewCount, setViewCount] = useState<number | null>(issue.views ?? null);
+  const [viewCount, setViewCount] = useState<number | null>(
+    issue.views ?? null,
+  );
 
   useEffect(() => {
     // Only count once per browser session per issue — prevents double-count
@@ -382,7 +391,9 @@ export default function IssueDetail({
     }
     supabase
       .rpc("increment_issue_views", { p_issue_id: issue.id })
-      .then(({ data }) => { if (typeof data === "number") setViewCount(data); });
+      .then(({ data }) => {
+        if (typeof data === "number") setViewCount(data);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [issue.id]);
 
@@ -448,10 +459,18 @@ export default function IssueDetail({
 
   async function loadHelpOffers() {
     setLoadingOffers(true);
-    const result = await fetchIssueHelpOffers(supabase, currentIssue.id, userId);
+    const result = await fetchIssueHelpOffers(
+      supabase,
+      currentIssue.id,
+      userId,
+    );
     if (!result.ok) {
       if (process.env.NODE_ENV !== "production") {
-        console.error("[loadHelpOffers]", result.error.code, result.error.message);
+        console.error(
+          "[loadHelpOffers]",
+          result.error.code,
+          result.error.message,
+        );
       }
       if (result.tableMissing) setOffersUnavailable(true);
       setLoadingOffers(false);
@@ -879,7 +898,10 @@ export default function IssueDetail({
     } else {
       supabase
         .from("comment_likes")
-        .upsert({ comment_id: commentId, user_id: userId }, { ignoreDuplicates: true })
+        .upsert(
+          { comment_id: commentId, user_id: userId },
+          { ignoreDuplicates: true },
+        )
         .then(() => {});
       const target = comments.find((c) => c.id === commentId);
       if (target?.user_id) {
@@ -895,7 +917,12 @@ export default function IssueDetail({
     }
   }
 
-  function replyToComment(authorName: string, authorUserId: string, commentId: number, rootParentId?: number | null) {
+  function replyToComment(
+    authorName: string,
+    authorUserId: string,
+    commentId: number,
+    rootParentId?: number | null,
+  ) {
     setReplyToUserId(authorUserId);
     const rootId = rootParentId ?? commentId;
     setReplyToCommentId(rootId);
@@ -914,7 +941,11 @@ export default function IssueDetail({
       body,
       parent_comment_id: replyToCommentId,
     });
-    if (error) { toast.error(error.message); setSavingComment(false); return; }
+    if (error) {
+      toast.error(error.message);
+      setSavingComment(false);
+      return;
+    }
     if (replyToUserId) {
       createNotification(supabase, {
         recipientUserId: replyToUserId,
@@ -1143,7 +1174,10 @@ export default function IssueDetail({
             const cid = comment.id;
             const isLiked = likedComments.has(cid);
             const likeCount = commentLikeCounts[cid] ?? 0;
-            const aName = comment.profiles?.full_name ?? comment.profiles?.username ?? "Анонимно";
+            const aName =
+              comment.profiles?.full_name ??
+              comment.profiles?.username ??
+              "Анонимно";
             const rootParent = isReply ? comment.parent_comment_id : null;
             return (
               <div key={cid} className="flex items-start gap-2">
@@ -1154,20 +1188,40 @@ export default function IssueDetail({
                   className="shrink-0 mt-0.5"
                 />
                 <div className="min-w-0 flex-1">
-                  <div className={cn("rounded-2xl px-3 py-2 inline-block max-w-full", isReply ? "bg-zinc-50 border border-zinc-150" : "bg-zinc-100")}>
-                    <p className="text-xs font-semibold text-zinc-800 leading-tight">{aName}</p>
+                  <div
+                    className={cn(
+                      "rounded-2xl px-3 py-2 inline-block max-w-full",
+                      isReply
+                        ? "bg-zinc-50 border border-zinc-150"
+                        : "bg-zinc-100",
+                    )}>
+                    <p className="text-xs font-semibold text-zinc-800 leading-tight">
+                      {aName}
+                    </p>
                     {comment.body && (
-                      <p className={cn("leading-snug text-zinc-700 mt-0.5", isReply ? "text-xs" : "text-sm")}>
+                      <p
+                        className={cn(
+                          "leading-snug text-zinc-700 mt-0.5",
+                          isReply ? "text-xs" : "text-sm",
+                        )}>
                         {comment.body}
                       </p>
                     )}
                     {(comment as { photo_url?: string | null }).photo_url && (
                       <button
-                        onClick={() => setLightboxSrc((comment as { photo_url?: string | null }).photo_url!)}
+                        onClick={() =>
+                          setLightboxSrc(
+                            (comment as { photo_url?: string | null })
+                              .photo_url!,
+                          )
+                        }
                         className="mt-1.5 block cursor-zoom-in p-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={(comment as { photo_url?: string | null }).photo_url!}
+                          src={
+                            (comment as { photo_url?: string | null })
+                              .photo_url!
+                          }
                           alt="Слика во коментар"
                           className="max-h-48 rounded-xl object-cover"
                         />
@@ -1175,29 +1229,50 @@ export default function IssueDetail({
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5 px-1">
-                    {comment.created_at && <p className="text-[10px] text-zinc-400">{formatDays(comment.created_at)}</p>}
+                    {comment.created_at && (
+                      <p className="text-[10px] text-zinc-400">
+                        {formatDays(comment.created_at)}
+                      </p>
+                    )}
                     <button
                       onClick={() => toggleCommentLike(cid)}
-                      className={cn("text-[10px] font-semibold transition-colors", isLiked ? "text-[#427FFF]" : "text-zinc-400 hover:text-zinc-700")}>
+                      className={cn(
+                        "text-[10px] font-semibold transition-colors",
+                        isLiked
+                          ? "text-[#427FFF]"
+                          : "text-zinc-400 hover:text-zinc-700",
+                      )}>
                       {likeCount > 0 ? `А така · ${likeCount}` : "А така"}
                     </button>
                     <button
-                      onClick={() => replyToComment(aName, comment.user_id, cid, rootParent)}
+                      onClick={() =>
+                        replyToComment(aName, comment.user_id, cid, rootParent)
+                      }
                       className="text-[10px] font-semibold text-zinc-400 hover:text-zinc-700 transition-colors">
                       Коментирај
                     </button>
                     <div className="relative ml-auto">
                       <button
-                        onClick={() => setOpenCommentMenu(openCommentMenu === cid ? null : cid)}
+                        onClick={() =>
+                          setOpenCommentMenu(
+                            openCommentMenu === cid ? null : cid,
+                          )
+                        }
                         className="flex h-5 w-5 items-center justify-center rounded-full text-zinc-300 hover:bg-zinc-100 hover:text-zinc-500 transition-colors">
                         <MoreHorizontal size={12} />
                       </button>
                       {openCommentMenu === cid && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => setOpenCommentMenu(null)} />
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setOpenCommentMenu(null)}
+                          />
                           <div className="absolute right-0 bottom-full mb-1 z-50 w-44 rounded-xl bg-white shadow-xl border border-zinc-100 py-1 overflow-hidden">
                             <button
-                              onClick={() => { setReportingCommentId(cid); setOpenCommentMenu(null); }}
+                              onClick={() => {
+                                setReportingCommentId(cid);
+                                setOpenCommentMenu(null);
+                              }}
                               className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">
                               <AlertTriangle size={12} />
                               Пријави коментар
@@ -1209,7 +1284,9 @@ export default function IssueDetail({
                   </div>
                   {reportingCommentId === cid && (
                     <div className="mt-1.5 rounded-xl border border-red-100 bg-red-50 p-2.5 space-y-2">
-                      <p className="text-[11px] font-semibold text-red-700">Пријави го коментарот</p>
+                      <p className="text-[11px] font-semibold text-red-700">
+                        Пријави го коментарот
+                      </p>
                       <textarea
                         value={reportReason}
                         onChange={(e) => setReportReason(e.target.value)}
@@ -1220,7 +1297,10 @@ export default function IssueDetail({
                       />
                       <div className="flex gap-2">
                         <button
-                          onClick={() => { setReportingCommentId(null); setReportReason(""); }}
+                          onClick={() => {
+                            setReportingCommentId(null);
+                            setReportReason("");
+                          }}
                           className="flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors">
                           Откажи
                         </button>
@@ -1248,100 +1328,114 @@ export default function IssueDetail({
                 </button>
               )}
               {visibleTopLevel.map((comment) => {
-            const replies = repliesMap[comment.id] ?? [];
-            const showInline = replyToCommentId === comment.id;
-            return (
-              <div key={comment.id} className="space-y-1.5">
-                {renderBubble(comment, false)}
-                {(replies.length > 0 || showInline) && (
-                  <div className="ml-8 space-y-2">
-                    {replies.map((reply, idx) => {
-                      const isLast = idx === replies.length - 1 && !showInline;
-                      return (
-                        <div key={reply.id} className="relative pl-4">
-                          {/* Curved L-connector */}
-                          <div className="absolute left-0 top-0 h-4 w-4 border-l-2 border-b-2 border-zinc-200 rounded-bl-xl" />
-                          {/* Vertical line continuing to next item */}
-                          {!isLast && (
-                            <div className="absolute left-0 top-4 -bottom-2 border-l-2 border-zinc-200" />
-                          )}
-                          {renderBubble(reply, true)}
-                        </div>
-                      );
-                    })}
+                const replies = repliesMap[comment.id] ?? [];
+                const showInline = replyToCommentId === comment.id;
+                return (
+                  <div key={comment.id} className="space-y-1.5">
+                    {renderBubble(comment, false)}
+                    {(replies.length > 0 || showInline) && (
+                      <div className="ml-8 space-y-2">
+                        {replies.map((reply, idx) => {
+                          const isLast =
+                            idx === replies.length - 1 && !showInline;
+                          return (
+                            <div key={reply.id} className="relative pl-4">
+                              {/* Curved L-connector */}
+                              <div className="absolute left-0 top-0 h-4 w-4 border-l-2 border-b-2 border-zinc-200 rounded-bl-xl" />
+                              {/* Vertical line continuing to next item */}
+                              {!isLast && (
+                                <div className="absolute left-0 top-4 -bottom-2 border-l-2 border-zinc-200" />
+                              )}
+                              {renderBubble(reply, true)}
+                            </div>
+                          );
+                        })}
 
-                    {/* Inline reply input */}
-                    {showInline && (
-                      <div className="relative pl-4">
-                        <div className="absolute left-0 top-0 h-4 w-4 border-l-2 border-b-2 border-zinc-200 rounded-bl-xl" />
-                        <div className="flex items-start gap-2">
-                          <AvatarInitials
-                            name={authProfile?.full_name ?? authProfile?.username ?? null}
-                            avatarUrl={authProfile?.avatar_url ?? null}
-                            size="sm"
-                            className="shrink-0 mt-0.5"
-                          />
-                          <div className="flex-1 rounded-2xl bg-zinc-100 px-3 pt-2 pb-1.5">
-                            <textarea
-                              ref={inlineReplyRef}
-                              value={inlineReplyText}
-                              onChange={(e) => {
-                                setInlineReplyText(e.target.value);
-                                e.target.style.height = "auto";
-                                e.target.style.height = e.target.scrollHeight + "px";
-                              }}
-                              rows={1}
-                              maxLength={400}
-                              placeholder="Одговори..."
-                              className="w-full resize-none bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400 leading-snug"
-                              style={{ minHeight: "1.25rem", maxHeight: "8rem" }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                  e.preventDefault();
-                                  if (inlineReplyText.trim()) submitInlineReply();
+                        {/* Inline reply input */}
+                        {showInline && (
+                          <div className="relative pl-4">
+                            <div className="absolute left-0 top-0 h-4 w-4 border-l-2 border-b-2 border-zinc-200 rounded-bl-xl" />
+                            <div className="flex items-start gap-2">
+                              <AvatarInitials
+                                name={
+                                  authProfile?.full_name ??
+                                  authProfile?.username ??
+                                  null
                                 }
-                                if (e.key === "Escape") {
-                                  setReplyToCommentId(null);
-                                  setInlineReplyText("");
-                                  setReplyToUserId(null);
-                                }
-                              }}
-                            />
-                            <div className="flex items-center justify-between mt-1">
-                              <button
-                                onClick={() => {
-                                  setReplyToCommentId(null);
-                                  setInlineReplyText("");
-                                  setReplyToUserId(null);
-                                }}
-                                className="text-[10px] text-zinc-400 hover:text-zinc-600 transition-colors">
-                                Откажи
-                              </button>
-                              <button
-                                onClick={submitInlineReply}
-                                disabled={!inlineReplyText.trim() || savingComment}
-                                className={cn(
-                                  "flex items-center justify-center transition-all",
-                                  inlineReplyText.trim()
-                                    ? "text-primary hover:opacity-80 active:scale-95"
-                                    : "text-zinc-300 cursor-default",
-                                )}>
-                                <SendIcon
-                                  size={15}
-                                  active={!!inlineReplyText.trim()}
-                                  disabled={!inlineReplyText.trim() || savingComment}
+                                avatarUrl={authProfile?.avatar_url ?? null}
+                                size="sm"
+                                className="shrink-0 mt-0.5"
+                              />
+                              <div className="flex-1 rounded-2xl bg-zinc-100 px-3 pt-2 pb-1.5">
+                                <textarea
+                                  ref={inlineReplyRef}
+                                  value={inlineReplyText}
+                                  onChange={(e) => {
+                                    setInlineReplyText(e.target.value);
+                                    e.target.style.height = "auto";
+                                    e.target.style.height =
+                                      e.target.scrollHeight + "px";
+                                  }}
+                                  rows={1}
+                                  maxLength={400}
+                                  placeholder="Одговори..."
+                                  className="w-full resize-none bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400 leading-snug"
+                                  style={{
+                                    minHeight: "1.25rem",
+                                    maxHeight: "8rem",
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                      e.preventDefault();
+                                      if (inlineReplyText.trim())
+                                        submitInlineReply();
+                                    }
+                                    if (e.key === "Escape") {
+                                      setReplyToCommentId(null);
+                                      setInlineReplyText("");
+                                      setReplyToUserId(null);
+                                    }
+                                  }}
                                 />
-                              </button>
+                                <div className="flex items-center justify-between mt-1">
+                                  <button
+                                    onClick={() => {
+                                      setReplyToCommentId(null);
+                                      setInlineReplyText("");
+                                      setReplyToUserId(null);
+                                    }}
+                                    className="text-[10px] text-zinc-400 hover:text-zinc-600 transition-colors">
+                                    Откажи
+                                  </button>
+                                  <button
+                                    onClick={submitInlineReply}
+                                    disabled={
+                                      !inlineReplyText.trim() || savingComment
+                                    }
+                                    className={cn(
+                                      "flex items-center justify-center transition-all",
+                                      inlineReplyText.trim()
+                                        ? "text-primary hover:opacity-80 active:scale-95"
+                                        : "text-zinc-300 cursor-default",
+                                    )}>
+                                    <SendIcon
+                                      size={15}
+                                      active={!!inlineReplyText.trim()}
+                                      disabled={
+                                        !inlineReplyText.trim() || savingComment
+                                      }
+                                    />
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
             </>
           );
         })()}
@@ -1545,7 +1639,11 @@ export default function IssueDetail({
                       ? "bg-primary border-primary"
                       : "bg-zinc-100 border-zinc-200",
                   )}>
-                  <div className={cn("min-w-0", offer.voted_by_me ? "text-white" : "text-zinc-800")}>
+                  <div
+                    className={cn(
+                      "min-w-0",
+                      offer.voted_by_me ? "text-white" : "text-zinc-800",
+                    )}>
                     <p className="text-[10px] opacity-70 capitalize">
                       {dt.toLocaleDateString("mk-MK", { weekday: "long" })}
                     </p>
@@ -1565,10 +1663,20 @@ export default function IssueDetail({
                       className="ring-2 ring-white/40"
                     />
                     <div className="text-right">
-                      <p className={cn("text-[11px] font-semibold truncate max-w-20", offer.voted_by_me ? "text-white" : "text-zinc-700")}>
+                      <p
+                        className={cn(
+                          "text-[11px] font-semibold truncate max-w-20",
+                          offer.voted_by_me ? "text-white" : "text-zinc-700",
+                        )}>
                         {name}
                       </p>
-                      <p className={cn("text-[10px]", offer.voted_by_me ? "text-white/70" : "text-zinc-400")}>предложил/а</p>
+                      <p
+                        className={cn(
+                          "text-[10px]",
+                          offer.voted_by_me ? "text-white/70" : "text-zinc-400",
+                        )}>
+                        предложил/а
+                      </p>
                     </div>
                   </div>
                 </div>

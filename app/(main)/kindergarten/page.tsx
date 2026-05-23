@@ -10,21 +10,25 @@ export default async function KindergartenPage() {
     .order("posted_at", { ascending: false });
 
   return (
-      <div className="p-4 lg:p-6 space-y-5 max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl shadow-sm"
-            style={{ background: "linear-gradient(135deg, #f9a8d4, #fb7185)" }}>
-            🌸
-          </div>
-          <div>
-            <h1 className="text-base font-bold leading-tight">Градинки — Наша Иднина</h1>
-            <p className="text-xs text-zinc-500">Мени, програми, идеи и соопштенија</p>
-          </div>
+    <div className="p-4 lg:p-6 space-y-5 max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl shadow-sm"
+          style={{ background: "linear-gradient(135deg, #f9a8d4, #fb7185)" }}>
+          🌸
         </div>
-
-        <KindergartenFeed posts={posts ?? []} />
+        <div>
+          <h1 className="text-base font-bold leading-tight">
+            Градинки — Наша Иднина
+          </h1>
+          <p className="text-xs text-zinc-500">
+            Мени, програми, идеи и соопштенија
+          </p>
+        </div>
       </div>
+
+      <KindergartenFeed posts={posts ?? []} />
+    </div>
   );
 }

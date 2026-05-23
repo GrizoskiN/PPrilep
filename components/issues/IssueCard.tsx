@@ -6,12 +6,7 @@ import Link from "next/link";
 import { Send, X, Link2 } from "lucide-react";
 import StatusPill from "../ui/StatusPill";
 import AvatarInitials from "../ui/AvatarInitials";
-import {
-  formatDays,
-  cn,
-  DISTRICT_LABELS,
-  getIssuePath,
-} from "../../lib/utils";
+import { formatDays, cn, DISTRICT_LABELS, getIssuePath } from "../../lib/utils";
 import type { Issue, IssueStatus, Category } from "../../lib/types/database";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
@@ -197,7 +192,10 @@ function StatusTimelinePopup({
   const company = COMPANY_BY_CATEGORY[issue.category] ?? "Надлежна служба";
   const createdAt = issue.created_at;
   const statusAt = issue.updated_at ?? issue.created_at;
-  const location = [DISTRICT_LABELS[issue.district] ?? issue.district, issue.street_name]
+  const location = [
+    DISTRICT_LABELS[issue.district] ?? issue.district,
+    issue.street_name,
+  ]
     .filter(Boolean)
     .join(" / ");
   const createdAtFull = formatDateTime(createdAt);
@@ -206,7 +204,9 @@ function StatusTimelinePopup({
   return (
     <>
       <div className="fixed inset-0 z-55 bg-black/45" onClick={onClose} />
-      <div className="fixed inset-0 z-56 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="fixed inset-0 z-56 flex items-center justify-center p-4"
+        onClick={onClose}>
         <div
           className="w-full max-w-156 rounded-3xl border border-[#d6dde4] bg-[#f7f9fb] p-4 shadow-2xl"
           onClick={(e) => e.stopPropagation()}>
@@ -223,9 +223,13 @@ function StatusTimelinePopup({
 
           <div className="space-y-2.5">
             <div className="grid items-start gap-2 border-b border-dashed border-[#d9dfe6] pb-2.5 lg:grid-cols-[145px_1fr]">
-              <p className="pt-0.5 text-[10px] font-semibold text-[#8a97a3]">{createdAtFull}</p>
+              <p className="pt-0.5 text-[10px] font-semibold text-[#8a97a3]">
+                {createdAtFull}
+              </p>
               <div className="lg:flex lg:items-center lg:gap-2.5">
-                <p className="text-[12px] font-semibold text-[#3f4a56]">Пријавата е испратена</p>
+                <p className="text-[12px] font-semibold text-[#3f4a56]">
+                  Пријавата е испратена
+                </p>
                 <p className="mt-1 inline-flex rounded-md bg-[#dff2ef] px-2 py-0.5 text-[10px] font-semibold text-[#3b8f86] lg:mt-0">
                   {location}
                 </p>
@@ -233,9 +237,13 @@ function StatusTimelinePopup({
             </div>
 
             <div className="grid items-start gap-2 border-b border-dashed border-[#d9dfe6] pb-2.5 lg:grid-cols-[145px_1fr]">
-              <p className="pt-0.5 text-[10px] font-semibold text-[#8a97a3]">{createdAtFull}</p>
+              <p className="pt-0.5 text-[10px] font-semibold text-[#8a97a3]">
+                {createdAtFull}
+              </p>
               <div className="lg:flex lg:items-center lg:gap-2.5">
-                <p className="text-[12px] font-semibold text-[#3f4a56]">Категоријата е утврдена</p>
+                <p className="text-[12px] font-semibold text-[#3f4a56]">
+                  Категоријата е утврдена
+                </p>
                 <p className="mt-1 inline-flex rounded-md bg-[#f4e6cf] px-2 py-0.5 text-[10px] font-semibold text-[#c57f1f] lg:mt-0">
                   {company}
                 </p>
@@ -272,7 +280,9 @@ function StatusTimelinePopup({
 
             {(issue.status === "progress" || issue.status === "resolved") && (
               <div className="grid items-start gap-2 bg-[#eefaf8] px-2 py-2 lg:grid-cols-[145px_1fr]">
-                <p className="pt-0.5 text-[10px] font-semibold text-[#5c9e98]">+ чекор</p>
+                <p className="pt-0.5 text-[10px] font-semibold text-[#5c9e98]">
+                  + чекор
+                </p>
                 <div className="lg:flex lg:items-center lg:gap-2.5">
                   <p className="text-[12px] font-semibold text-[#2f5f5b]">
                     Насочено кон редица на {company}
@@ -284,12 +294,16 @@ function StatusTimelinePopup({
             {issue.status === "resolved" && (
               <div className="border-t-2 border-dashed border-teal-300 pt-2.5">
                 <div className="grid items-start gap-2 lg:grid-cols-[145px_1fr]">
-                  <p className="pt-0.5 text-[10px] font-semibold text-[#8a97a3]">{statusAtFull}</p>
+                  <p className="pt-0.5 text-[10px] font-semibold text-[#8a97a3]">
+                    {statusAtFull}
+                  </p>
                   <div className="lg:flex lg:items-center lg:gap-2.5">
                     <span className="inline-flex rounded-full bg-teal-600 px-2 py-0.5 text-[10px] font-bold text-white">
                       {STATUS_TEXT.resolved}
                     </span>
-                    <p className="mt-1 text-[12px] font-semibold text-[#3f4a56] lg:mt-0">Проблемот е затворен од надлежната служба</p>
+                    <p className="mt-1 text-[12px] font-semibold text-[#3f4a56] lg:mt-0">
+                      Проблемот е затворен од надлежната служба
+                    </p>
                   </div>
                 </div>
               </div>
@@ -366,7 +380,10 @@ export default function IssueCard({
   function openShareSheet() {
     if (shareButtonRef.current) {
       const r = shareButtonRef.current.getBoundingClientRect();
-      setSharePos({ top: r.bottom + 8, right: window.innerWidth - r.right - 15 });
+      setSharePos({
+        top: r.bottom + 8,
+        right: window.innerWidth - r.right - 15,
+      });
     }
     setShareSheetOpen(true);
   }
@@ -697,7 +714,10 @@ export default function IssueCard({
           <div className="relative">
             <button
               ref={shareButtonRef}
-              onClick={(e) => { e.stopPropagation(); openShareSheet(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                openShareSheet();
+              }}
               className="flex items-center gap-1.5 text-[10px] lg:text-sm font-medium text-zinc-500 hover:text-zinc-800 transition-colors">
               <Send size={14} className="lg:w-4.5 lg:h-4.5" />
               <span className="hidden lg:inline">Сподели</span>
@@ -707,7 +727,10 @@ export default function IssueCard({
               <>
                 <div
                   className="fixed inset-0 z-40"
-                  onClick={(e) => { e.stopPropagation(); closeShareSheet(); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeShareSheet();
+                  }}
                 />
                 <div
                   className="fixed z-50 w-48 overflow-hidden rounded-xl bg-white shadow-lg"
@@ -722,25 +745,70 @@ export default function IssueCard({
                     },
                     {
                       label: "Facebook",
-                      icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.75 h-3.75"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>,
+                      icon: (
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="w-3.75 h-3.75">
+                          <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+                        </svg>
+                      ),
                       href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath)}`,
                       action: null as (() => void) | null,
                     },
                     {
                       label: "Instagram",
-                      icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-3.75 h-3.75"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none" /></svg>,
+                      icon: (
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.75"
+                          className="w-3.75 h-3.75">
+                          <rect
+                            x="2"
+                            y="2"
+                            width="20"
+                            height="20"
+                            rx="5"
+                            ry="5"
+                          />
+                          <circle cx="12" cy="12" r="4" />
+                          <circle
+                            cx="17.5"
+                            cy="6.5"
+                            r="0.5"
+                            fill="currentColor"
+                            stroke="none"
+                          />
+                        </svg>
+                      ),
                       href: null,
                       action: shareInstagram,
                     },
                     {
                       label: "WhatsApp",
-                      icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.75 h-3.75"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>,
+                      icon: (
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="w-3.75 h-3.75">
+                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                        </svg>
+                      ),
                       href: `https://wa.me/?text=${encodeURIComponent(`${issue.title} ${typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath}`)}`,
                       action: null,
                     },
                     {
                       label: "Viber",
-                      icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.75 h-3.75"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.35A9.96 9.96 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 14.5c-.28 0-.53-.11-.71-.29l-2-2a1 1 0 0 1 0-1.42l.5-.5c.2-.2.2-.51 0-.71l-2-2a.5.5 0 0 0-.71 0l-.5.5C7.08 11.08 7 12 7 12c0 2.76 2.24 5 5 5 0 0 .92-.08 1.92-1.08l.5-.5c.2-.2.2-.51 0-.71l-2-2a.5.5 0 0 0-.71 0l-.5.5c-.2.2-.51.2-.71 0z" /></svg>,
+                      icon: (
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="w-3.75 h-3.75">
+                          <path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.35A9.96 9.96 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 14.5c-.28 0-.53-.11-.71-.29l-2-2a1 1 0 0 1 0-1.42l.5-.5c.2-.2.2-.51 0-.71l-2-2a.5.5 0 0 0-.71 0l-.5.5C7.08 11.08 7 12 7 12c0 2.76 2.24 5 5 5 0 0 .92-.08 1.92-1.08l.5-.5c.2-.2.2-.51 0-.71l-2-2a.5.5 0 0 0-.71 0l-.5.5c-.2.2-.51.2-.71 0z" />
+                        </svg>
+                      ),
                       href: `viber://forward?text=${encodeURIComponent(`${issue.title} ${typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath}`)}`,
                       action: null,
                     },
@@ -764,7 +832,7 @@ export default function IssueCard({
                         <span className="text-zinc-400">{item.icon}</span>
                         {item.label}
                       </button>
-                    )
+                    ),
                   )}
                 </div>
               </>
