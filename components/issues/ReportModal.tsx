@@ -187,7 +187,9 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
         p_limit: 5,
       });
       if (error) {
-        console.error("find_similar_issues error:", error);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("find_similar_issues error:", error.message, error.code);
+        }
         return;
       }
       setSimilar((data ?? []) as SimilarIssue[]);

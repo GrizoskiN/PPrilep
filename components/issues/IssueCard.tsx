@@ -182,15 +182,15 @@ export default function IssueCard({
       : "#";
 
   function redirectToAuth() {
-    const next = `${location.pathname}${location.search}`;
-    // Prevent redirect on localhost during development
-    if (
-      typeof window !== "undefined" &&
-      (window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1")
-    ) {
+    if (typeof window === "undefined") return;
+    const isLocal =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+    if (isLocal) {
+      toast.info("Најавете се за да продолжите");
       return;
     }
+    const next = `${location.pathname}${location.search}`;
     location.href = `/auth/login?next=${encodeURIComponent(next)}`;
   }
 

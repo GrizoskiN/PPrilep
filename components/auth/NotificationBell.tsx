@@ -30,11 +30,7 @@ export default function NotificationBell({ userId }: Props) {
   const CACHE_KEY = `notif_unread_${userId}`;
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [unreadCount, setUnreadCount] = useState<number>(() =>
-    typeof window !== "undefined"
-      ? parseInt(localStorage.getItem(`notif_unread_${userId}`) ?? "0", 10)
-      : 0,
-  );
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const openRef = useRef(open);
@@ -115,6 +111,10 @@ export default function NotificationBell({ userId }: Props) {
   }, []);
 
   useEffect(() => {
+    // Seed from cache after hydration — avoids SSR mismatch
+    const cached = parseInt(localStorage.getItem(CACHE_KEY) ?? "0", 10);
+    if (cached) setUnreadCount(cached);
+
     const initialId = setTimeout(() => {
       void loadUnreadCount();
     }, 0);

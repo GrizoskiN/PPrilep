@@ -60,5 +60,7 @@ export async function createNotification(
   })) as { error?: { code?: string; message?: string } | null };
 
   if (!error || isMissingNotificationsTableError(error)) return;
-  console.error("[notifications] create error:", error.message);
+  if (process.env.NODE_ENV !== "production") {
+    console.error("[notifications] create error:", error.message);
+  }
 }

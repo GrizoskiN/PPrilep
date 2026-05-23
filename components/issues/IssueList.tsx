@@ -262,7 +262,7 @@ export default function IssueList({
           )}
           {issues.map((issue, index) => (
             <IssueCard
-              key={`${issue.id}-${issue.is_affected ? 1 : 0}-${issue.is_helper ? 1 : 0}-${issue.affected_count ?? 0}-${issue.helper_count ?? 0}`}
+              key={issue.id}
               eagerImage={index < 2}
               issue={issue}
               userId={user?.id}

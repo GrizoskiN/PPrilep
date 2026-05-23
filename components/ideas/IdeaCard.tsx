@@ -13,23 +13,25 @@ import { toast } from "sonner";
 interface Props {
   idea: Idea;
   userId?: string;
+  initialVoted?: boolean;
 }
 
-export default function IdeaCard({ idea, userId }: Props) {
+export default function IdeaCard({ idea, userId, initialVoted = false }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [upvotes, setUpvotes] = useState(idea.upvotes);
-  const [voted, setVoted] = useState(false);
+  const [voted, setVoted] = useState(initialVoted);
+  const [pending, setPending] = useState(false);
 
   function redirectToAuth() {
-    const next = `${location.pathname}${location.search}`;
-    // Prevent redirect on localhost during development
-    if (
-      typeof window !== "undefined" &&
-      (window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1")
-    ) {
+    if (typeof window === "undefined") return;
+    const isLocal =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+    if (isLocal) {
+      toast.info("Најавете се за да продолжите");
       return;
     }
+    const next = `${location.pathname}${location.search}`;
     location.href = `/auth/login?next=${encodeURIComponent(next)}`;
   }
 
@@ -38,28 +40,44 @@ export default function IdeaCard({ idea, userId }: Props) {
       redirectToAuth();
       return;
     }
-    if (voted) return;
-    setUpvotes((u) => u + 1);
-    setVoted(true);
-    const { error } = await supabase
-      .from("ideas")
-      .update({ upvotes: upvotes + 1 })
-      .eq("id", idea.id);
+    if (pending) return;
+
+    // Optimistic flip
+    const wasVoted = voted;
+    setVoted(!wasVoted);
+    setUpvotes((u) => Math.max(0, u + (wasVoted ? -1 : 1)));
+    setPending(true);
+
+    const { data, error } = await supabase
+      .rpc("toggle_idea_upvote", { p_idea_id: idea.id })
+      .single<{ upvotes: number; voted: boolean }>();
+
+    setPending(false);
+
     if (error) {
-      setUpvotes((u) => Math.max(0, u - 1));
-      setVoted(false);
+      // Rollback
+      setVoted(wasVoted);
+      setUpvotes((u) => Math.max(0, u + (wasVoted ? 1 : -1)));
       toast.error(error.message);
       return;
     }
 
-    await createNotification(supabase, {
-      recipientUserId: idea.created_by,
-      actorUserId: userId,
-      type: "idea_upvote",
-      title: idea.title,
-      body: "ја лајкна вашата идеја",
-      link: `/ideas/${idea.id}`,
-    });
+    if (data) {
+      setUpvotes(data.upvotes);
+      setVoted(data.voted);
+    }
+
+    // Only notify on new upvote (not on un-vote)
+    if (!wasVoted) {
+      await createNotification(supabase, {
+        recipientUserId: idea.created_by,
+        actorUserId: userId,
+        type: "idea_upvote",
+        title: idea.title,
+        body: "ја лајкна вашата идеја",
+        link: `/ideas/${idea.id}`,
+      });
+    }
   }
 
   return (

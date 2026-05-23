@@ -5,6 +5,7 @@ import { Menu, Plus } from "lucide-react";
 import Button from "../ui/Button";
 import UserMenu from "../auth/UserMenu";
 import NotificationBell from "../auth/NotificationBell";
+import { toast } from "sonner";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -113,15 +114,15 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
 
   function handleReportClick() {
     if (!user) {
-      const next = `${pathname ?? "/"}`;
-      // Prevent redirect on localhost during development
-      if (
-        typeof window !== "undefined" &&
-        (window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1")
-      ) {
+      if (typeof window === "undefined") return;
+      const isLocal =
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1";
+      if (isLocal) {
+        toast.info("Најавете се за да пријавите проблем");
         return;
       }
+      const next = `${pathname ?? "/"}`;
       window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
       return;
     }

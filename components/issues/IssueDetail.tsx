@@ -35,6 +35,18 @@ import { toast } from "sonner";
 import { createClient } from "../../lib/supabase/client";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { createNotification } from "../../lib/notifications";
+import {
+  fetchIssueComments,
+  fetchIssuePeopleStats,
+  fetchIssueChangeRequests,
+  fetchIssueResolverInfo,
+  fetchIssueHelpOffers,
+  type IssueComment,
+  type HelpOfferComment,
+  type HelpOffer,
+  type PeopleUser,
+  type ChangeRequest,
+} from "../../lib/data/issues";
 
 interface Props {
   issue: Issue;
@@ -45,57 +57,8 @@ interface Props {
   hideImage?: boolean;
 }
 
-interface IssueComment {
-  id: number;
-  user_id: string;
-  body: string;
-  parent_comment_id?: number | null;
-  created_at?: string;
-  profiles?: {
-    full_name: string | null;
-    avatar_url: string | null;
-    username: string | null;
-  } | null;
-}
-
-interface HelpOfferComment {
-  id: number;
-  offer_id: number;
-  user_id: string;
-  body: string;
-  created_at?: string;
-  profiles?: {
-    full_name: string | null;
-    avatar_url: string | null;
-    username: string | null;
-  } | null;
-}
-
-interface HelpOffer {
-  id: number;
-  issue_id: number;
-  user_id: string;
-  note: string | null;
-  service_date: string | null;
-  created_at?: string;
-  profiles?: {
-    full_name: string | null;
-    avatar_url: string | null;
-    username: string | null;
-  } | null;
-  vote_count: number;
-  voted_by_me: boolean;
-  comments: HelpOfferComment[];
-}
-
-type PeopleUser = {
-  user_id: string;
-  profiles?: {
-    full_name: string | null;
-    avatar_url: string | null;
-    username: string | null;
-  } | null;
-};
+// Types now live in lib/data/issues.ts (imported above) so they can be
+// reused on mobile.
 
 function PeoplePopup({
   title,
@@ -168,44 +131,7 @@ function PeoplePopup({
   );
 }
 
-type ChangeRequest = {
-  id: number;
-  issue_id: number;
-  requester_user_id: string;
-  type: "status_change";
-  payload: {
-    status: "progress" | "resolved";
-    description: string;
-    after_photo_url?: string | null;
-  };
-  status: "pending" | "approved" | "rejected";
-  created_at?: string;
-  profiles?: {
-    full_name: string | null;
-    avatar_url: string | null;
-    username: string | null;
-  } | null;
-};
-
-type HelpOfferCommentRow = {
-  id: number;
-  offer_id: number;
-  user_id: string;
-  body: string;
-  created_at?: string;
-  profiles?:
-    | {
-        full_name: string | null;
-        avatar_url: string | null;
-        username: string | null;
-      }
-    | {
-        full_name: string | null;
-        avatar_url: string | null;
-        username: string | null;
-      }[]
-    | null;
-};
+// ChangeRequest type imported from lib/data/issues.ts
 
 export default function IssueDetail({
   issue,
@@ -218,15 +144,15 @@ export default function IssueDetail({
   const supabase = useMemo(() => createClient(), []);
 
   function redirectToAuth() {
-    const next = `${window.location.pathname}${window.location.search}`;
-    // Prevent redirect on localhost during development
-    if (
-      typeof window !== "undefined" &&
-      (window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1")
-    ) {
+    if (typeof window === "undefined") return;
+    const isLocal =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+    if (isLocal) {
+      toast.info("Најавете се за да продолжите");
       return;
     }
+    const next = `${window.location.pathname}${window.location.search}`;
     window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
   }
 
@@ -351,60 +277,23 @@ export default function IssueDetail({
     return () => clearTimeout(id);
   }, [issue]);
 
-  const shareUrl =
-    typeof window !== "undefined"
-      ? `${location.origin}${getIssuePath(currentIssue.id, currentIssue.title)}`
-      : "";
+  const [shareUrl, setShareUrl] = useState("");
+  useEffect(() => {
+    setShareUrl(`${location.origin}${getIssuePath(currentIssue.id, currentIssue.title)}`);
+  }, [currentIssue.id, currentIssue.title]);
 
   async function loadComments() {
     setLoadingComments(true);
-
-    const { data, error } = await supabase
-      .from("issue_comments")
-      .select(
-        "id, user_id, body, photo_url, parent_comment_id, created_at, profiles:user_id(full_name, avatar_url, username)",
-      )
-      .eq("issue_id", currentIssue.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
+    const result = await fetchIssueComments(supabase, currentIssue.id, userId);
+    if (!result.ok) {
+      if (result.tableMissing) setCommentsUnavailable(true);
       setLoadingComments(false);
-      if (error.code === "42P01") {
-        setCommentsUnavailable(true);
-      }
       return;
     }
-
-    const normalized = (data ?? []).map((row) => ({
-      id: row.id,
-      user_id: row.user_id,
-      body: row.body,
-      parent_comment_id: (row as { parent_comment_id?: number | null }).parent_comment_id ?? null,
-      created_at: (row as { created_at?: string }).created_at,
-      profiles: Array.isArray(row.profiles) ? row.profiles[0] : row.profiles,
-    })) as IssueComment[];
-
     setCommentsUnavailable(false);
-    setComments(normalized);
-
-    // Load like counts + which ones the current user has liked
-    const commentIds = normalized.map((c) => c.id);
-    if (commentIds.length > 0) {
-      const [{ data: likeRows }, { data: myLikeRows }] = await Promise.all([
-        supabase.from("comment_likes").select("comment_id").in("comment_id", commentIds),
-        userId
-          ? supabase.from("comment_likes").select("comment_id").eq("user_id", userId).in("comment_id", commentIds)
-          : Promise.resolve({ data: [] }),
-      ]);
-      const counts: Record<number, number> = {};
-      for (const row of likeRows ?? []) {
-        counts[(row as { comment_id: number }).comment_id] =
-          (counts[(row as { comment_id: number }).comment_id] ?? 0) + 1;
-      }
-      setCommentLikeCounts(counts);
-      setLikedComments(new Set((myLikeRows ?? []).map((r) => (r as { comment_id: number }).comment_id)));
-    }
-
+    setComments(result.comments);
+    setCommentLikeCounts(result.likeCounts);
+    setLikedComments(result.likedComments);
     setLoadingComments(false);
   }
 
@@ -418,28 +307,9 @@ export default function IssueDetail({
   }, [currentIssue.id]);
 
   async function loadPeopleStats() {
-    const [{ data: affected }, { data: helpers }] = await Promise.all([
-      supabase
-        .from("issue_affected")
-        .select("user_id, profiles:user_id(full_name, avatar_url, username)")
-        .eq("issue_id", currentIssue.id),
-      supabase
-        .from("issue_helpers")
-        .select("user_id, profiles:user_id(full_name, avatar_url, username)")
-        .eq("issue_id", currentIssue.id),
-    ]);
-    setAffectedUsers(
-      (affected ?? []).map((r) => ({
-        ...r,
-        profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles,
-      })),
-    );
-    setHelperUsers(
-      (helpers ?? []).map((r) => ({
-        ...r,
-        profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles,
-      })),
-    );
+    const { affected, helpers } = await fetchIssuePeopleStats(supabase, currentIssue.id);
+    setAffectedUsers(affected);
+    setHelperUsers(helpers);
   }
 
   useEffect(() => {
@@ -449,23 +319,14 @@ export default function IssueDetail({
   }, [currentIssue.id]);
 
   async function loadChangeRequests() {
-    // Use a SECURITY DEFINER RPC so the issue owner can always read pending
-    // requests on their issue, regardless of RLS on issue_change_requests.
-    const { data, error } = await supabase.rpc("get_pending_change_requests", {
-      p_issue_id: currentIssue.id,
-    });
-    if (error) {
-      console.error(
-        "loadChangeRequests error:",
-        error.message,
-        error.details,
-        error.hint,
-        error.code,
-        JSON.stringify(error),
-      );
+    const result = await fetchIssueChangeRequests(supabase, currentIssue.id);
+    if (!result.ok) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("loadChangeRequests error:", result.error.message, result.error.code);
+      }
       return;
     }
-    setPendingRequests((data ?? []) as ChangeRequest[]);
+    setPendingRequests(result.requests);
   }
 
   useEffect(() => {
@@ -476,21 +337,16 @@ export default function IssueDetail({
   }, [currentIssue.id, canModerate]);
 
   async function loadResolverInfo() {
-    // Single RPC bundles: resolver profile, upvote count, and whether *I* upvoted.
-    const { data, error } = await supabase.rpc("get_resolver_info", {
-      p_issue_id: currentIssue.id,
-    });
-    if (error || !data) {
+    const info = await fetchIssueResolverInfo(supabase, currentIssue.id);
+    if (!info) {
       setResolver(null);
       setResolverUpvotes(0);
       setHasUpvotedResolver(false);
       return;
     }
-    // RPC returns a row: { resolver: jsonb|null, upvote_count: int, has_upvoted: bool }
-    const row = Array.isArray(data) ? data[0] : data;
-    setResolver(row?.resolver ?? null);
-    setResolverUpvotes(row?.upvote_count ?? 0);
-    setHasUpvotedResolver(Boolean(row?.has_upvoted));
+    setResolver(info.resolver);
+    setResolverUpvotes(info.upvote_count);
+    setHasUpvotedResolver(info.has_upvoted);
   }
 
   useEffect(() => {
@@ -516,9 +372,14 @@ export default function IssueDetail({
   useEffect(() => {
     // Only count once per browser session per issue — prevents double-count
     // from React Strict Mode double-mount and back/forward navigations.
+    // Wrapped in try/catch — Safari private mode throws on sessionStorage access.
     const sessionKey = `viewed_issue_${issue.id}`;
-    if (sessionStorage.getItem(sessionKey)) return;
-    sessionStorage.setItem(sessionKey, "1");
+    try {
+      if (sessionStorage.getItem(sessionKey)) return;
+      sessionStorage.setItem(sessionKey, "1");
+    } catch {
+      // sessionStorage unavailable — still count the view this time
+    }
     supabase
       .rpc("increment_issue_views", { p_issue_id: issue.id })
       .then(({ data }) => { if (typeof data === "number") setViewCount(data); });
@@ -587,110 +448,17 @@ export default function IssueDetail({
 
   async function loadHelpOffers() {
     setLoadingOffers(true);
-
-    const { data: offersData, error: offersError } = await supabase
-      .from("issue_help_offers")
-      .select(
-        "id, issue_id, user_id, note, service_date, created_at, profiles:user_id(full_name, avatar_url, username)",
-      )
-      .eq("issue_id", currentIssue.id)
-      .order("created_at", { ascending: true });
-
-    if (offersError) {
-      console.error("[loadHelpOffers]", offersError.code, offersError.message);
-      setLoadingOffers(false);
-      if (offersError.code === "42P01") {
-        setOffersUnavailable(true);
+    const result = await fetchIssueHelpOffers(supabase, currentIssue.id, userId);
+    if (!result.ok) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[loadHelpOffers]", result.error.code, result.error.message);
       }
+      if (result.tableMissing) setOffersUnavailable(true);
+      setLoadingOffers(false);
       return;
     }
-
-    const offers = (offersData ?? []) as Array<{
-      id: number;
-      issue_id: number;
-      user_id: string;
-      note: string | null;
-      service_date: string | null;
-      created_at?: string;
-      profiles?:
-        | {
-            full_name: string | null;
-            avatar_url: string | null;
-            username: string | null;
-          }
-        | {
-            full_name: string | null;
-            avatar_url: string | null;
-            username: string | null;
-          }[]
-        | null;
-    }>;
-
-    const offerIds = offers.map((offer) => offer.id);
-
-    let voteRows: Array<{ offer_id: number; user_id: string }> = [];
-    let offerCommentsRows: HelpOfferComment[] = [];
-
-    if (offerIds.length > 0) {
-      const [{ data: votesData }, { data: commentsData }] = await Promise.all([
-        supabase
-          .from("issue_help_date_votes")
-          .select("offer_id, user_id")
-          .in("offer_id", offerIds),
-        supabase
-          .from("issue_help_offer_comments")
-          .select(
-            "id, offer_id, user_id, body, created_at, profiles:user_id(full_name, avatar_url, username)",
-          )
-          .in("offer_id", offerIds)
-          .order("created_at", { ascending: true }),
-      ]);
-
-      voteRows = (votesData ?? []) as Array<{
-        offer_id: number;
-        user_id: string;
-      }>;
-      const rawCommentRows = (commentsData ?? []) as HelpOfferCommentRow[];
-      offerCommentsRows = rawCommentRows.map((comment) => ({
-        ...comment,
-        profiles: Array.isArray(comment.profiles)
-          ? comment.profiles[0]
-          : comment.profiles,
-      }));
-    }
-
-    const voteCountByOffer: Record<number, number> = {};
-    const votedByMe = new Set<number>();
-    for (const vote of voteRows) {
-      voteCountByOffer[vote.offer_id] =
-        (voteCountByOffer[vote.offer_id] ?? 0) + 1;
-      if (userId && vote.user_id === userId) votedByMe.add(vote.offer_id);
-    }
-
-    const commentsByOffer: Record<number, HelpOfferComment[]> = {};
-    for (const comment of offerCommentsRows) {
-      commentsByOffer[comment.offer_id] =
-        commentsByOffer[comment.offer_id] ?? [];
-      commentsByOffer[comment.offer_id].push(comment);
-    }
-
-    const normalizedOffers: HelpOffer[] = offers.map((offer) => ({
-      id: offer.id,
-      issue_id: offer.issue_id,
-      user_id: offer.user_id,
-      note: offer.note,
-      service_date: offer.service_date,
-      created_at: offer.created_at,
-      profiles: Array.isArray(offer.profiles)
-        ? offer.profiles[0]
-        : offer.profiles,
-      vote_count: voteCountByOffer[offer.id] ?? 0,
-      voted_by_me: votedByMe.has(offer.id) || offer.user_id === userId,
-      comments: commentsByOffer[offer.id] ?? [],
-    }));
-
     setOffersUnavailable(false);
-    setHelpOffers(normalizedOffers);
+    setHelpOffers(result.offers);
     setLoadingOffers(false);
   }
 

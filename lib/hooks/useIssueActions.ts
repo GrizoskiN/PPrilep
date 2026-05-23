@@ -10,15 +10,15 @@ export function useIssueActions(issueId: number, userId: string | undefined) {
   const [loadingHelper, setLoadingHelper] = useState(false);
 
   function redirectToAuth() {
-    const next = `${location.pathname}${location.search}`;
-    // Prevent redirect on localhost during development
-    if (
-      typeof window !== "undefined" &&
-      (window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1")
-    ) {
+    if (typeof window === "undefined") return;
+    const isLocal =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+    if (isLocal) {
+      toast.info("Најавете се за да продолжите");
       return;
     }
+    const next = `${location.pathname}${location.search}`;
     window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
   }
 
