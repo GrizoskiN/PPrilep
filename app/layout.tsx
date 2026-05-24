@@ -23,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="mk" className={`${inter.variable} h-full`}>
-      <body className="h-full antialiased font-sans  text-slate-900">
+      <body className="h-full bg-theme-canvas font-sans antialiased text-theme-body">
         <div className=" mx-auto h-full">{children}</div>
         <Toaster position="bottom-right" />
       </body>

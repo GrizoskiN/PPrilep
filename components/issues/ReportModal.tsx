@@ -93,9 +93,19 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
   // Drawer animation state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [swipeDy, setSwipeDy] = useState(0);
+  const [isDesktop, setIsDesktop] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
   const drawerScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 640px)");
+    const apply = () => setIsDesktop(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   // Entrance animation
   useEffect(() => {
@@ -188,7 +198,11 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
       });
       if (error) {
         if (process.env.NODE_ENV !== "production") {
-          console.error("find_similar_issues error:", error.message, error.code);
+          console.error(
+            "find_similar_issues error:",
+            error.message,
+            error.code,
+          );
         }
         return;
       }
@@ -258,7 +272,7 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
     <>
       {/* ── Backdrop ── */}
       <div
-        className="fixed inset-0 z-50 bg-black/40 transition-opacity duration-300"
+        className="fixed inset-0 z-50 bg-black/40 transition-opacity duration-500"
         style={{ opacity: drawerOpen ? 1 : 0 }}
         onClick={handleClose}
       />
@@ -268,9 +282,16 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
         {/* ── Dialog / Drawer ── */}
         <div
           ref={drawerRef}
-          className={`pointer-events-auto w-full sm:max-w-xl bg-white rounded-t-2xl sm:rounded-xl shadow-2xl flex flex-col${swipeDy === 0 ? " transition-transform duration-300 ease-out" : ""}`}
+          className={`pointer-events-auto w-full sm:max-w-xl bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden${swipeDy === 0 ? " transition-[transform,opacity] duration-500 ease-out" : ""}`}
           style={{
-            transform: drawerOpen ? `translateY(${swipeDy}px)` : "translateY(110%)",
+            transform: isDesktop
+              ? drawerOpen
+                ? "translateY(0)"
+                : "translateY(-42px)"
+              : drawerOpen
+                ? `translateY(${swipeDy}px)`
+                : "translateY(110%)",
+            opacity: isDesktop ? (drawerOpen ? 1 : 0) : 1,
             maxHeight: "95dvh",
           }}>
           {/* Drag handle — mobile only. This is the ONLY touch area that closes the drawer. */}
@@ -291,22 +312,29 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
 
           {/* Scrollable form content */}
           <div ref={drawerScrollRef} className="overflow-y-auto flex-1">
-            <form onSubmit={handleSubmit(onSubmit)} className="p-4 sm:p-5 space-y-4">
-
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="p-4 sm:p-5 space-y-4">
               <div>
-                <label className="text-sm font-medium text-zinc-700">Наслов *</label>
+                <label className="text-sm font-medium text-zinc-700">
+                  Наслов *
+                </label>
                 <input
                   {...register("title")}
                   placeholder="Кратко опишете го проблемот"
                   className="mt-1.5 w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-teal-500 transition-colors"
                 />
                 {errors.title && (
-                  <p className="text-[11px] text-red-500 mt-1">{errors.title.message}</p>
+                  <p className="text-[11px] text-red-500 mt-1">
+                    {errors.title.message}
+                  </p>
                 )}
               </div>
 
               <div>
-                <label className="text-sm font-medium text-zinc-700">Опис</label>
+                <label className="text-sm font-medium text-zinc-700">
+                  Опис
+                </label>
                 <textarea
                   {...register("description")}
                   rows={3}
@@ -316,7 +344,9 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-zinc-700">Улица / локација</label>
+                <label className="text-sm font-medium text-zinc-700">
+                  Улица / локација
+                </label>
                 <div className="flex items-stretch gap-2 mt-1.5">
                   <div className="flex-1 min-w-0">
                     <Controller
@@ -328,7 +358,10 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
                           onChange={field.onChange}
                           placeholder="пр. Партизанска"
                           onSelect={(s) => {
-                            if (s.district) setValue("district", s.district, { shouldDirty: true });
+                            if (s.district)
+                              setValue("district", s.district, {
+                                shouldDirty: true,
+                              });
                           }}
                         />
                       )}
@@ -336,14 +369,18 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
                   </div>
                   <input
                     value={streetNumber}
-                    onChange={(e) => setStreetNumber(e.target.value.replace(/[^\d\w/]/g, ""))}
+                    onChange={(e) =>
+                      setStreetNumber(e.target.value.replace(/[^\d\w/]/g, ""))
+                    }
                     placeholder="Бр."
                     maxLength={8}
                     className="w-14 shrink-0 border border-zinc-200 rounded-xl px-2 text-sm text-center outline-none focus:border-teal-500 transition-colors"
                   />
                 </div>
                 <div className="mt-1.5 flex items-center justify-between gap-2">
-                  <p className="text-[10px] text-zinc-400 leading-snug">Не ја знаете точната адреса?</p>
+                  <p className="text-[10px] text-zinc-400 leading-snug">
+                    Не ја знаете точната адреса?
+                  </p>
                   <button
                     type="button"
                     onClick={() => setPickerOpen(true)}
@@ -353,9 +390,13 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
                         : "border-zinc-200 bg-white text-slate-600 hover:border-teal-300 hover:text-teal-700"
                     }`}>
                     {pinLat !== null && pinLng !== null ? (
-                      <><Check size={11} /> Локацијата е поставена</>
+                      <>
+                        <Check size={11} /> Локацијата е поставена
+                      </>
                     ) : (
-                      <><MapPin size={11} /> Обележи на мапа</>
+                      <>
+                        <MapPin size={11} /> Обележи на мапа
+                      </>
                     )}
                   </button>
                 </div>
@@ -363,22 +404,30 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-zinc-700">Населба *</label>
+                  <label className="text-sm font-medium text-zinc-700">
+                    Населба *
+                  </label>
                   <select
                     {...register("district")}
                     className="mt-1.5 w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm bg-white cursor-pointer focus:border-teal-500 outline-none">
                     {DISTRICTS.map((d) => (
-                      <option key={d} value={d}>{DISTRICT_MK[d]}</option>
+                      <option key={d} value={d}>
+                        {DISTRICT_MK[d]}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-zinc-700">Категорија *</label>
+                  <label className="text-sm font-medium text-zinc-700">
+                    Категорија *
+                  </label>
                   <select
                     {...register("category")}
                     className="mt-1.5 w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm bg-white cursor-pointer focus:border-teal-500 outline-none">
                     {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>{CATEGORY_MK[c]}</option>
+                      <option key={c} value={c}>
+                        {CATEGORY_MK[c]}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -386,39 +435,64 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
 
               <div>
                 <label className="text-sm font-medium text-zinc-700">
-                  Фотографија <span className="text-zinc-400">(незадолжително)</span>
+                  Фотографија{" "}
+                  <span className="text-zinc-400">(незадолжително)</span>
                 </label>
-                <input ref={fileRef} type="file" accept="image/*" onChange={pickFile} className="hidden" />
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={pickFile}
+                  className="hidden"
+                />
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
                   className="mt-1.5 w-full border-2 border-dashed border-zinc-300 rounded-xl px-4 py-6 text-sm text-zinc-500 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50/40 flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer">
                   <ImagePlus size={28} className="text-zinc-400" />
-                  <span>{file ? file.name : "Кликнете за да додадете фотографија"}</span>
+                  <span>
+                    {file ? file.name : "Кликнете за да додадете фотографија"}
+                  </span>
                 </button>
                 {preview && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={preview} alt="Преглед" className="mt-2 rounded-xl w-full max-h-52 object-cover border border-zinc-200" />
+                  <img
+                    src={preview}
+                    alt="Преглед"
+                    className="mt-2 rounded-xl w-full max-h-52 object-cover border border-zinc-200"
+                  />
                 )}
               </div>
 
               {!duplicateDismissed && similar.length > 0 && (
-                <DuplicateAlert similar={similar} onDismiss={() => setDuplicateDismissed(true)} />
+                <DuplicateAlert
+                  similar={similar}
+                  onDismiss={() => setDuplicateDismissed(true)}
+                />
               )}
 
               <div className="flex justify-end gap-3 pt-3 border-t border-zinc-100">
-                <Button type="button" variant="ghost" onClick={handleClose} className="px-6 py-3 text-base">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleClose}
+                  className="px-6 py-3 text-base">
                   Откажи
                 </Button>
-                <Button type="submit" variant="teal" disabled={isSubmitting} className="px-8 py-3 text-base">
+                <Button
+                  type="submit"
+                  variant="teal"
+                  disabled={isSubmitting}
+                  className="px-8 py-3 text-base">
                   {isSubmitting ? "Се испраќа…" : "Пријави"}
                 </Button>
               </div>
-
             </form>
           </div>
-        </div>{/* end dialog/drawer */}
-      </div>{/* end positioner */}
+        </div>
+        {/* end dialog/drawer */}
+      </div>
+      {/* end positioner */}
 
       {pickerOpen && (
         <LocationPickerModal
@@ -431,15 +505,21 @@ export default function ReportModal({ userId, onClose, onSuccess }: Props) {
             // Auto-fill street name (without number) and number separately
             if (streetOnly) {
               const current = (getValues("street_name") ?? "").trim();
-              if (!current) setValue("street_name", streetOnly, { shouldDirty: true });
+              if (!current)
+                setValue("street_name", streetOnly, { shouldDirty: true });
             }
             if (houseNumber) setStreetNumber(houseNumber);
-            if (matched?.district) setValue("district", matched.district, { shouldDirty: true });
+            if (matched?.district)
+              setValue("district", matched.district, { shouldDirty: true });
             setPickerOpen(false);
             const display = streetOnly
               ? `${streetOnly}${houseNumber ? " " + houseNumber : ""}`
               : null;
-            toast.success(display ? `Локацијата е зачувана: ${display}` : "Локацијата е зачувана");
+            toast.success(
+              display
+                ? `Локацијата е зачувана: ${display}`
+                : "Локацијата е зачувана",
+            );
           }}
         />
       )}

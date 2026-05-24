@@ -23,17 +23,17 @@ function getTimeGreeting(): string {
   return "Добра вечер";
 }
 
-function weatherLabel(code: number): string {
-  if (code === 0) return "Ведро";
-  if ([1, 2].includes(code)) return "Претежно ведро";
-  if (code === 3) return "Облачно";
-  if ([45, 48].includes(code)) return "Магла";
-  if ([51, 53, 55, 56, 57].includes(code)) return "Слаб дожд";
-  if ([61, 63, 65, 66, 67].includes(code)) return "Дожд";
-  if ([71, 73, 75, 77].includes(code)) return "Снег";
-  if ([80, 81, 82].includes(code)) return "Пороен дожд";
-  if ([95, 96, 99].includes(code)) return "Невреме";
-  return "Променливо";
+function weatherIcon(code: number): string {
+  if (code === 0) return "☀️";
+  if ([1, 2].includes(code)) return "🌤️";
+  if (code === 3) return "☁️";
+  if ([45, 48].includes(code)) return "🌫️";
+  if ([51, 53, 55, 56, 57].includes(code)) return "🌦️";
+  if ([61, 63, 65, 66, 67].includes(code)) return "🌧️";
+  if ([71, 73, 75, 77].includes(code)) return "❄️";
+  if ([80, 81, 82].includes(code)) return "⛈️";
+  if ([95, 96, 99].includes(code)) return "🌩️";
+  return "🌡️";
 }
 
 export default function DynamicGreeting({ fallbackName }: Props) {
@@ -82,16 +82,15 @@ export default function DynamicGreeting({ fallbackName }: Props) {
   return (
     <div className="lg:flex lg:justify-between items-start">
       <div>
-        <h1 className="text-4xl font-semibold leading-[1.02] tracking-tight text-slate-900">
+        <h1 className="text-4xl font-semibold leading-[1.02] tracking-tight text-theme-heading">
           {greeting}, {placeLabel}.
         </h1>
-        <p className="mt-2 max-w-165.57 text-lg leading-8 text-slate-500">
+        <p className="mt-2 max-w-theme-content text-sm leading-6 text-theme-muted">
           {weather
-            ? `${weatherLabel(weather.code)} ${weather.temp}°C • Денес ${weather.min}°/${weather.max}° • Врнежи ${weather.rainProbability}%`
+            ? `${weatherIcon(weather.code)} ${weather.temp}°C • Денес ${weather.min}°/${weather.max}° • 🌧️ ${weather.rainProbability}%`
             : "Пријави проблеми. Координирај локални акции. Држи ги лидерите одговорни."}
         </p>
       </div>
-      
     </div>
   );
 }

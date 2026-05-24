@@ -15,6 +15,7 @@ interface Props {
   options: Option[];
   placeholder?: string;
   className?: string;
+  isActive?: boolean;
 }
 
 /**
@@ -28,6 +29,7 @@ export default function FilterSelect({
   options,
   placeholder,
   className = "",
+  isActive = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -35,7 +37,8 @@ export default function FilterSelect({
   useEffect(() => {
     if (!open) return;
     function onDocClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -56,20 +59,25 @@ export default function FilterSelect({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 lg:py-2 text-[11px] lg:text-sm font-medium text-slate-700 outline-none transition-colors hover:border-zinc-400 focus:border-primary [-webkit-tap-highlight-color:transparent]">
+        className={cn(
+          "w-full flex h-9 items-center justify-between gap-2 rounded-lg border px-2.5 text-[11px] font-medium outline-none transition-colors [-webkit-tap-highlight-color:transparent]",
+          isActive
+            ? "border-theme bg-theme-surface-muted text-theme-ink"
+            : "border-theme bg-theme-surface text-theme-body hover:bg-theme-surface-muted",
+          "focus-visible:ring-2 focus-visible:ring-[#d9e1e8]",
+        )}>
         <span className="truncate">{label}</span>
         <ChevronDown
           size={14}
           className={cn(
-            "shrink-0 text-slate-400 transition-transform",
+            "shrink-0 transition-transform",
+            isActive ? "text-theme-ink" : "text-theme-muted",
             open && "rotate-180",
           )}
         />
       </button>
       {open && (
-        <div
-          className="absolute left-0 top-full mt-1 z-50 min-w-full w-max max-w-[calc(100vw-1rem)] max-h-72 overflow-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-lg"
-          style={{ backgroundColor: "#ffffff" }}>
+        <div className="absolute left-0 top-full mt-1.5 z-50 min-w-full w-max max-w-[calc(100vw-1rem)] max-h-72 overflow-auto rounded-lg border border-theme bg-theme-surface p-1 shadow-[0_6px_18px_rgba(15,23,43,0.1)]">
           {options.map((opt) => {
             const active = opt.value === value;
             return (
@@ -81,10 +89,10 @@ export default function FilterSelect({
                   setOpen(false);
                 }}
                 className={cn(
-                  "w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-[12px] lg:text-sm font-medium transition-colors whitespace-nowrap [-webkit-tap-highlight-color:transparent]",
+                  "w-full flex items-center justify-between gap-3 rounded-md px-2.5 py-2 text-left text-[11px] font-medium transition-colors whitespace-nowrap [-webkit-tap-highlight-color:transparent]",
                   active
-                    ? "bg-primary/10 text-primary"
-                    : "text-slate-700 hover:bg-primary/10 hover:text-primary",
+                    ? "bg-theme-surface-muted text-theme-ink"
+                    : "text-theme-body hover:bg-theme-surface-muted hover:text-theme-ink",
                 )}>
                 <span>{opt.label}</span>
                 {active && <Check size={14} className="shrink-0" />}

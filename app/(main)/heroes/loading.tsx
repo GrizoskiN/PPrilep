@@ -7,7 +7,7 @@ export default function HeroesLoading() {
         {[0, 1, 2, 3, 4, 5, 6].map((i) => (
           <div
             key={i}
-            className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-3">
+            className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4">
             <Skeleton className="h-6 w-6 shrink-0" rounded="rounded-md" />
             <Skeleton className="h-10 w-10 shrink-0" rounded="rounded-full" />
             <div className="flex-1 space-y-1.5">

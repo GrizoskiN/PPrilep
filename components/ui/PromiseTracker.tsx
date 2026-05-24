@@ -69,7 +69,7 @@ export default function PromiseTracker() {
   const active = PROMISES.filter((p) => p.status !== "completed");
 
   return (
-    <div className="bg-[#f8f8f8] rounded-2xl  px-3 py-4">
+    <div className="bg-[#ffffff] rounded-lg  px-3 py-4">
       <div className="pb-5">
         <div className="xl:flex items-start gap-3">
           <div className="mt-0.5 text-gray-400">

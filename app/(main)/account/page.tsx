@@ -197,194 +197,192 @@ export default function AccountPage() {
 
   if (loading || (!user && !profile)) {
     return (
-        <div className="px-6 py-6 text-sm text-slate-500">
-          Се вчитува профил…
-        </div>
+      <div className="px-6 py-6 text-sm text-theme-muted">
+        Се вчитува профил…
+      </div>
     );
   }
 
   return (
-      <div className="mx-auto w-full max-w-4xl px-6 py-6">
-        <section className="rounded-3xl border border-[#e4ece8] bg-white p-5">
-          <h1 className="text-lg font-semibold text-slate-900">Мој профил</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Уреди профил, постави слика и следи ја твојата активност.
-          </p>
+    <div className="mx-auto w-full max-w-theme-page px-6 py-6">
+      <section className="rounded-3xl border border-theme bg-theme-surface p-5">
+        <h1 className="text-lg font-semibold text-theme-heading">Мој профил</h1>
+        <p className="mt-1 text-sm text-theme-muted">
+          Уреди профил, постави слика и следи ја твојата активност.
+        </p>
 
-          <div className="mt-5 flex flex-col gap-5 md:flex-row md:items-start">
-            <div className="flex flex-col items-start gap-3">
-              {avatarUrl ? (
-                <Image
-                  src={cdnUrl(avatarUrl)}
-                  alt="Профил слика"
-                  width={92}
-                  height={92}
-                  sizes="92px"
-                  className="h-23 w-23 rounded-2xl border border-[#dce6e2] object-cover"
-                />
-              ) : (
-                <AvatarInitials
-                  name={fullName || profile?.full_name || profile?.username}
-                  avatarUrl={null}
-                  size="md"
-                />
-              )}
+        <div className="mt-5 flex flex-col gap-5 md:flex-row md:items-start">
+          <div className="flex flex-col items-start gap-3">
+            {avatarUrl ? (
+              <Image
+                src={cdnUrl(avatarUrl)}
+                alt="Профил слика"
+                width={92}
+                height={92}
+                sizes="92px"
+                className="h-23 w-23 rounded-2xl border border-[#dce6e2] object-cover"
+              />
+            ) : (
+              <AvatarInitials
+                name={fullName || profile?.full_name || profile?.username}
+                avatarUrl={null}
+                size="md"
+              />
+            )}
 
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#dce6e2] px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                {uploadingAvatar ? "Се прикачува..." : "Додади слика"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={uploadingAvatar}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) uploadAvatar(file);
-                  }}
-                />
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#dce6e2] px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              {uploadingAvatar ? "Се прикачува..." : "Додади слика"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploadingAvatar}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadAvatar(file);
+                }}
+              />
+            </label>
+          </div>
+
+          <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label className="text-xs font-semibold text-slate-600">
+                Целосно име
               </label>
+              <input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-[#dce6e2] px-3 py-2.5 text-sm outline-none focus:border-primary"
+                placeholder="Внеси име"
+              />
             </div>
-
-            <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <label className="text-xs font-semibold text-slate-600">
-                  Целосно име
-                </label>
-                <input
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-[#dce6e2] px-3 py-2.5 text-sm outline-none focus:border-primary"
-                  placeholder="Внеси име"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-600">
-                  Корисничко име
-                </label>
-                <input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-[#dce6e2] px-3 py-2.5 text-sm outline-none focus:border-primary"
-                  placeholder="username"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-600">
-                  Е-пошта
-                </label>
-                <input
-                  value={user?.email ?? ""}
-                  disabled
-                  className="mt-1 w-full rounded-xl border border-[#dce6e2] bg-slate-50 px-3 py-2.5 text-sm text-slate-500"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Button
-                  onClick={saveProfile}
-                  disabled={saving}
-                  variant="teal"
-                  size="sm">
-                  {saving ? "Се зачувува..." : "Зачувај профил"}
-                </Button>
-              </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600">
+                Корисничко име
+              </label>
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-[#dce6e2] px-3 py-2.5 text-sm outline-none focus:border-primary"
+                placeholder="username"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600">
+                Е-пошта
+              </label>
+              <input
+                value={user?.email ?? ""}
+                disabled
+                className="mt-1 w-full rounded-xl border border-[#dce6e2] bg-slate-50 px-3 py-2.5 text-sm text-slate-500"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Button
+                onClick={saveProfile}
+                disabled={saving}
+                variant="teal"
+                size="sm">
+                {saving ? "Се зачувува..." : "Зачувај профил"}
+              </Button>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="mt-5 rounded-3xl border border-[#e4ece8] bg-white p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900">
-              Мои пријави
-            </h2>
-            <span className="rounded-lg bg-[#eef8f5] px-2 py-1 text-xs font-semibold text-primary">
-              {myIssues.length}
-            </span>
-          </div>
+      <section className="mt-5 rounded-3xl border border-[#e4ece8] bg-white p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-900">Мои пријави</h2>
+          <span className="rounded-lg bg-[#eef8f5] px-2 py-1 text-xs font-semibold text-primary">
+            {myIssues.length}
+          </span>
+        </div>
 
-          {loadingData ? (
-            <p className="text-sm text-slate-500">Се вчитуваат пријави…</p>
-          ) : myIssues.length === 0 ? (
-            <p className="text-sm text-slate-500">Сè уште немаш пријави.</p>
-          ) : (
-            <div className="space-y-2">
-              {myIssues.map((issue) => (
-                <Link
-                  key={issue.id}
-                  href={getIssuePath(issue.id, issue.title)}
-                  className="block rounded-2xl border border-[#e4ece8] px-3 py-2 hover:border-[#cfe0da]">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {issue.title}
-                    </p>
-                    <span className="shrink-0 text-xs text-slate-400">
-                      {formatDays(issue.created_at)}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {DISTRICT_LABELS[issue.district] ?? issue.district} •{" "}
-                    {STATUS_LABELS[issue.status] ?? issue.status}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="mt-5 rounded-3xl border border-[#e4ece8] bg-white p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900">
-              Моја активност
-            </h2>
-            <span className="rounded-lg bg-[#eef2f7] px-2 py-1 text-xs font-semibold text-slate-700">
-              {helperActivity.length + affectedActivity.length}
-            </span>
-          </div>
-
-          {loadingData ? (
-            <p className="text-sm text-slate-500">Се вчитува активност…</p>
-          ) : helperActivity.length + affectedActivity.length === 0 ? (
-            <p className="text-sm text-slate-500">Сè уште немаш активности.</p>
-          ) : (
-            <div className="space-y-2">
-              {helperActivity.map((item) => (
-                <Link
-                  key={`helper-${item.issue_id}`}
-                  href={getIssuePath(
-                    item.issue_id,
-                    item.issues?.title ?? `issue-${item.issue_id}`,
-                  )}
-                  className="block rounded-2xl border border-[#d9f0e9] bg-[#f6fdfb] px-3 py-2 hover:border-[#bfe3db]">
+        {loadingData ? (
+          <p className="text-sm text-slate-500">Се вчитуваат пријави…</p>
+        ) : myIssues.length === 0 ? (
+          <p className="text-sm text-slate-500">Сè уште немаш пријави.</p>
+        ) : (
+          <div className="space-y-2">
+            {myIssues.map((issue) => (
+              <Link
+                key={issue.id}
+                href={getIssuePath(issue.id, issue.title)}
+                className="block rounded-2xl border border-[#e4ece8] px-3 py-2 hover:border-[#cfe0da]">
+                <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-semibold text-slate-800">
-                    Помош: {item.issues?.title ?? `Пријава #${item.issue_id}`}
+                    {issue.title}
                   </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {item.note?.trim()
-                      ? `Порака: ${item.note}`
-                      : "Се пријавивте како помошник/чка"}
-                  </p>
-                </Link>
-              ))}
+                  <span className="shrink-0 text-xs text-slate-400">
+                    {formatDays(issue.created_at)}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {DISTRICT_LABELS[issue.district] ?? issue.district} •{" "}
+                  {STATUS_LABELS[issue.status] ?? issue.status}
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
-              {affectedActivity.map((item) => (
-                <Link
-                  key={`affected-${item.issue_id}`}
-                  href={getIssuePath(
-                    item.issue_id,
-                    item.issues?.title ?? `issue-${item.issue_id}`,
-                  )}
-                  className="block rounded-2xl border border-[#e3e8f3] bg-[#f8faff] px-3 py-2 hover:border-[#cfd7ea]">
-                  <p className="text-sm font-semibold text-slate-800">
-                    Засегнат/а:{" "}
-                    {item.issues?.title ?? `Пријава #${item.issue_id}`}
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    Означено како засегнат/а
-                  </p>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+      <section className="mt-5 rounded-3xl border border-[#e4ece8] bg-white p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-900">
+            Моја активност
+          </h2>
+          <span className="rounded-lg bg-[#eef2f7] px-2 py-1 text-xs font-semibold text-slate-700">
+            {helperActivity.length + affectedActivity.length}
+          </span>
+        </div>
+
+        {loadingData ? (
+          <p className="text-sm text-slate-500">Се вчитува активност…</p>
+        ) : helperActivity.length + affectedActivity.length === 0 ? (
+          <p className="text-sm text-slate-500">Сè уште немаш активности.</p>
+        ) : (
+          <div className="space-y-2">
+            {helperActivity.map((item) => (
+              <Link
+                key={`helper-${item.issue_id}`}
+                href={getIssuePath(
+                  item.issue_id,
+                  item.issues?.title ?? `issue-${item.issue_id}`,
+                )}
+                className="block rounded-2xl border border-[#d9f0e9] bg-[#f6fdfb] px-3 py-2 hover:border-[#bfe3db]">
+                <p className="text-sm font-semibold text-slate-800">
+                  Помош: {item.issues?.title ?? `Пријава #${item.issue_id}`}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {item.note?.trim()
+                    ? `Порака: ${item.note}`
+                    : "Се пријавивте како помошник/чка"}
+                </p>
+              </Link>
+            ))}
+
+            {affectedActivity.map((item) => (
+              <Link
+                key={`affected-${item.issue_id}`}
+                href={getIssuePath(
+                  item.issue_id,
+                  item.issues?.title ?? `issue-${item.issue_id}`,
+                )}
+                className="block rounded-2xl border border-[#e3e8f3] bg-[#f8faff] px-3 py-2 hover:border-[#cfd7ea]">
+                <p className="text-sm font-semibold text-slate-800">
+                  Засегнат/а:{" "}
+                  {item.issues?.title ?? `Пријава #${item.issue_id}`}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Означено како засегнат/а
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

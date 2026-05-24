@@ -30,6 +30,7 @@ import SendIcon from "../ui/SendIcon";
 import AvatarInitials from "../ui/AvatarInitials";
 import ImageLightbox from "../ui/ImageLightbox";
 import { formatDays, cn, getIssuePath, cdnUrl } from "../../lib/utils";
+import { incrementIssueViews } from "../../lib/views";
 import type { Issue, IssueStatus } from "../../lib/types/database";
 import { toast } from "sonner";
 import { createClient } from "../../lib/supabase/client";
@@ -379,22 +380,9 @@ export default function IssueDetail({
   );
 
   useEffect(() => {
-    // Only count once per browser session per issue — prevents double-count
-    // from React Strict Mode double-mount and back/forward navigations.
-    // Wrapped in try/catch — Safari private mode throws on sessionStorage access.
-    const sessionKey = `viewed_issue_${issue.id}`;
-    try {
-      if (sessionStorage.getItem(sessionKey)) return;
-      sessionStorage.setItem(sessionKey, "1");
-    } catch {
-      // sessionStorage unavailable — still count the view this time
-    }
-    supabase
-      .rpc("increment_issue_views", { p_issue_id: issue.id })
-      .then(({ data }) => {
-        if (typeof data === "number") setViewCount(data);
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    incrementIssueViews(issue.id).then((data) => {
+      if (typeof data === "number") setViewCount(data);
+    });
   }, [issue.id]);
 
   async function setResolverFor(newResolverId: string | null) {

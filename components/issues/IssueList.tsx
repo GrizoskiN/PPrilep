@@ -10,6 +10,7 @@ import DateOffersPanel from "./DateOffersPanel";
 import FilterSelect from "../ui/FilterSelect";
 import ImageLightbox from "../ui/ImageLightbox";
 import BeforeAfterSlider from "../ui/BeforeAfterSlider";
+import { Filter } from "lucide-react";
 import {
   DISTRICT_LABELS,
   CATEGORY_LABELS,
@@ -68,6 +69,7 @@ export default function IssueList({
   );
   const [category, setCategory] = useState<Category | "all">("all");
   const [status, setStatus] = useState<IssueStatus | "all">("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [modalIssue, setModalIssue] = useState<Issue | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -83,9 +85,19 @@ export default function IssueList({
   );
 
   const { user } = useAuth();
+  const defaultDistrictValue = defaultDistrict ?? "all";
+  const hasActiveFilters =
+    district !== defaultDistrictValue || category !== "all" || status !== "all";
+
   const { issues, loading, loadingMore, hasMore, error, fetchMore } = useIssues(
     { district, category, status, userId: user?.id },
   );
+
+  function resetFilters() {
+    setDistrict(defaultDistrictValue);
+    setCategory("all");
+    setStatus("all");
+  }
 
   function openIssueModal(issue: Issue) {
     setSwipeDy(0);
@@ -196,49 +208,78 @@ export default function IssueList({
       <div>
         <div
           suppressHydrationWarning
-          className="mt-2.5 grid grid-cols-3 z-20 gap-1.5 px-2 md:px-0 lg:px-3 py-2 sticky -top-1 bg-[#f2f4f7] border-b border-zinc-200 lg:border-b-0"
-          style={{ backgroundColor: "#f2f4f7" }}>
-          {mounted ? (
-            <>
-              <FilterSelect
-                value={district}
-                onChange={(v) => setDistrict(v as District | "all")}
-                options={DISTRICTS.map((d) => ({
-                  value: d,
-                  label: DISTRICT_LABELS[d] ?? d,
-                }))}
-              />
-              <FilterSelect
-                value={category}
-                onChange={(v) => setCategory(v as Category | "all")}
-                options={[
-                  { value: "all", label: CATEGORY_ALL_LABEL_SHORT },
-                  ...(CATEGORIES.filter((c) => c !== "all") as Category[]).map(
-                    (c) => ({ value: c, label: CATEGORY_LABELS[c] }),
-                  ),
-                ]}
-              />
-              <FilterSelect
-                value={status}
-                onChange={(v) => setStatus(v as IssueStatus | "all")}
-                options={[
-                  { value: "all", label: STATUS_ALL_LABEL_SHORT },
-                  ...(STATUSES.filter((s) => s !== "all") as IssueStatus[]).map(
-                    (s) => ({ value: s, label: STATUS_LABELS[s] }),
-                  ),
-                ]}
-              />
-            </>
-          ) : (
-            <>
-              <div className="h-8 lg:h-9 rounded-lg border border-zinc-200 bg-white" />
-              <div className="h-8 lg:h-9 rounded-lg border border-zinc-200 bg-white" />
-              <div className="h-8 lg:h-9 rounded-lg border border-zinc-200 bg-white" />
-            </>
+          className="sticky -top-1 z-20 mt-.5 border-b border-theme bg-theme-canvas px-3 py-2 lg:border-b-0 lg:px-3">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((v) => !v)}
+              className={`flex items-center justify-start gap-1.5 px-1 py-1 text-sm font-semibold transition-colors ${
+                filtersOpen
+                  ? "text-theme-ink"
+                  : "text-theme-muted hover:text-theme-ink"
+              }`}>
+              <Filter size={13} className="shrink-0" />
+              <span>{filtersOpen ? "Скриј филтри" : "Активирај филтри"}</span>
+            </button>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className=" px-2 py-1 text-xs font-medium text-theme-muted transition-colors hover:bg-theme-surface-muted hover:text-theme-ink">
+                Ресетирај филтри
+              </button>
+            )}
+          </div>
+
+          {filtersOpen && (
+            <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-xl border border-theme bg-theme-surface p-1.5">
+              {mounted ? (
+                <>
+                  <FilterSelect
+                    value={district}
+                    onChange={(v) => setDistrict(v as District | "all")}
+                    isActive={district !== "all"}
+                    options={DISTRICTS.map((d) => ({
+                      value: d,
+                      label: DISTRICT_LABELS[d] ?? d,
+                    }))}
+                  />
+                  <FilterSelect
+                    value={category}
+                    onChange={(v) => setCategory(v as Category | "all")}
+                    isActive={category !== "all"}
+                    options={[
+                      { value: "all", label: CATEGORY_ALL_LABEL_SHORT },
+                      ...(
+                        CATEGORIES.filter((c) => c !== "all") as Category[]
+                      ).map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
+                    ]}
+                  />
+                  <FilterSelect
+                    value={status}
+                    onChange={(v) => setStatus(v as IssueStatus | "all")}
+                    isActive={status !== "all"}
+                    options={[
+                      { value: "all", label: STATUS_ALL_LABEL_SHORT },
+                      ...(
+                        STATUSES.filter((s) => s !== "all") as IssueStatus[]
+                      ).map((s) => ({ value: s, label: STATUS_LABELS[s] })),
+                    ]}
+                  />
+                </>
+              ) : (
+                <>
+                  <div className="h-9 rounded-lg border border-theme bg-theme-surface-muted" />
+                  <div className="h-9 rounded-lg border border-theme bg-theme-surface-muted" />
+                  <div className="h-9 rounded-lg border border-theme bg-theme-surface-muted" />
+                </>
+              )}
+            </div>
           )}
         </div>
 
-        <div className="w-full space-y-3 px-0 lg:px-3 py-3 lg:py-5">
+        <div className="w-full space-y-3 px-0 py-2">
           {loading && (
             <>
               <IssueCardSkeleton />

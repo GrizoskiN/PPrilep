@@ -81,7 +81,7 @@ export default function IdeaCard({ idea, userId, initialVoted = false }: Props) 
   }
 
   return (
-    <div className="bg-white border border-zinc-200 rounded-lg p-4 space-y-2">
+    <div className="bg-white border border-zinc-200 rounded-lg p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-medium">

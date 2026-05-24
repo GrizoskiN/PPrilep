@@ -6,7 +6,6 @@ import { X } from "lucide-react";
 import Topbar from "./Topbar";
 import LeftNav from "./LeftNav";
 import RightPanel from "./RightPanel";
-import BottomNav from "./BottomNav";
 import MarqueeBanner from "../ui/MarqueeBanner";
 import { useAuth } from "../../lib/hooks/useAuth";
 
@@ -22,6 +21,14 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
   const [menuOpenedAt, setMenuOpenedAt] = useState<number>(0);
 
   const closeMenu = () => setMenuOpen(false);
+
+  function handleMobileNavClick(e: React.MouseEvent<HTMLElement>) {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    if (target.closest("a[href]")) {
+      closeMenu();
+    }
+  }
 
   const openMenu = () => {
     setMenuOpenedAt(Date.now());
@@ -60,7 +67,8 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
           tag === "TEXTAREA" ||
           tag === "SELECT" ||
           target.isContentEditable
-        ) return;
+        )
+          return;
       }
       const main = mainRef.current;
       if (!main) return;
@@ -101,9 +109,9 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
 
   return (
     <>
-      <MarqueeBanner />
-      <div className="flex h-screen w-full max-w-350 mx-auto flex-col overflow-hidden bg-transparent">
-        <div className="flex h-full min-h-0   flex-1 flex-col overflow-hidden">
+      <div className="flex h-screen w-full flex-col overflow-hidden bg-transparent">
+        <MarqueeBanner />
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-350 flex-1 flex-col overflow-hidden">
           <div className="grid shrink-0 grid-cols-1 lg:grid-cols-[18%_1fr_18%]">
             <div className="hidden lg:block" />
             <Topbar onOpenMobileMenu={openMenu} />
@@ -120,7 +128,10 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
               ref={mainRef}
               tabIndex={-1}
               className="scrollbar-hidden min-h-0 overflow-y-auto pb-16 outline-none lg:pb-0">
-              <div className={fullWidth ? "w-full" : "mx-auto w-full max-w-166.75"}>
+              <div
+                className={
+                  fullWidth ? "w-full" : "mx-auto w-full max-w-166.75"
+                }>
                 {children}
               </div>
             </main>
@@ -130,8 +141,6 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
           </div>
         </div>
       </div>
-
-      <BottomNav />
 
       {menuOpen && (
         <button
@@ -144,7 +153,7 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[88vw] max-w-90 border-r border-[#e4ece8] bg-white shadow-xl transition-transform duration-200 ease-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-[80vw] max-w-72 border-r border-[#e4ece8] bg-white shadow-xl transition-transform duration-200 ease-out lg:hidden ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         onClick={(e) => e.stopPropagation()}>
@@ -187,7 +196,9 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
             </div>
           </section>
 
-          <section className="border-b border-[#e4ece8]">
+          <section
+            className="border-b border-[#e4ece8]"
+            onClickCapture={handleMobileNavClick}>
             <div className="px-4 pb-2 pt-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
                 Навигација

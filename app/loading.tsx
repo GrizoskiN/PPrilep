@@ -4,12 +4,12 @@ import Skeleton from "../components/ui/Skeleton";
 export default function HomeLoading() {
   return (
     <Shell>
-      <div className="mx-auto max-w-156 py-4 lg:py-6 lg:px-3">
+      <div className="mx-auto max-w-156 py-2 lg:py-6 lg:px-3">
         <div className="px-3 lg:px-0 space-y-2">
           <Skeleton className="h-7 w-56" />
           <Skeleton className="h-4 w-72" />
         </div>
-        <div className="bg-gray-100 p-4 lg:p-6 rounded-2xl lg:rounded-3xl mt-6 lg:mt-8 space-y-4">
+        <div className="bg-gray-100 p-2 lg:p-6 rounded-2xl lg:rounded-3xl mt-6 lg:mt-8 space-y-4">
           {[0, 1, 2].map((i) => (
             <section
               key={i}

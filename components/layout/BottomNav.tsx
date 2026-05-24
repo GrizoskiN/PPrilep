@@ -273,7 +273,7 @@ export default function BottomNav() {
             className="fixed inset-0 z-40 bg-black/40 lg:hidden"
             onClick={() => setAccountOpen(false)}
           />
-          <div className="fixed bottom-16 left-0 right-0 z-50 rounded-t-2xl bg-white shadow-2xl lg:hidden overflow-hidden">
+          <div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-white shadow-2xl lg:hidden overflow-hidden">
             <div className="flex justify-center pt-2 pb-1">
               <div className="h-1 w-10 rounded-full bg-zinc-200" />
             </div>

@@ -11,9 +11,9 @@ export default function StatusPill({ status }: { status: IssueStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+        "inline-flex items-center rounded-lg px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide",
         status === "resolved" && "bg-teal-600 text-white",
-        status === "open" && "bg-red-600 text-white",
+        status === "open" && "bg-amber-700 text-white",
         status === "progress" &&
           "bg-amber-50 border border-amber-300 text-amber-700",
       )}>
