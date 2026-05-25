@@ -117,7 +117,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
           </div>
         </Link>
 
-        <div className="pointer-events-none absolute left-1/2 hidden w-full max-w-166.75 -translate-x-1/2 px-4 lg:block">
+        <div className={`pointer-events-none absolute left-1/2 hidden w-full max-w-166.75 -translate-x-1/2 px-4 lg:block ${pathname.startsWith("/initiatives") ? "lg:hidden" : ""}`}>
           <div className="pointer-events-auto">
             <button
               type="button"
@@ -183,13 +183,15 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
         </div>
       </header>
 
-      <button
-        type="button"
-        onClick={handleReportClick}
-        className="fixed bottom-5 right-4 z-50 inline-flex h-13 w-13 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-colors hover:bg-primary/90 lg:hidden"
-        aria-label="Пријави проблем">
-        <Plus size={22} strokeWidth={2.5} />
-      </button>
+      {!pathname.startsWith("/initiatives") && (
+        <button
+          type="button"
+          onClick={handleReportClick}
+          className="fixed bottom-5 right-4 z-50 inline-flex h-13 w-13 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-colors hover:bg-primary/90 lg:hidden"
+          aria-label="Пријави проблем">
+          <Plus size={22} strokeWidth={2.5} />
+        </button>
+      )}
 
       {reportOpen && (
         <ReportModal

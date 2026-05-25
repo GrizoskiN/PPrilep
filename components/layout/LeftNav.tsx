@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   faHouse,
   faTriangleExclamation,
   faMedal,
-  faHandHoldingHeart,
   faLightbulb,
   faUsers,
   faDroplet,
@@ -24,9 +23,128 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Map } from "lucide-react";
-import NavItem from "../ui/NavItem";
 import { cn } from "../../lib/utils";
 import { createClient } from "../../lib/supabase/client";
+
+interface LeftNavItemProps {
+  href: string;
+  label: string;
+  iconNode: React.ReactNode;
+  iconTone?: IconTone;
+  badge?: string;
+  exact?: boolean;
+  requireNoSearchParams?: boolean;
+}
+
+type IconTone =
+  | "slate"
+  | "red"
+  | "blue"
+  | "amber"
+  | "green"
+  | "orange"
+  | "teal"
+  | "indigo"
+  | "violet"
+  | "zinc"
+  | "yellow"
+  | "cyan"
+  | "lime"
+  | "sky"
+  | "emerald";
+
+function getIconToneClasses(tone: IconTone): string {
+  switch (tone) {
+    case "red":
+      return "text-red-500 lg:group-hover:text-red-500";
+    case "blue":
+      return "text-blue-500 lg:group-hover:text-blue-500";
+    case "amber":
+      return "text-amber-500 lg:group-hover:text-amber-500";
+    case "green":
+      return "text-green-500 lg:group-hover:text-green-500";
+    case "orange":
+      return "text-orange-500 lg:group-hover:text-orange-500";
+    case "teal":
+      return "text-teal-500 lg:group-hover:text-teal-500";
+    case "indigo":
+      return "text-indigo-500 lg:group-hover:text-indigo-500";
+    case "violet":
+      return "text-violet-500 lg:group-hover:text-violet-500";
+    case "zinc":
+      return "text-zinc-500 lg:group-hover:text-zinc-500";
+    case "yellow":
+      return "text-yellow-500 lg:group-hover:text-yellow-500";
+    case "cyan":
+      return "text-cyan-500 lg:group-hover:text-cyan-500";
+    case "lime":
+      return "text-lime-500 lg:group-hover:text-lime-500";
+    case "sky":
+      return "text-sky-500 lg:group-hover:text-sky-500";
+    case "emerald":
+      return "text-emerald-500 lg:group-hover:text-emerald-500";
+    case "slate":
+    default:
+      return "text-slate-500 lg:group-hover:text-slate-500";
+  }
+}
+
+function LeftNavItem({
+  href,
+  label,
+  iconNode,
+  iconTone,
+  badge,
+  exact,
+  requireNoSearchParams,
+}: LeftNavItemProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [hrefPath, hrefQueryString] = href.split("?");
+  const hrefQuery = new URLSearchParams(hrefQueryString ?? "");
+
+  const matchesQuery = Array.from(hrefQuery.entries()).every(
+    ([key, value]) => searchParams.get(key) === value,
+  );
+
+  const active = hrefQueryString
+    ? pathname === hrefPath && matchesQuery
+    : exact
+      ? pathname === hrefPath &&
+        (!requireNoSearchParams || Array.from(searchParams.keys()).length === 0)
+      : pathname.startsWith(hrefPath);
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "group flex select-none items-center gap-2.5 rounded-lg px-3 py-2 text-[15px] font-medium text-theme-muted transition-all duration-150 ease-in-out cursor-pointer lg:text-sm",
+        active
+          ? "bg-slate-50 font-semibold text-theme-ink"
+          : "hover:bg-slate-50 hover:text-theme-ink",
+      )}>
+      <span
+        className={cn(
+          "w-4 text-center transition-colors duration-150",
+          active
+            ? getIconToneClasses(iconTone ?? "slate")
+            : cn("text-theme-muted", getIconToneClasses(iconTone ?? "slate")),
+        )}>
+        {iconNode}
+      </span>
+      {label}
+      {badge ? (
+        <span
+          className={cn(
+            "ml-auto rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-theme-muted",
+            active && "bg-[#ccfbf1] text-theme-ink",
+          )}>
+          {badge}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
 
 const districts = [
   { value: "all", label: "Прилеп" },
@@ -91,105 +209,87 @@ export default function LeftNav() {
     <nav className="scrollbar-hidden flex h-full min-h-0 flex-col gap-5 overflow-y-auto  py-4">
       <section>
         <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
-          Платформа
+          Граѓани
         </p>
         <div className="flex flex-col gap-1 ">
-          <NavItem
+          <LeftNavItem
             href="/"
             label="Почетна"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faHouse}
-                className="theme-ink-icons h-4 w-4"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faHouse} className="h-4 w-4" />}
+            iconTone="slate"
             exact
           />
-          <NavItem
+          <LeftNavItem
             href="/issues"
             label="Пријави"
             badge={`${activeIssuesCount}/${totalIssuesCount}`}
             iconNode={
               <FontAwesomeIcon
                 icon={faTriangleExclamation}
-                className="theme-ink-icons h-4 w-4"
+                className="h-4 w-4"
               />
             }
+            iconTone="red"
           />
-          <NavItem
-            href="/map"
-            label="Мапа"
-            iconNode={<Map className="theme-ink-icons h-4 w-4" />}
-          />
-          <NavItem
+          <div className="pl-5">
+            <LeftNavItem
+              href="/map"
+              label="Мапа на пријави"
+              iconNode={<Map className="h-4 w-4" />}
+              iconTone="blue"
+            />
+          </div>
+          <LeftNavItem
             href="/heroes"
             label="Херои"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faMedal}
-                className="theme-ink-icons h-4 w-4"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faMedal} className="h-4 w-4" />}
+            iconTone="amber"
           />
-          <NavItem
-            href="/fund"
-            label="Фонд"
+          <LeftNavItem
+            href="/initiatives"
+            label="Иницијативи"
             iconNode={
-              <FontAwesomeIcon
-                icon={faHandHoldingHeart}
-                className="theme-ink-icons h-4 w-4"
-              />
+              <FontAwesomeIcon icon={faLightbulb} className="h-4 w-4" />
             }
+            iconTone="orange"
           />
-          <NavItem
-            href="/ideas"
-            label="Идеи"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faLightbulb}
-                className="theme-ink-icons h-4 w-4"
-              />
-            }
-          />
-          <NavItem
+          <LeftNavItem
             href="/communities"
             label="Населби"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faUsers}
-                className="theme-ink-icons h-4 w-4"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faUsers} className="h-4 w-4" />}
+            iconTone="teal"
           />
-          <NavItem
+        </div>
+      </section>
+
+      <section>
+        <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
+          За платформата
+        </p>
+        <div className="flex flex-col gap-1 ">
+          <LeftNavItem
             href="/about"
-            label="Мој Прилеп"
+            label="За нас"
             iconNode={
-              <FontAwesomeIcon
-                icon={faAddressCard}
-                className="theme-ink-icons h-4 w-4"
-              />
+              <FontAwesomeIcon icon={faAddressCard} className="h-4 w-4" />
             }
+            iconTone="indigo"
           />
-          <NavItem
+          <LeftNavItem
             href="/projects"
             label="Наши Проекти"
             iconNode={
-              <FontAwesomeIcon
-                icon={faDiagramProject}
-                className="theme-ink-icons h-4 w-4"
-              />
+              <FontAwesomeIcon icon={faDiagramProject} className="h-4 w-4" />
             }
+            iconTone="violet"
           />
-          <NavItem
+          <LeftNavItem
             href="/sponsors"
             label="Партнери"
             iconNode={
-              <FontAwesomeIcon
-                icon={faHandshake}
-                className="theme-ink-icons h-4 w-4"
-              />
+              <FontAwesomeIcon icon={faHandshake} className="h-4 w-4" />
             }
+            iconTone="zinc"
           />
         </div>
       </section>
@@ -199,25 +299,19 @@ export default function LeftNav() {
           Информации
         </p>
         <div className="flex flex-col gap-1">
-          <NavItem
+          <LeftNavItem
             href="/positive"
             label="Позитива"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faSun}
-                className="theme-ink-icons h-4 w-4"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faSun} className="h-4 w-4" />}
+            iconTone="yellow"
           />
-          <NavItem
+          <LeftNavItem
             href="/events"
             label="Случувања"
             iconNode={
-              <FontAwesomeIcon
-                icon={faCalendarDays}
-                className="theme-ink-icons h-4 w-4"
-              />
+              <FontAwesomeIcon icon={faCalendarDays} className="h-4 w-4" />
             }
+            iconTone="cyan"
           />
         </div>
       </section>
@@ -227,65 +321,43 @@ export default function LeftNav() {
           Претпријатие
         </p>
         <div className="flex flex-col gap-1">
-          <NavItem
+          <LeftNavItem
             href="/utility/water"
             label="Водовод"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faDroplet}
-                className="theme-ink-icons h-4 w-4"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faDroplet} className="h-4 w-4" />}
+            iconTone="blue"
           />
-          <NavItem
+          <LeftNavItem
             href="/utility/garbage"
             label="Комуналец"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faTrashCan}
-                className="theme-ink-icons h-4 w-4"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faTrashCan} className="h-4 w-4" />}
+            iconTone="lime"
           />
-          <NavItem
+          <LeftNavItem
             href="/utility/power"
             label="Осветлување"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faPlug}
-                className="theme-ink-icons h-4 w-4"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faPlug} className="h-4 w-4" />}
+            iconTone="amber"
           />
-          <NavItem
+          <LeftNavItem
             href="/utility/transport"
             label="Градски превоз"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faBus}
-                className="theme-ink-icons h-4 w-4"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faBus} className="h-4 w-4" />}
+            iconTone="violet"
           />
-          <NavItem
+          <LeftNavItem
             href="/utility/parking"
             label="Паркинзи"
             iconNode={
-              <FontAwesomeIcon
-                icon={faSquareParking}
-                className="theme-ink-icons h-4 w-4"
-              />
+              <FontAwesomeIcon icon={faSquareParking} className="h-4 w-4" />
             }
+            iconTone="teal"
           />
-          <NavItem
+          <LeftNavItem
             href="/kindergarten"
             label="Градинки — Наша Иднина"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faChildren}
-                className="theme-ink-icons h-4 w-4"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faChildren} className="h-4 w-4" />}
+            iconTone="emerald"
           />
         </div>
       </section>

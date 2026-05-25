@@ -1,0 +1,134 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { createClient } from "../../lib/supabase/server";
+import type { InitiativeCategory } from "../../lib/types/database";
+
+// ── Validation ──────────────────────────────────────────────────────
+const CATEGORIES: readonly InitiativeCategory[] = [
+  "infrastructure",
+  "education",
+  "environment",
+  "culture",
+  "safety",
+  "health",
+  "other",
+] as const;
+
+const DISTRICTS = [
+  "Center",
+  "Varoš",
+  "Trizla",
+  "Točila",
+  "Rid",
+  "Tipski",
+  "Boncejca",
+  "KorzoMaalo",
+] as const;
+
+const createSchema = z.object({
+  title: z.string().trim().min(10, "Минимум 10 знаци").max(120, "Максимум 120 знаци"),
+  description: z.string().trim().min(50, "Минимум 50 знаци").max(2000, "Максимум 2000 знаци"),
+  category: z.enum(CATEGORIES as unknown as [InitiativeCategory, ...InitiativeCategory[]]),
+  district: z.enum(DISTRICTS).nullable().optional(),
+  street_name: z.string().trim().max(120).nullable().optional(),
+  problem_statement: z.string().trim().max(500).nullable().optional(),
+  expected_impact: z.string().trim().max(500).nullable().optional(),
+  target_amount: z
+    .union([z.coerce.number().positive("Износот мора да биде позитивен"), z.literal(null)])
+    .nullable()
+    .optional(),
+  funding_deadline: z.string().datetime().nullable().optional(),
+  cover_image_url: z.string().url().nullable().optional(),
+});
+
+type CreateResult =
+  | { success: true; id: string }
+  | { success: false; error: string; fieldErrors?: Record<string, string[]> };
+
+export async function createInitiative(formData: FormData): Promise<CreateResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/auth/login?next=/initiatives/new");
+  }
+
+  const raw = {
+    title: (formData.get("title") as string) ?? "",
+    description: (formData.get("description") as string) ?? "",
+    category: formData.get("category") as InitiativeCategory,
+    district: (formData.get("district") as string) || null,
+    street_name: (formData.get("street_name") as string) || null,
+    problem_statement: (formData.get("problem_statement") as string) || null,
+    expected_impact: (formData.get("expected_impact") as string) || null,
+    target_amount: formData.get("target_amount") ? Number(formData.get("target_amount")) : null,
+    funding_deadline: (formData.get("funding_deadline") as string) || null,
+    cover_image_url: (formData.get("cover_image_url") as string) || null,
+  };
+
+  const parsed = createSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Проверете ги полињата",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { data: row, error } = await supabase
+    .from("initiatives")
+    .insert({
+      user_id: user.id,
+      title: parsed.data.title,
+      description: parsed.data.description,
+      category: parsed.data.category,
+      district: parsed.data.district,
+      street_name: parsed.data.street_name,
+      problem_statement: parsed.data.problem_statement,
+      expected_impact: parsed.data.expected_impact,
+      target_amount: parsed.data.target_amount ?? null,
+      funding_deadline: parsed.data.funding_deadline ?? null,
+      cover_image_url: parsed.data.cover_image_url ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (error || !row) {
+    return { success: false, error: error?.message ?? "Грешка при креирање" };
+  }
+
+  revalidatePath("/initiatives");
+  return { success: true, id: row.id };
+}
+
+// ── Vote toggle ─────────────────────────────────────────────────────
+type VoteResult =
+  | { success: true; voted: boolean; count: number }
+  | { success: false; error: string };
+
+export async function castVoteOnInitiative(initiativeId: string): Promise<VoteResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: "NOT_AUTHENTICATED" };
+  }
+
+  const { data, error } = await supabase
+    .rpc("toggle_initiative_vote", { p_initiative_id: initiativeId })
+    .single<{ vote_count: number; voted: boolean }>();
+
+  if (error || !data) {
+    return { success: false, error: error?.message ?? "Грешка" };
+  }
+
+  revalidatePath("/initiatives");
+  return { success: true, voted: data.voted, count: data.vote_count };
+}

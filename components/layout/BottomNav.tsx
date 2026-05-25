@@ -37,7 +37,7 @@ function resolveNotifLink(link: string, title: string): string {
 const NAV_ITEMS = [
   { href: "/issues", label: "Пријави", icon: AlertTriangle },
   { href: "/heroes", label: "Херои", icon: Trophy },
-  { href: "/ideas", label: "Идеи", icon: Lightbulb },
+  { href: "/initiatives", label: "Иницијативи", icon: Lightbulb },
   { href: "/communities", label: "Населби", icon: MapPin },
 ];
 

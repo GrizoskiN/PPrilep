@@ -7,13 +7,17 @@ import Link from "next/link";
 import { X } from "lucide-react";
 import { CATEGORY_LABELS, getIssuePath } from "../../lib/utils";
 import { cn } from "../../lib/utils";
-import type { Category, District } from "../../lib/types/database";
+import type { Category, District, IssueStatus } from "../../lib/types/database";
+import StatusPill from "../../components/ui/StatusPill";
+import StatusTimelinePopup from "../../components/ui/StatusTimelinePopup";
 
 export type PinnedIssue = {
   id: number;
   title: string;
   category: Category;
-  status: string;
+  status: IssueStatus;
+  created_at: string;
+  updated_at?: string | null;
   street_name: string | null;
   photo_url: string | null;
   district: District;
@@ -22,34 +26,28 @@ export type PinnedIssue = {
 };
 
 const CATEGORY_COLORS: Record<Category, string> = {
-  road:      "#ef4444",
-  water:     "#3b82f6",
-  power:     "#f59e0b",
-  garbage:   "#84cc16",
-  park:      "#22c55e",
+  road: "#ef4444",
+  water: "#3b82f6",
+  power: "#f59e0b",
+  garbage: "#84cc16",
+  park: "#22c55e",
   negligent: "#f97316",
   transport: "#8b5cf6",
-  parking:   "#06b6d4",
-  admin:     "#6b7280",
-  other:     "#94a3b8",
-};
-
-const STATUS_MK: Record<string, string> = {
-  open:     "Отворено",
-  progress: "Во тек",
-  resolved: "Завршено",
+  parking: "#06b6d4",
+  admin: "#6b7280",
+  other: "#94a3b8",
 };
 
 // Approximate district centers for issues without a pin
 const DISTRICT_CENTERS: Record<District, [number, number]> = {
-  Center:     [21.5551, 41.3458],
-  Varoš:      [21.5490, 41.3510],
-  Trizla:     [21.5620, 41.3380],
-  Točila:     [21.5700, 41.3520],
-  Rid:        [21.5780, 41.3600],
-  Tipski:     [21.5450, 41.3540],
-  Boncejca:   [21.5350, 41.3480],
-  KorzoMaalo: [21.5510, 41.3430],
+  Center: [21.5551, 41.3458],
+  Varoš: [21.549, 41.351],
+  Trizla: [21.562, 41.338],
+  Točila: [21.57, 41.352],
+  Rid: [21.578, 41.36],
+  Tipski: [21.545, 41.354],
+  Boncejca: [21.535, 41.348],
+  KorzoMaalo: [21.551, 41.343],
 };
 
 // Prileple bounding box — users can't pan outside the city
@@ -99,15 +97,19 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [selected, setSelected] = useState<PinnedIssue | null>(null);
-  const [activeCategories, setActiveCategories] = useState<Set<Category>>(new Set());
+  const [showStatusPopup, setShowStatusPopup] = useState(false);
+  const [activeCategories, setActiveCategories] = useState<Set<Category>>(
+    new Set(),
+  );
 
   const allCategories = Array.from(
-    new Set(issues.map((i) => i.category))
+    new Set(issues.map((i) => i.category)),
   ) as Category[];
 
-  const visible = activeCategories.size === 0
-    ? issues
-    : issues.filter((i) => activeCategories.has(i.category));
+  const visible =
+    activeCategories.size === 0
+      ? issues
+      : issues.filter((i) => activeCategories.has(i.category));
 
   // Init map once
   useEffect(() => {
@@ -142,7 +144,7 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
       const isPinned = !!(issue.lat && issue.lng);
       const lngLat: [number, number] = isPinned
         ? [issue.lng!, issue.lat!]
-        : DISTRICT_CENTERS[issue.district] ?? [21.5551, 41.3458];
+        : (DISTRICT_CENTERS[issue.district] ?? [21.5551, 41.3458]);
 
       const el = createMarkerEl(CATEGORY_COLORS[issue.category], isPinned);
       const marker = new maplibregl.Marker({ element: el })
@@ -151,19 +153,21 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
 
       el.addEventListener("click", (e) => {
         e.stopPropagation();
+        setShowStatusPopup(false);
         setSelected(issue);
       });
       // el is the wrapper; click is already on wrapper ✓
 
       markersRef.current.push(marker);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible.length, activeCategories]);
 
   function toggleCategory(cat: Category) {
     setActiveCategories((prev) => {
       const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
       return next;
     });
   }
@@ -171,22 +175,29 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
   return (
     <div className="flex flex-col gap-3 px-4 py-4">
       {/* Category filter chips */}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400 mr-1">
+          Филтрирај по категорија:
+        </span>
         {allCategories.map((cat) => {
-          const active = activeCategories.size === 0 || activeCategories.has(cat);
+          const active =
+            activeCategories.size === 0 || activeCategories.has(cat);
           return (
             <button
               key={cat}
               onClick={() => toggleCategory(cat)}
               className={cn(
-                "flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold shadow border transition-all",
+                "flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-[12px] font-semibold  border transition-all",
                 active
                   ? "bg-white border-zinc-200 text-zinc-700"
                   : "bg-white/60 border-zinc-100 text-zinc-400",
               )}>
               <span
-                className="inline-block w-2 h-2 rounded-full shrink-0 transition-opacity"
-                style={{ background: CATEGORY_COLORS[cat], opacity: active ? 1 : 0.35 }}
+                className="inline-block w-2.5 h-2.5 rounded-full shrink-0 transition-opacity"
+                style={{
+                  background: CATEGORY_COLORS[cat],
+                  opacity: active ? 1 : 0.35,
+                }}
               />
               {CATEGORY_LABELS[cat]}
             </button>
@@ -195,83 +206,104 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
         {activeCategories.size > 0 && (
           <button
             onClick={() => setActiveCategories(new Set())}
-            className="rounded-full px-3 py-1 text-[11px] font-semibold shadow border bg-zinc-800 border-zinc-800 text-white">
-            Сите ×
+            className="rounded-xl px-3.5 py-1.5 text-[12px] font-semibold shadow-sm border bg-zinc-800 border-zinc-800 text-white">
+            Ресетирај
           </button>
         )}
       </div>
 
       {/* Map frame */}
       <div className="relative rounded-2xl overflow-hidden border border-zinc-200 h-150">
-      {/* Map */}
-      <div ref={containerRef} className="w-full h-full" onClick={() => setSelected(null)} />
-
-      {/* Issue popup */}
-      {selected && (
+        {/* Map */}
         <div
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-80 bg-white rounded-2xl shadow-2xl border border-zinc-100 overflow-hidden"
-          onClick={(e) => e.stopPropagation()}>
-          {/* Photo */}
-          {selected.photo_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={selected.photo_url}
-              alt={selected.title}
-              className="w-full h-36 object-cover"
-            />
-          )}
-          <div className="p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                {/* Category + approximate badge */}
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span
-                    className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ background: CATEGORY_COLORS[selected.category] }}
-                  />
-                  <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">
-                    {CATEGORY_LABELS[selected.category]}
+          ref={containerRef}
+          className="w-full h-full"
+          onClick={() => {
+            setShowStatusPopup(false);
+            setSelected(null);
+          }}
+        />
+
+        {/* Issue popup */}
+        {selected && (
+          <div
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-80 bg-white rounded-2xl shadow-2xl border border-zinc-100 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}>
+            {/* Photo */}
+            {selected.photo_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={selected.photo_url}
+                alt={selected.title}
+                className="w-full h-36 object-cover"
+              />
+            )}
+            <div className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  {/* Category + approximate badge */}
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span
+                      className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ background: CATEGORY_COLORS[selected.category] }}
+                    />
+                    <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">
+                      {CATEGORY_LABELS[selected.category]}
+                    </p>
+                    {!(selected.lat && selected.lng) && (
+                      <span className="text-[10px] text-zinc-300">
+                        · приближно
+                      </span>
+                    )}
+                  </div>
+                  {/* Title */}
+                  <p className="text-sm font-semibold text-zinc-800 leading-snug line-clamp-2">
+                    {selected.title}
                   </p>
-                  {!(selected.lat && selected.lng) && (
-                    <span className="text-[10px] text-zinc-300">· приближно</span>
+                  {/* Street */}
+                  {selected.street_name && (
+                    <p className="text-[11px] text-zinc-400 mt-0.5">
+                      {selected.street_name}
+                    </p>
                   )}
                 </div>
-                {/* Title */}
-                <p className="text-sm font-semibold text-zinc-800 leading-snug line-clamp-2">
-                  {selected.title}
-                </p>
-                {/* Street */}
-                {selected.street_name && (
-                  <p className="text-[11px] text-zinc-400 mt-0.5">{selected.street_name}</p>
-                )}
+                <button
+                  onClick={() => {
+                    setShowStatusPopup(false);
+                    setSelected(null);
+                  }}
+                  className="shrink-0 h-6 w-6 flex items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 transition-colors">
+                  <X size={13} />
+                </button>
               </div>
-              <button
-                onClick={() => setSelected(null)}
-                className="shrink-0 h-6 w-6 flex items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 transition-colors">
-                <X size={13} />
-              </button>
-            </div>
 
-            {/* Footer: status + CTA */}
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-zinc-100">
-              <span className={cn(
-                "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                selected.status === "resolved" ? "bg-teal-50 text-teal-700" :
-                selected.status === "progress"  ? "bg-amber-50 text-amber-700" :
-                                                  "bg-zinc-100 text-zinc-600",
-              )}>
-                {STATUS_MK[selected.status] ?? selected.status}
-              </span>
-              <Link
-                href={getIssuePath(selected.id, selected.title)}
-                className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors">
-                Отвори пријава →
-              </Link>
+              {/* Footer: status + CTA */}
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setShowStatusPopup(true)}
+                  className="cursor-pointer rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
+                  title="Кликни за статус детали"
+                  aria-label="Прикажи статус детали">
+                  <StatusPill status={selected.status} />
+                </button>
+                <Link
+                  href={getIssuePath(selected.id, selected.title)}
+                  className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors">
+                  Отвори пријава →
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      </div>{/* end map frame */}
+        )}
+        {selected && showStatusPopup && (
+          <StatusTimelinePopup
+            issue={selected}
+            onClose={() => setShowStatusPopup(false)}
+          />
+        )}
+      </div>
+      {/* end map frame */}
     </div>
   );
 }
