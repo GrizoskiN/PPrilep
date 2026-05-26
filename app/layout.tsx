@@ -6,8 +6,35 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Подобар Прилеп",
-  description: "Граѓанска платформа за пријавување градски проблеми во Прилеп",
+  title: "Мој Прилеп | Платформа за афирмација на граѓанските вредности",
+  description:
+    "Граѓанска платформа за афирмација на граѓанските вредности преку реализација на проекти од јавен интерес",
+  icons: {
+    icon: [
+      {
+        url: "/logo/logo-black.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/logo/logo-white.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+    shortcut: [
+      {
+        url: "/logo/logo-black.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/logo/logo-white.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+  },
 };
 
 export const viewport: Viewport = {

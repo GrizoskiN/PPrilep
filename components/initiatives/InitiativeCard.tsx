@@ -6,10 +6,14 @@ import { Coins, CircleCheck, Users } from "lucide-react";
 import { toast } from "sonner";
 import { castVoteOnInitiative } from "../../app/actions/initiatives";
 import { useInitiativeVoteSync } from "../../lib/hooks/useInitiativeVoteSync";
-import { CATEGORY_LABELS_INIT, STAGE_BADGE, STAGE_LABEL, daysRemaining } from "../../lib/initiatives";
+import {
+  CATEGORY_LABELS_INIT,
+  STAGE_BADGE,
+  STAGE_LABEL,
+  daysRemaining,
+} from "../../lib/initiatives";
 import { cn, DISTRICT_LABELS, formatDays } from "../../lib/utils";
 import AvatarInitials from "../ui/AvatarInitials";
-import Image from "next/image";
 import InitiativeDetailModal from "./InitiativeDetailModal";
 import SegmentedProgressBar from "./SegmentedProgressBar";
 import type { InitiativeWithDetails } from "../../lib/types/database";
@@ -26,7 +30,11 @@ function redirectToLogin() {
   location.href = `/auth/login?next=${encodeURIComponent(next)}`;
 }
 
-export default function InitiativeCard({ initiative, currentUserId, userVotedIds }: Props) {
+export default function InitiativeCard({
+  initiative,
+  currentUserId,
+  userVotedIds,
+}: Props) {
   const initialVoted = userVotedIds.includes(initiative.id);
 
   // Local "truth" — updated by realtime + server action results
@@ -80,132 +88,125 @@ export default function InitiativeCard({ initiative, currentUserId, userVotedIds
   }
 
   const districtLabel = initiative.district
-    ? DISTRICT_LABELS[initiative.district] ?? initiative.district
+    ? (DISTRICT_LABELS[initiative.district] ?? initiative.district)
     : null;
 
-  const authorName = initiative.author_full_name ?? initiative.author_username ?? "Анонимно";
+  const authorName =
+    initiative.author_full_name ?? initiative.author_username ?? "Анонимно";
   const stage = truth.stage;
   const showVoteCluster = stage === "idea" || stage === "voting";
 
-  const showCover =
-    !!initiative.cover_image_url && (stage === "idea" || stage === "voting");
-
   return (
     <>
-    <article
-      role="button"
-      tabIndex={0}
-      onClick={() => setOpen(true)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          setOpen(true);
-        }
-      }}
-      className="bg-white border border-zinc-200 rounded-xl p-4 space-y-3 cursor-pointer hover:border-zinc-300 hover:shadow-sm transition-all">
-      {showCover && initiative.cover_image_url && (
-        <div className="relative w-full h-40 rounded-lg overflow-hidden bg-zinc-100">
-          <Image
-            src={initiative.cover_image_url}
-            alt={initiative.title}
-            fill
-            sizes="(max-width: 768px) 100vw, 640px"
-            className="object-cover"
-          />
-        </div>
-      )}
-      <header className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded font-semibold",
-                STAGE_BADGE[stage],
-              )}>
-              {STAGE_LABEL[stage]}
-            </span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-slate-100 text-slate-700">
-              {CATEGORY_LABELS_INIT[initiative.category] ?? initiative.category}
-            </span>
-            {districtLabel && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-zinc-100 text-zinc-600">
-                {districtLabel}
+      <article
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
+        className="bg-white border border-zinc-200 rounded-xl p-4 space-y-3 cursor-pointer hover:border-zinc-300 hover:shadow-sm transition-all">
+        <header className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={cn(
+                  "text-[10px] px-1.5 py-0.5 rounded font-semibold",
+                  STAGE_BADGE[stage],
+                )}>
+                {STAGE_LABEL[stage]}
               </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-slate-100 text-slate-700">
+                {CATEGORY_LABELS_INIT[initiative.category] ??
+                  initiative.category}
+              </span>
+              {districtLabel && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-zinc-100 text-zinc-600">
+                  {districtLabel}
+                </span>
+              )}
+            </div>
+            <h3 className="text-sm font-medium mt-1.5 text-theme-ink">
+              {initiative.title}
+            </h3>
+            {initiative.street_name && (
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                {initiative.street_name}
+              </p>
             )}
-          </div>
-          <h3 className="text-sm font-medium mt-1.5 text-theme-ink">
-            {initiative.title}
-          </h3>
-          {initiative.street_name && (
-            <p className="text-[11px] text-zinc-400 mt-0.5">
-              {initiative.street_name}
+            <p className="text-[13px] text-theme-muted mt-1 line-clamp-2">
+              {initiative.description}
             </p>
+          </div>
+
+          {showVoteCluster && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onVote();
+              }}
+              disabled={isPending}
+              aria-pressed={optimistic.voted}
+              aria-label={optimistic.voted ? "Тргни глас" : "Гласај"}
+              className={cn(
+                "inline-flex items-center gap-1 pl-2 pr-2.5 py-1 rounded-full text-sm font-medium transition-colors shrink-0",
+                optimistic.voted
+                  ? "bg-primary text-white hover:bg-primary/90"
+                  : "text-zinc-500 hover:text-primary",
+              )}>
+              <span className="text-base leading-none">👏</span>
+              <span className="tabular-nums font-semibold">
+                {optimistic.count}
+              </span>
+            </button>
           )}
-          <p className="text-[13px] text-theme-muted mt-1 line-clamp-2">
-            {initiative.description}
+        </header>
+
+        {(stage === "idea" || stage === "voting") && (
+          <SegmentedProgressBar votes={optimistic.count} />
+        )}
+
+        {stage === "funding" && <FundingBlock initiative={initiative} />}
+
+        {stage === "completed" && <CompletedBlock initiative={initiative} />}
+
+        {stage === "rejected" && (
+          <p className="text-[12px] text-red-700">
+            Иницијативата е затворена без реализација.
           </p>
-        </div>
-
-        {showVoteCluster && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onVote(); }}
-            disabled={isPending}
-            aria-pressed={optimistic.voted}
-            aria-label={optimistic.voted ? "Тргни глас" : "Гласај"}
-            className={cn(
-              "inline-flex items-center gap-1 pl-2 pr-2.5 py-1 rounded-full text-sm font-medium transition-colors shrink-0",
-              optimistic.voted
-                ? "bg-primary text-white hover:bg-primary/90"
-                : "text-zinc-500 hover:text-primary",
-            )}>
-            <span className="text-base leading-none">👏</span>
-            <span className="tabular-nums font-semibold">{optimistic.count}</span>
-          </button>
         )}
-      </header>
 
-      {(stage === "idea" || stage === "voting") && (
-        <SegmentedProgressBar votes={optimistic.count} />
+        <footer className="flex items-center justify-between gap-2 pt-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <AvatarInitials name={authorName} size="sm" />
+            <span className="text-[11px] text-theme-subtle truncate">
+              {authorName} · {formatDays(initiative.created_at)}
+            </span>
+          </div>
+          {stage === "funding" && initiative.supporter_count > 0 && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-theme-muted">
+              <Users size={11} />
+              {initiative.supporter_count} поддржувачи
+            </span>
+          )}
+        </footer>
+      </article>
+
+      {open && (
+        <InitiativeDetailModal
+          initiative={{ ...initiative, vote_count: optimistic.count, stage }}
+          voted={optimistic.voted}
+          voteCount={optimistic.count}
+          isVoting={isPending}
+          canVote={!!currentUserId}
+          onVote={onVote}
+          onClose={() => setOpen(false)}
+        />
       )}
-
-      {stage === "funding" && <FundingBlock initiative={initiative} />}
-
-      {stage === "completed" && <CompletedBlock initiative={initiative} />}
-
-      {stage === "rejected" && (
-        <p className="text-[12px] text-red-700">
-          Иницијативата е затворена без реализација.
-        </p>
-      )}
-
-      <footer className="flex items-center justify-between gap-2 pt-1">
-        <div className="flex items-center gap-2 min-w-0">
-          <AvatarInitials name={authorName} size="sm" />
-          <span className="text-[11px] text-theme-subtle truncate">
-            {authorName} · {formatDays(initiative.created_at)}
-          </span>
-        </div>
-        {stage === "funding" && initiative.supporter_count > 0 && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-theme-muted">
-            <Users size={11} />
-            {initiative.supporter_count} поддржувачи
-          </span>
-        )}
-      </footer>
-    </article>
-
-    {open && (
-      <InitiativeDetailModal
-        initiative={{ ...initiative, vote_count: optimistic.count, stage }}
-        voted={optimistic.voted}
-        voteCount={optimistic.count}
-        isVoting={isPending}
-        canVote={!!currentUserId}
-        onVote={onVote}
-        onClose={() => setOpen(false)}
-      />
-    )}
     </>
   );
 }
@@ -219,12 +220,6 @@ function FundingBlock({ initiative }: { initiative: InitiativeWithDetails }) {
 
   return (
     <div className="space-y-2">
-      {initiative.cover_image_url && (
-        <div className="relative w-full h-40 rounded-lg overflow-hidden bg-zinc-100">
-          <Image src={initiative.cover_image_url} alt={initiative.title} fill sizes="(max-width: 768px) 100vw, 640px" className="object-cover" />
-        </div>
-      )}
-
       <div className="h-1.5 rounded-full bg-zinc-100 overflow-hidden">
         <div
           className="h-full rounded-full bg-emerald-500 transition-all"
@@ -252,7 +247,9 @@ function FundingBlock({ initiative }: { initiative: InitiativeWithDetails }) {
             )}>
             {days <= 0 ? "Истекло" : `${days} дена преостанати`}
           </span>
-        ) : <span />}
+        ) : (
+          <span />
+        )}
 
         <Link
           href={`/initiatives/${initiative.id}/donate`}
@@ -266,22 +263,21 @@ function FundingBlock({ initiative }: { initiative: InitiativeWithDetails }) {
 }
 
 function CompletedBlock({ initiative }: { initiative: InitiativeWithDetails }) {
-  const photo = initiative.completion_images?.[0];
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5 text-emerald-700">
         <CircleCheck size={14} />
         <span className="text-[12px] font-semibold">
-          Реализирано {initiative.completed_at ? `· ${formatDays(initiative.completed_at)}` : ""}
+          Реализирано{" "}
+          {initiative.completed_at
+            ? `· ${formatDays(initiative.completed_at)}`
+            : ""}
         </span>
       </div>
-      {photo && (
-        <div className="relative w-full h-32 rounded-lg overflow-hidden bg-zinc-100">
-          <Image src={photo} alt={initiative.title} fill sizes="(max-width: 768px) 100vw, 640px" className="object-cover" />
-        </div>
-      )}
       {initiative.completion_note && (
-        <p className="text-[12px] text-theme-muted line-clamp-2">{initiative.completion_note}</p>
+        <p className="text-[12px] text-theme-muted line-clamp-2">
+          {initiative.completion_note}
+        </p>
       )}
     </div>
   );

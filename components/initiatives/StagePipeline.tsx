@@ -17,9 +17,9 @@ const STEPS: {
   label: string;
   Icon: React.ComponentType<{ size?: number; className?: string }>;
 }[] = [
-  { value: "idea", label: "Идеи", Icon: Lightbulb },
-  { value: "voting", label: "На гласање", Icon: ThumbsUp },
-  { value: "funding", label: "Фонд кампањи", Icon: Coins },
+  { value: "idea", label: "Идеја", Icon: Lightbulb },
+  { value: "voting", label: "Поддршка", Icon: ThumbsUp },
+  { value: "funding", label: "Финансирање", Icon: Coins },
   { value: "completed", label: "Реализирано", Icon: CircleCheck },
 ];
 
@@ -56,54 +56,46 @@ export default function StagePipeline({ activeStage, counts }: Props) {
 
   return (
     <ol
-      className={cn(
-        "relative grid w-full grid-cols-4 items-start",
-        pending && "opacity-70",
-      )}>
-      {STEPS.slice(0, -1).map((_, i) => {
-        const lineFilled = isFilled(i) && isFilled(i + 1);
-        return (
-          <span
-            key={`line-${STEPS[i].value}`}
-            className={cn(
-              "pointer-events-none absolute top-7 h-0.5 rounded-full transition-colors",
-              lineFilled ? "bg-emerald-500" : "bg-zinc-200",
-            )}
-            style={{
-              left:
-                i === 0
-                  ? "30px"
-                  : i === 1
-                    ? "calc(37.5% + 15px)"
-                    : "calc(62.5% + 15px)",
-              width: i === 1 ? "calc(25% - 30px)" : "calc(37.5% - 45px)",
-            }}
-            aria-hidden
-          />
-        );
-      })}
-
+      className={cn("grid w-full grid-cols-4 gap-4", pending && "opacity-70")}>
       {STEPS.map((step, i) => {
         const filled = isFilled(i);
         const isActive = step.value === activeStage;
+        const lineFilled = i < STEPS.length - 1 && filled && isFilled(i + 1);
         const { Icon } = step;
         const count = counts[step.value];
 
         return (
-          <li
-            key={step.value}
-            className={cn(
-              "flex min-w-0",
-              i === 0 && "justify-start",
-              (i === 1 || i === 2) && "justify-center",
-              i === STEPS.length - 1 && "justify-end",
-            )}>
+          <li key={step.value} className="relative min-w-0">
             <button
               type="button"
               onClick={() => setStage(step.value)}
               aria-current={isActive ? "step" : undefined}
-              className="flex flex-col items-center gap-1 shrink-0 group"
-              style={{ minWidth: 0 }}>
+              className={cn(
+                "group relative flex w-full flex-col items-center gap-2 rounded-xl border px-3 py-3 text-center transition-all",
+                filled
+                  ? "border-emerald-500/50 bg-emerald-50/40"
+                  : "border-zinc-300 bg-white",
+                isActive && "ring-2 ring-emerald-200 ring-offset-2",
+              )}>
+              <span
+                className={cn(
+                  "relative flex items-center justify-center w-7.5 h-7.5 rounded-full border-2 transition-all",
+                  filled
+                    ? "border-emerald-500 bg-emerald-500 text-white"
+                    : "border-zinc-300 bg-white text-zinc-400",
+                  "group-hover:scale-105",
+                )}>
+                <Icon size={14} />
+                <span
+                  className={cn(
+                    "absolute -top-1.5 -right-1.5 inline-flex min-w-4 h-4 items-center justify-center rounded-full px-1 text-[9px] font-bold",
+                    count > 0
+                      ? "bg-slate-900 text-white"
+                      : "bg-zinc-100 text-zinc-500 border border-zinc-300",
+                  )}>
+                  {count}
+                </span>
+              </span>
               <span
                 className={cn(
                   "text-[11px] text-center transition-colors whitespace-nowrap",
@@ -115,23 +107,17 @@ export default function StagePipeline({ activeStage, counts }: Props) {
                 )}>
                 {step.label}
               </span>
+            </button>
+
+            {i < STEPS.length - 1 && (
               <span
                 className={cn(
-                  "relative flex items-center justify-center w-7.5 h-7.5 rounded-full border-2 transition-all",
-                  filled
-                    ? "border-emerald-500 bg-emerald-500 text-white"
-                    : "border-zinc-300 bg-white text-zinc-400",
-                  isActive && "ring-2 ring-emerald-200 ring-offset-2",
-                  "group-hover:scale-105",
-                )}>
-                <Icon size={14} />
-                {count > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-slate-900 text-white text-[9px] font-bold flex items-center justify-center">
-                    {count}
-                  </span>
+                  "pointer-events-none absolute top-1/2 -right-4 h-0.5 w-4 -translate-y-1/2 rounded-full transition-colors",
+                  lineFilled ? "bg-emerald-500" : "bg-zinc-300",
                 )}
-              </span>
-            </button>
+                aria-hidden
+              />
+            )}
           </li>
         );
       })}

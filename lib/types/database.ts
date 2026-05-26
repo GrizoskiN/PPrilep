@@ -35,7 +35,11 @@ export type Provider =
   | "parking"
   | "kindergarten";
 
-export type KindergartenPostType = "menu" | "programme" | "idea" | "announcement";
+export type KindergartenPostType =
+  | "menu"
+  | "programme"
+  | "idea"
+  | "announcement";
 export type CampaignStatus = "active" | "completed" | "cancelled";
 export type NotificationType =
   | "issue_comment"
@@ -149,7 +153,12 @@ export interface AppNotification {
 }
 
 // ── Initiatives ────────────────────────────────────────────────────────
-export type InitiativeStage = "idea" | "voting" | "funding" | "completed" | "rejected";
+export type InitiativeStage =
+  | "idea"
+  | "voting"
+  | "funding"
+  | "completed"
+  | "rejected";
 export type InitiativeCategory =
   | "infrastructure"
   | "education"

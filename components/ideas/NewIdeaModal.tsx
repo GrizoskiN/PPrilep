@@ -73,17 +73,15 @@ export default function NewIdeaModal({ userId, onClose, onSuccess }: Props) {
   async function onSubmit(values: Fields) {
     const street = values.street_name?.trim() || null;
     const number = streetNumber.trim();
-    const { error } = await supabase
-      .from("ideas")
-      .insert({
-        title: values.title.trim(),
-        body: values.body?.trim() || null,
-        street_name: street && number ? `${street} ${number}` : street,
-        district: values.district ?? null,
-        lat: pinLat,
-        lng: pinLng,
-        created_by: userId,
-      });
+    const { error } = await supabase.from("ideas").insert({
+      title: values.title.trim(),
+      body: values.body?.trim() || null,
+      street_name: street && number ? `${street} ${number}` : street,
+      district: values.district ?? null,
+      lat: pinLat,
+      lng: pinLng,
+      created_by: userId,
+    });
     if (error) {
       toast.error(error.message);
       return;
