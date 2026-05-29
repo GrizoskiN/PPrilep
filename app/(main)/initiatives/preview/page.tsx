@@ -6,7 +6,7 @@ export const metadata = {
 
 export default function InitiativesPreviewPage() {
   return (
-    <div className="px-4 py-4 space-y-4 max-w-2xl mx-auto">
+    <div className="px-4 py-4 space-y-4">
       <header>
         <h1 className="text-base font-semibold text-theme-heading">
           Преглед на гласови

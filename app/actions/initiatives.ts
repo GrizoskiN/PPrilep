@@ -30,10 +30,12 @@ const DISTRICTS = [
 
 const createSchema = z.object({
   title: z.string().trim().min(10, "Минимум 10 знаци").max(120, "Максимум 120 знаци"),
-  description: z.string().trim().min(50, "Минимум 50 знаци").max(2000, "Максимум 2000 знаци"),
+  description: z.string().trim().min(20, "Минимум 20 знаци").max(2000, "Максимум 2000 знаци"),
   category: z.enum(CATEGORIES as unknown as [InitiativeCategory, ...InitiativeCategory[]]),
   district: z.enum(DISTRICTS).nullable().optional(),
-  street_name: z.string().trim().max(120).nullable().optional(),
+  street_name: z.string().trim().max(160).nullable().optional(),
+  lat: z.coerce.number().nullable().optional(),
+  lng: z.coerce.number().nullable().optional(),
   problem_statement: z.string().trim().max(500).nullable().optional(),
   expected_impact: z.string().trim().max(500).nullable().optional(),
   target_amount: z
@@ -64,6 +66,8 @@ export async function createInitiative(formData: FormData): Promise<CreateResult
     category: formData.get("category") as InitiativeCategory,
     district: (formData.get("district") as string) || null,
     street_name: (formData.get("street_name") as string) || null,
+    lat: formData.get("lat") ? Number(formData.get("lat")) : null,
+    lng: formData.get("lng") ? Number(formData.get("lng")) : null,
     problem_statement: (formData.get("problem_statement") as string) || null,
     expected_impact: (formData.get("expected_impact") as string) || null,
     target_amount: formData.get("target_amount") ? Number(formData.get("target_amount")) : null,
@@ -89,6 +93,8 @@ export async function createInitiative(formData: FormData): Promise<CreateResult
       category: parsed.data.category,
       district: parsed.data.district,
       street_name: parsed.data.street_name,
+      lat: parsed.data.lat ?? null,
+      lng: parsed.data.lng ?? null,
       problem_statement: parsed.data.problem_statement,
       expected_impact: parsed.data.expected_impact,
       target_amount: parsed.data.target_amount ?? null,
@@ -104,6 +110,99 @@ export async function createInitiative(formData: FormData): Promise<CreateResult
 
   revalidatePath("/initiatives");
   return { success: true, id: row.id };
+}
+
+// ── Update (owner or admin; RLS enforces) ───────────────────────────
+export async function updateInitiative(
+  id: string,
+  formData: FormData,
+): Promise<CreateResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/auth/login?next=/initiatives");
+  }
+
+  const raw = {
+    title: (formData.get("title") as string) ?? "",
+    description: (formData.get("description") as string) ?? "",
+    category: formData.get("category") as InitiativeCategory,
+    district: (formData.get("district") as string) || null,
+    street_name: (formData.get("street_name") as string) || null,
+    lat: formData.get("lat") ? Number(formData.get("lat")) : null,
+    lng: formData.get("lng") ? Number(formData.get("lng")) : null,
+    problem_statement: (formData.get("problem_statement") as string) || null,
+    expected_impact: (formData.get("expected_impact") as string) || null,
+    target_amount: formData.get("target_amount") ? Number(formData.get("target_amount")) : null,
+    funding_deadline: (formData.get("funding_deadline") as string) || null,
+    cover_image_url: (formData.get("cover_image_url") as string) || null,
+  };
+
+  const parsed = createSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Проверете ги полињата",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  // Only the author-editable fields — never stage/votes/raised_amount.
+  const { data: row, error } = await supabase
+    .from("initiatives")
+    .update({
+      title: parsed.data.title,
+      description: parsed.data.description,
+      category: parsed.data.category,
+      district: parsed.data.district,
+      street_name: parsed.data.street_name,
+      lat: parsed.data.lat ?? null,
+      lng: parsed.data.lng ?? null,
+      problem_statement: parsed.data.problem_statement,
+      expected_impact: parsed.data.expected_impact,
+      target_amount: parsed.data.target_amount ?? null,
+      funding_deadline: parsed.data.funding_deadline ?? null,
+      cover_image_url: parsed.data.cover_image_url ?? null,
+    })
+    .eq("id", id)
+    .select("id")
+    .single();
+
+  if (error || !row) {
+    return {
+      success: false,
+      error: error?.message ?? "Немате дозвола или иницијативата не постои",
+    };
+  }
+
+  revalidatePath("/initiatives");
+  revalidatePath(`/initiatives/${id}`);
+  return { success: true, id: row.id };
+}
+
+// ── Delete (owner or admin; RLS enforces) ───────────────────────────
+type DeleteResult = { success: true } | { success: false; error: string };
+
+export async function deleteInitiative(id: string): Promise<DeleteResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: "NOT_AUTHENTICATED" };
+  }
+
+  const { error } = await supabase.from("initiatives").delete().eq("id", id);
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/initiatives");
+  return { success: true };
 }
 
 // ── Vote toggle ─────────────────────────────────────────────────────

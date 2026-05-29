@@ -51,6 +51,16 @@ export default async function InitiativesPage({ searchParams }: PageProps) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const isAdmin = user
+    ? (
+        await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", user.id)
+          .single()
+      ).data?.is_admin === true
+    : false;
+
   // ── Per-stage counts (single query) ──────────────────────────────────
   const { data: countRows } = await supabase
     .from("initiatives")
@@ -125,6 +135,7 @@ export default async function InitiativesPage({ searchParams }: PageProps) {
               initiative={i}
               currentUserId={user?.id}
               userVotedIds={userVotedIds}
+              isAdmin={isAdmin}
             />
           ))}
         </div>

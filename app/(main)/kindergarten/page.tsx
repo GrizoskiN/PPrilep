@@ -10,7 +10,7 @@ export default async function KindergartenPage() {
     .order("posted_at", { ascending: false });
 
   return (
-    <div className="p-4 lg:p-6 space-y-5 max-w-2xl mx-auto">
+    <div className="p-4 lg:p-6 space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div

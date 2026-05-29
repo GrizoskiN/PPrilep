@@ -2,12 +2,14 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import Topbar from "./Topbar";
 import LeftNav from "./LeftNav";
 import RightPanel from "./RightPanel";
 import MarqueeBanner from "../ui/MarqueeBanner";
 import { useAuth } from "../../lib/hooks/useAuth";
+import { usesThreeColumns } from "../../lib/layout";
 
 interface Props {
   children: React.ReactNode;
@@ -17,6 +19,13 @@ interface Props {
 
 export default function Shell({ children, rightPanel, fullWidth }: Props) {
   const { user, profile } = useAuth();
+  const pathname = usePathname();
+
+  // 3-column routes keep the right info panel; everything else collapses the
+  // middle + right into one wide column (see lib/layout.ts).
+  const threeColumn = usesThreeColumns(pathname ?? "/");
+  // In the 2-column layout the main content spans the full combined width.
+  const contentFull = fullWidth || !threeColumn;
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuOpenedAt, setMenuOpenedAt] = useState<number>(0);
 
@@ -118,7 +127,12 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
             <div className="hidden lg:block" />
           </div>
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)_250px] xl:grid-cols-[280px_minmax(0,1fr)_280px]">
+          <div
+            className={`grid min-h-0 flex-1 grid-cols-1 ${
+              threeColumn
+                ? "lg:grid-cols-[250px_minmax(0,1fr)_250px] xl:grid-cols-[280px_minmax(0,1fr)_280px]"
+                : "lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)]"
+            }`}>
             <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block">
               <Suspense fallback={<div className="h-full" />}>
                 <LeftNav />
@@ -130,14 +144,16 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
               className="scrollbar-hidden min-h-0 overflow-y-auto pb-16 outline-none lg:pb-0">
               <div
                 className={
-                  fullWidth ? "w-full" : "mx-auto w-full max-w-166.75"
+                  contentFull ? "w-full" : "mx-auto w-full max-w-166.75"
                 }>
                 {children}
               </div>
             </main>
-            <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block">
-              {rightPanel ?? <RightPanel />}
-            </div>
+            {threeColumn && (
+              <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block">
+                {rightPanel ?? <RightPanel />}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -209,14 +225,16 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
             </Suspense>
           </section>
 
-          <section>
-            <div className="px-4 pb-2 pt-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                Инфо панел
-              </p>
-            </div>
-            <div className="pb-6">{rightPanel ?? <RightPanel />}</div>
-          </section>
+          {threeColumn && (
+            <section>
+              <div className="px-4 pb-2 pt-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  Инфо панел
+                </p>
+              </div>
+              <div className="pb-6">{rightPanel ?? <RightPanel />}</div>
+            </section>
+          )}
         </div>
       </aside>
     </>

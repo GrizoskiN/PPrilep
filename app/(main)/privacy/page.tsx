@@ -5,7 +5,7 @@ export const metadata = {
 
 export default function PrivacyPage() {
   return (
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6 text-sm text-zinc-700 leading-relaxed">
+      <div className="px-4 py-8 space-y-6 text-sm text-zinc-700 leading-relaxed">
         <div>
           <h1 className="text-xl font-bold text-zinc-900">Политика на приватност</h1>
           <p className="text-xs text-zinc-400 mt-1">Последна измена: мај 2025</p>

@@ -22,7 +22,7 @@ export default async function IdeaDetailPage({ params }: Props) {
   if (!idea) notFound();
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-3 py-4">
+    <div className="space-y-4 px-3 py-4">
       <article className="rounded-xl border border-zinc-200 bg-white p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">

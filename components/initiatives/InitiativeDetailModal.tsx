@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   X,
   Coins,
@@ -9,7 +10,11 @@ import {
   Users,
   Calendar,
   MapPin,
+  MoreVertical,
+  Pencil,
+  Trash2,
 } from "lucide-react";
+import { deleteInitiative } from "../../app/actions/initiatives";
 import {
   CATEGORY_LABELS_INIT,
   STAGE_BADGE,
@@ -30,6 +35,10 @@ interface Props {
   canVote: boolean;
   onVote: () => void;
   onClose: () => void;
+  currentUserId?: string;
+  isAdmin?: boolean;
+  /** Called after a successful delete so the parent can refresh the list. */
+  onDeleted?: () => void;
 }
 
 export default function InitiativeDetailModal({
@@ -40,7 +49,41 @@ export default function InitiativeDetailModal({
   canVote,
   onVote,
   onClose,
+  currentUserId,
+  isAdmin = false,
+  onDeleted,
 }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const isOwner = !!currentUserId && currentUserId === initiative.user_id;
+  const canEdit = isOwner;
+  const canDelete = isOwner || isAdmin;
+
+  async function handleDelete() {
+    if (
+      !window.confirm(
+        "Дали сте сигурни дека сакате трајно да ја избришете оваа иницијатива?",
+      )
+    )
+      return;
+    setDeleting(true);
+    const res = await deleteInitiative(initiative.id);
+    setDeleting(false);
+    if (!res.success) {
+      toast.error(
+        res.error === "NOT_AUTHENTICATED"
+          ? "Најавете се повторно"
+          : res.error,
+      );
+      return;
+    }
+    toast.success("Иницијативата е избришана");
+    setMenuOpen(false);
+    onClose();
+    onDeleted?.();
+  }
+
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -85,13 +128,53 @@ export default function InitiativeDetailModal({
               {CATEGORY_LABELS_INIT[initiative.category] ?? initiative.category}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Затвори"
-            className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900">
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {(canEdit || canDelete) && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((o) => !o)}
+                  aria-label="Опции"
+                  className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900">
+                  <MoreVertical size={16} />
+                </button>
+                {menuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
+                      {canEdit && (
+                        <Link
+                          href={`/initiatives/${initiative.id}/edit`}
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50">
+                          <Pencil size={14} /> Уреди
+                        </Link>
+                      )}
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={handleDelete}
+                          disabled={deleting}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-60">
+                          <Trash2 size={14} />
+                          {deleting ? "Се брише…" : "Избриши"}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Затвори"
+              className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900">
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable body */}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useOptimistic, useState, useTransition, useCallback } from "react";
 import { Coins, CircleCheck, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ interface Props {
   initiative: InitiativeWithDetails;
   currentUserId?: string;
   userVotedIds: string[];
+  isAdmin?: boolean;
 }
 
 function redirectToLogin() {
@@ -34,7 +36,9 @@ export default function InitiativeCard({
   initiative,
   currentUserId,
   userVotedIds,
+  isAdmin = false,
 }: Props) {
+  const router = useRouter();
   const initialVoted = userVotedIds.includes(initiative.id);
 
   // Local "truth" — updated by realtime + server action results
@@ -205,6 +209,9 @@ export default function InitiativeCard({
           canVote={!!currentUserId}
           onVote={onVote}
           onClose={() => setOpen(false)}
+          currentUserId={currentUserId}
+          isAdmin={isAdmin}
+          onDeleted={() => router.refresh()}
         />
       )}
     </>

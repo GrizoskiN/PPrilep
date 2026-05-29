@@ -179,6 +179,8 @@ export interface Initiative {
   vote_threshold: number;
   district: District | null;
   street_name: string | null;
+  lat: number | null;
+  lng: number | null;
   cover_image_url: string | null;
   image_urls: string[];
   problem_statement: string | null;

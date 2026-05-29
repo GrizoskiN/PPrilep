@@ -1,0 +1,654 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { useForm, Controller, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  ImagePlus,
+  Lightbulb,
+  MapPin,
+  X,
+} from "lucide-react";
+import { createClient } from "../../lib/supabase/client";
+import Button from "./Button";
+import StreetAutocomplete from "../issues/StreetAutocomplete";
+import DuplicateAlert, { type SimilarIssue } from "../issues/DuplicateAlert";
+import NewInitiativeForm from "../initiatives/NewInitiativeForm";
+import { toast } from "sonner";
+
+const LocationPickerModal = dynamic(
+  () => import("../issues/LocationPickerModal"),
+  { ssr: false },
+);
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+const DISTRICTS = [
+  "Center",
+  "Varoš",
+  "Trizla",
+  "Točila",
+  "Rid",
+  "Tipski",
+  "Boncejca",
+  "KorzoMaalo",
+] as const;
+
+const REPORT_CATEGORIES = [
+  "road",
+  "water",
+  "power",
+  "garbage",
+  "park",
+  "negligent",
+  "transport",
+  "parking",
+  "admin",
+  "other",
+] as const;
+
+const DISTRICT_MK: Record<string, string> = {
+  Center: "Центар",
+  Varoš: "Варош",
+  Trizla: "Тризла",
+  Točila: "Точила",
+  Rid: "Рид",
+  Tipski: "Типски",
+  Boncejca: "Бончејца",
+  KorzoMaalo: "Корзо Маало",
+};
+
+const CATEGORY_MK: Record<string, string> = {
+  road: "Патишта",
+  water: "Вода",
+  power: "Осветлување",
+  garbage: "Ѓубре",
+  park: "Парк",
+  negligent: "Несовесни граѓани",
+  transport: "Градски превоз",
+  parking: "Паркинзи",
+  admin: "Јавна Администрација",
+  other: "Друго",
+};
+
+// ── Schemas ────────────────────────────────────────────────────────────────────
+const reportSchema = z.object({
+  title: z.string().min(5, "Насловот мора да има барем 5 знаци"),
+  description: z.string().optional(),
+  street_name: z.string().optional(),
+  district: z.enum(DISTRICTS),
+  category: z.enum(REPORT_CATEGORIES),
+});
+type ReportFields = z.infer<typeof reportSchema>;
+
+// ── Component types ────────────────────────────────────────────────────────────
+type Step = "choose" | "report" | "idea";
+
+interface Props {
+  userId?: string;
+  onClose: () => void;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+export default function ActionModal({ userId, onClose }: Props) {
+  const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
+
+  // ── Shell ─────────────────────────────────────────────────────────────────────
+  const [step, setStep] = useState<Step>("choose");
+  const [open, setOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [swipeDy, setSwipeDy] = useState(0);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const dragHandleRef = useRef<HTMLDivElement>(null);
+
+  // ── Report state ──────────────────────────────────────────────────────────────
+  const [reportFile, setReportFile] = useState<File | null>(null);
+  const [reportPreview, setReportPreview] = useState<string | null>(null);
+  const [reportStreetNum, setReportStreetNum] = useState("");
+  const [reportPinLat, setReportPinLat] = useState<number | null>(null);
+  const [reportPinLng, setReportPinLng] = useState<number | null>(null);
+  const [similar, setSimilar] = useState<SimilarIssue[]>([]);
+  const [dupDismissed, setDupDismissed] = useState(false);
+  const reportFileRef = useRef<HTMLInputElement>(null);
+
+  // ── Location picker (report only) ───────────────────────────────────────────────
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // ── Breakpoint detection ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 640px)");
+    const apply = () => setIsDesktop(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  // ── Entrance animation ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setOpen(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  // ── Animated close ────────────────────────────────────────────────────────────
+  const handleClose = useCallback(() => {
+    setOpen(false);
+    setSwipeDy(0);
+    setTimeout(onClose, 280);
+  }, [onClose]);
+
+  // ── Drag-to-close (handle only) ───────────────────────────────────────────────
+  useEffect(() => {
+    const el = dragHandleRef.current;
+    if (!el) return;
+    let startY = 0;
+    let dragging = false;
+    let currentDy = 0;
+
+    function onStart(e: TouchEvent) {
+      startY = e.touches[0].clientY;
+      dragging = false;
+      currentDy = 0;
+    }
+    function onMove(e: TouchEvent) {
+      const dy = e.touches[0].clientY - startY;
+      if (!dragging && dy > 8) dragging = true;
+      if (dragging) {
+        e.preventDefault();
+        currentDy = Math.max(0, dy);
+        setSwipeDy(currentDy);
+      }
+    }
+    function onEnd() {
+      if (dragging && currentDy > 80) {
+        handleClose();
+      } else if (dragging) {
+        setSwipeDy(0);
+      }
+      dragging = false;
+      currentDy = 0;
+    }
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  }, [handleClose]);
+
+  // ── Escape key ────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (step !== "choose") setStep("choose");
+      else handleClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [step, handleClose]);
+
+  // ── React Hook Form: Report ───────────────────────────────────────────────────
+  const {
+    register: rReg,
+    handleSubmit: rSubmit,
+    control: rCtrl,
+    setValue: rSet,
+    getValues: rGet,
+    formState: { errors: rErr, isSubmitting: rBusy },
+  } = useForm<ReportFields>({
+    resolver: zodResolver(reportSchema),
+    defaultValues: { district: "Center", category: "road" },
+  });
+
+  const watchedCategory = useWatch({ control: rCtrl, name: "category" });
+  const watchedStreet = useWatch({ control: rCtrl, name: "street_name" });
+
+  useEffect(() => {
+    const street = (watchedStreet ?? "").trim();
+    const hasPin = reportPinLat !== null && reportPinLng !== null;
+    if (!watchedCategory || (street.length < 3 && !hasPin)) {
+      const id = setTimeout(() => setSimilar([]), 0);
+      return () => clearTimeout(id);
+    }
+    const id = setTimeout(async () => {
+      const { data, error } = await supabase.rpc("find_similar_issues", {
+        p_category: watchedCategory,
+        p_street: street.length >= 3 ? street : null,
+        p_lat: reportPinLat,
+        p_lng: reportPinLng,
+        p_radius_m: 200,
+        p_limit: 5,
+      });
+      if (!error) {
+        setSimilar((data ?? []) as SimilarIssue[]);
+        setDupDismissed(false);
+      }
+    }, 400);
+    return () => clearTimeout(id);
+  }, [watchedCategory, watchedStreet, reportPinLat, reportPinLng, supabase]);
+
+  // ── Report submit ─────────────────────────────────────────────────────────────
+  async function onReportSubmit(values: ReportFields) {
+    if (!userId) {
+      const next = `${location.pathname}${location.search}`;
+      window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
+      return;
+    }
+    let photoUrl: string | null = null;
+    if (reportFile) {
+      const ext = reportFile.name.split(".").pop();
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { data, error } = await supabase.storage
+        .from("issue-photos")
+        .upload(path, reportFile, { contentType: reportFile.type });
+      if (error) {
+        toast.error("Грешка при прикачување на фотографијата");
+        return;
+      }
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("issue-photos").getPublicUrl(data.path);
+      photoUrl = publicUrl;
+    }
+    const base = values.street_name?.trim() || null;
+    const num = reportStreetNum.trim();
+    const { error } = await supabase.from("issues").insert({
+      ...values,
+      street_name: base && num ? `${base} ${num}` : base,
+      reported_by: userId,
+      photo_url: photoUrl,
+      lat: reportPinLat,
+      lng: reportPinLng,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Проблемот е пријавен!");
+    handleClose();
+  }
+
+  // ── Derived ───────────────────────────────────────────────────────────────────
+  const atForm = step === "report" || step === "idea";
+  const headerTitle =
+    step === "report"
+      ? "Пријави проблем"
+      : step === "idea"
+        ? "Нова идеја"
+        : "Учествувај";
+
+  // ──────────────────────────────────────────────────────────────────────────────
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-50 bg-black/40 transition-opacity duration-500"
+        style={{ opacity: open ? 1 : 0 }}
+        onClick={handleClose}
+      />
+
+      {/* Positioner */}
+      <div className="pointer-events-none  fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+        <div
+          ref={drawerRef}
+          className={`pointer-events-auto flex w-full flex-col overflow-hidden bg-white shadow-2xl sm:max-w-xl sm:rounded-2xl${swipeDy === 0 ? " transition-[transform,opacity] duration-500 ease-out" : ""}`}
+          style={{
+            transform: isDesktop
+              ? open
+                ? "translateY(0)"
+                : "translateY(-42px)"
+              : open
+                ? `translateY(${swipeDy}px)`
+                : "translateY(110%)",
+            opacity: isDesktop ? (open ? 1 : 0) : 1,
+            // Fixed height so the modal stays the same size across steps
+            height: "85dvh",
+            maxHeight: "95dvh",
+            // Round top corners on mobile (bottom sheet)
+            borderRadius: isDesktop ? undefined : "1rem 1rem 0 0",
+          }}>
+          {/* ── Drag handle — mobile only ── */}
+          <div
+            ref={dragHandleRef}
+            className="flex shrink-0 cursor-grab touch-none justify-center pb-2 pt-3 active:cursor-grabbing sm:hidden">
+            <div className="pointer-events-none h-1.5 w-12 rounded-full bg-zinc-300" />
+          </div>
+
+          {/* ── Sticky header ── */}
+          <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 py-3">
+            <div className="flex items-center gap-2">
+              {atForm ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setStep("choose")}
+                    aria-label="Назад"
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200">
+                    <ArrowLeft size={16} />
+                  </button>
+                  <h2 className="text-base font-semibold">{headerTitle}</h2>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/logo/logo-black.svg"
+                    alt="Мој Прилеп"
+                    className="h-7 w-7"
+                  />
+                  <div className="flex items-baseline gap-1 text-lg leading-none tracking-tight">
+                    <span className="font-semibold text-slate-900">Мој</span>
+                    <span className="font-semibold text-primary">Прилеп</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Затвори"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200">
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* ── Step slider ── */}
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <div
+              className="flex h-full"
+              style={{
+                width: "200%",
+                transform: atForm ? "translateX(-50%)" : "translateX(0%)",
+                transition: "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)",
+              }}>
+              {/* ══ Panel 0: Chooser ══ */}
+              <div className="desktop-scrollbar-hidden w-1/2 overflow-y-auto">
+                <div className="flex min-h-full flex-col p-5">
+                  {/* Choice cards — grow to fill the remaining space */}
+                  <div className="flex flex-1 flex-col gap-4">
+                    {/* Report Problem */}
+                    <button
+                      type="button"
+                      onClick={() => setStep("report")}
+                      className="group flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl bg-zinc-100 p-5 text-center transition-colors hover:bg-zinc-200 active:scale-[0.99]">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm">
+                        <AlertTriangle size={30} className="text-zinc-600" />
+                      </div>
+                      <div>
+                        <p className="text-base font-bold text-zinc-900">
+                          Пријави Проблем
+                        </p>
+                        <p className="mt-1 text-sm leading-relaxed text-zinc-500">
+                          Дупка, расипана светилка, нечистотии и слично.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Share Idea */}
+                    <button
+                      type="button"
+                      onClick={() => setStep("idea")}
+                      className="group flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl bg-zinc-100 p-5 text-center transition-colors hover:bg-zinc-200 active:scale-[0.99]">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm">
+                        <Lightbulb size={30} className="text-zinc-600" />
+                      </div>
+                      <div>
+                        <p className="text-base font-bold text-zinc-900">
+                          Кажи си ја Идејата
+                        </p>
+                        <p className="mt-1 text-sm leading-relaxed text-zinc-500">
+                          Парк, патека, настан или нешто друго за Прилеп.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ══ Panel 1: Forms ══ */}
+              <div className="desktop-scrollbar-hidden w-1/2 overflow-y-auto">
+                {/* ── Report form ── */}
+                <div className={step === "report" ? "block" : "hidden"}>
+                  <form
+                    onSubmit={rSubmit(onReportSubmit)}
+                    className="space-y-4 p-4 sm:p-5">
+                    <div>
+                      <label className="text-sm font-medium text-zinc-700">
+                        Наслов *
+                      </label>
+                      <input
+                        {...rReg("title")}
+                        placeholder="Кратко опишете го проблемот"
+                        className="mt-1.5 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-teal-500"
+                      />
+                      {rErr.title && (
+                        <p className="mt-1 text-[11px] text-red-500">
+                          {rErr.title.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-zinc-700">
+                        Опис
+                      </label>
+                      <textarea
+                        {...rReg("description")}
+                        rows={3}
+                        placeholder="Додајте повеќе детали…"
+                        className="mt-1.5 w-full resize-none rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-teal-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-zinc-700">
+                        Улица / локација
+                      </label>
+                      <div className="mt-1.5 flex items-stretch gap-2">
+                        <div className="min-w-0 flex-1">
+                          <Controller
+                            name="street_name"
+                            control={rCtrl}
+                            render={({ field }) => (
+                              <StreetAutocomplete
+                                value={field.value ?? ""}
+                                onChange={field.onChange}
+                                placeholder="пр. Партизанска"
+                                onSelect={(s) => {
+                                  if (s.district)
+                                    rSet("district", s.district, {
+                                      shouldDirty: true,
+                                    });
+                                }}
+                              />
+                            )}
+                          />
+                        </div>
+                        <input
+                          value={reportStreetNum}
+                          onChange={(e) =>
+                            setReportStreetNum(
+                              e.target.value.replace(/[^\d\w/]/g, ""),
+                            )
+                          }
+                          placeholder="Бр."
+                          maxLength={8}
+                          className="w-14 shrink-0 rounded-xl border border-zinc-200 px-2 text-center text-sm outline-none transition-colors focus:border-teal-500"
+                        />
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between gap-2">
+                        <p className="text-[10px] leading-snug text-zinc-400">
+                          Не ја знаете точната адреса?
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setPickerOpen(true)}
+                          className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors ${
+                            reportPinLat !== null
+                              ? "border-teal-300 bg-teal-50 text-teal-700 hover:bg-teal-100"
+                              : "border-zinc-200 bg-white text-slate-600 hover:border-teal-300 hover:text-teal-700"
+                          }`}>
+                          {reportPinLat !== null ? (
+                            <>
+                              <Check size={11} /> Локацијата е поставена
+                            </>
+                          ) : (
+                            <>
+                              <MapPin size={11} /> Обележи на мапа
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-sm font-medium text-zinc-700">
+                          Населба *
+                        </label>
+                        <select
+                          {...rReg("district")}
+                          className="mt-1.5 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500">
+                          {DISTRICTS.map((d) => (
+                            <option key={d} value={d}>
+                              {DISTRICT_MK[d]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-zinc-700">
+                          Категорија *
+                        </label>
+                        <select
+                          {...rReg("category")}
+                          className="mt-1.5 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500">
+                          {REPORT_CATEGORIES.map((c) => (
+                            <option key={c} value={c}>
+                              {CATEGORY_MK[c]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-zinc-700">
+                        Фотографија{" "}
+                        <span className="text-zinc-400">(незадолжително)</span>
+                      </label>
+                      <input
+                        ref={reportFileRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          setReportFile(f);
+                          setReportPreview(URL.createObjectURL(f));
+                        }}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => reportFileRef.current?.click()}
+                        className="mt-1.5 flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 px-4 py-6 text-sm text-zinc-500 transition-colors hover:border-teal-400 hover:bg-teal-50/40 hover:text-teal-600">
+                        <ImagePlus size={28} className="text-zinc-400" />
+                        <span>
+                          {reportFile
+                            ? reportFile.name
+                            : "Кликнете за да додадете фотографија"}
+                        </span>
+                      </button>
+                      {reportPreview && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={reportPreview}
+                          alt="Преглед"
+                          className="mt-2 max-h-52 w-full rounded-xl border border-zinc-200 object-cover"
+                        />
+                      )}
+                    </div>
+
+                    {!dupDismissed && similar.length > 0 && (
+                      <DuplicateAlert
+                        similar={similar}
+                        onDismiss={() => setDupDismissed(true)}
+                      />
+                    )}
+
+                    <div className="sticky bottom-0 z-10 -mx-4 flex justify-end gap-3 border-t border-zinc-100 bg-white/95 px-4 pb-1 pt-3 backdrop-blur sm:-mx-5 sm:px-5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={handleClose}
+                        className="px-6 py-3 text-base">
+                        Откажи
+                      </Button>
+                      <Button
+                        type="submit"
+                        variant="teal"
+                        disabled={rBusy}
+                        className="px-8 py-3 text-base">
+                        {rBusy ? "Се испраќа…" : "Пријави"}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* ── Idea wizard (creates an initiative at stage „idea“) ── */}
+                <div className={step === "idea" ? "h-full" : "hidden"}>
+                  <NewInitiativeForm
+                    embedded
+                    onCancel={() => setStep("choose")}
+                    onSuccess={() => {
+                      router.push("/initiatives?stage=idea");
+                      handleClose();
+                    }}
+                  />
+                </div>
+              </div>
+              {/* end panels track */}
+            </div>
+          </div>
+          {/* end slider */}
+        </div>
+      </div>
+
+      {/* ── Location picker (report) ── */}
+      {pickerOpen && (
+        <LocationPickerModal
+          initialLat={reportPinLat}
+          initialLng={reportPinLng}
+          onClose={() => setPickerOpen(false)}
+          onConfirm={(lat, lng, streetOnly, matched, houseNumber) => {
+            setReportPinLat(lat);
+            setReportPinLng(lng);
+            if (streetOnly) {
+              const cur = (rGet("street_name") ?? "").trim();
+              if (!cur) rSet("street_name", streetOnly, { shouldDirty: true });
+            }
+            if (houseNumber) setReportStreetNum(houseNumber);
+            if (matched?.district)
+              rSet("district", matched.district, { shouldDirty: true });
+            toast.success(
+              streetOnly
+                ? `Локацијата е зачувана: ${streetOnly}${houseNumber ? " " + houseNumber : ""}`
+                : "Локацијата е зачувана",
+            );
+            setPickerOpen(false);
+          }}
+        />
+      )}
+    </>
+  );
+}

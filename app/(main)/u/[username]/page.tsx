@@ -78,7 +78,7 @@ export default async function PublicProfilePage({ params }: Props) {
   const displayName = profile.full_name ?? profile.username ?? "Корисник";
 
   return (
-      <div className="mx-auto w-full max-w-4xl px-4 py-6 space-y-5">
+      <div className="w-full px-4 py-6 space-y-5">
         {/* ── Profile header ── */}
         <section className="rounded-3xl border border-[#e4ece8] bg-white p-5">
           <div className="flex items-center gap-4">

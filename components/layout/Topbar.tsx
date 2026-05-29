@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 
-const ReportModal = dynamic(() => import("../issues/ReportModal"), {
+const ActionModal = dynamic(() => import("../ui/ActionModal"), {
   ssr: false,
 });
 
@@ -24,7 +24,7 @@ interface Props {
 
 export default function Topbar({ onOpenMobileMenu }: Props) {
   const { user, profile, signOut } = useAuth();
-  const [reportOpen, setReportOpen] = useState(false);
+  const [actionOpen, setActionOpen] = useState(false);
   const [wordIndex, setWordIndex] = useState(0);
   const [typedWord, setTypedWord] = useState(ROTATING_WORDS[0]);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -94,7 +94,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
       window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
       return;
     }
-    setReportOpen(true);
+    setActionOpen(true);
   }
 
   return (
@@ -117,7 +117,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
           </div>
         </Link>
 
-        <div className={`pointer-events-none absolute left-1/2 hidden w-full max-w-166.75 -translate-x-1/2 px-4 lg:block ${pathname.startsWith("/initiatives") ? "lg:hidden" : ""}`}>
+        <div className="pointer-events-none absolute left-1/2 hidden w-full max-w-166.75 -translate-x-1/2 px-4 lg:block">
           <div className="pointer-events-auto">
             <button
               type="button"
@@ -136,7 +136,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
                 </span>
               </span>
               <ImagePlus className="h-4.5 w-4.5 shrink-0 text-[#f43f5e]" />
-              <span className="inline-flex h-8 shrink-0 items-center rounded-full border border-transparent bg-primary px-3 text-xs font-semibold text-white shadow-sm">
+              <span className="topbar-report-cta inline-flex h-8 shrink-0 items-center rounded-full px-3 text-xs font-semibold text-white">
                 Пријави +
               </span>
             </button>
@@ -183,22 +183,16 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
         </div>
       </header>
 
-      {!pathname.startsWith("/initiatives") && (
-        <button
-          type="button"
-          onClick={handleReportClick}
-          className="fixed bottom-5 right-4 z-50 inline-flex h-13 w-13 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-colors hover:bg-primary/90 lg:hidden"
-          aria-label="Пријави проблем">
-          <Plus size={22} strokeWidth={2.5} />
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={handleReportClick}
+        className="topbar-report-cta fixed bottom-5 right-4 z-50 inline-flex h-13 w-13 items-center justify-center rounded-full text-white transition-all lg:hidden"
+        aria-label="Учествувај">
+        <Plus size={22} strokeWidth={2.5} />
+      </button>
 
-      {reportOpen && (
-        <ReportModal
-          userId={user?.id}
-          onClose={() => setReportOpen(false)}
-          onSuccess={() => setReportOpen(false)}
-        />
+      {actionOpen && (
+        <ActionModal userId={user?.id} onClose={() => setActionOpen(false)} />
       )}
     </>
   );

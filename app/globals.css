@@ -201,6 +201,36 @@ body {
   animation-play-state: paused;
 }
 
+@keyframes report-cta-fill-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.topbar-report-cta {
+  position: relative;
+  background: linear-gradient(120deg, #359189 0%, #58c9bf 45%, #6dd3ca 100%);
+  background-size: 220% 220%;
+  animation: report-cta-fill-shift 5.2s ease infinite;
+  transition: filter 0.2s ease;
+}
+
+.topbar-report-cta:hover {
+  filter: saturate(1.01);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-report-cta {
+    animation: none;
+  }
+}
+
 /* Ensure all interactive elements show pointer */
 button,
 [role="button"],
@@ -228,4 +258,17 @@ label[for] {
   display: none;
   width: 0;
   height: 0;
+}
+
+@media (min-width: 640px) {
+  .desktop-scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .desktop-scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 }

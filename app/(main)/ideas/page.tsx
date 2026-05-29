@@ -11,7 +11,7 @@ import type { Idea } from "../../../lib/types/database";
 
 export default function IdeasPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
   const [newOpen, setNewOpen] = useState(false);
@@ -55,7 +55,13 @@ export default function IdeasPage() {
         )}
         <div className="space-y-3">
           {ideas.map((idea) => (
-            <IdeaCard key={idea.id} idea={idea} userId={user?.id} />
+            <IdeaCard
+              key={idea.id}
+              idea={idea}
+              userId={user?.id}
+              isAdmin={profile?.is_admin === true}
+              onDeleted={load}
+            />
           ))}
         </div>
         {!loading && ideas.length === 0 && (
