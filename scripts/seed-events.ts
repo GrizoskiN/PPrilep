@@ -20,7 +20,19 @@ const client = createClient({
   useCdn: false,
 });
 
-const events = [
+type EventDoc = {
+  _type: string;
+  title: string;
+  category: string;
+  startDate: string;
+  endDate?: string;
+  time?: string;
+  location: string;
+  description: string;
+  sourceUrl?: string;
+};
+
+const events: EventDoc[] = [
   // ── Јуни ───────────────────────────────────────────────────────────────────
   {
     _type: "cityEvent",
