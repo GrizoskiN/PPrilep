@@ -214,7 +214,6 @@ body {
 }
 
 .topbar-report-cta {
-  position: relative;
   background: linear-gradient(120deg, #359189 0%, #58c9bf 45%, #6dd3ca 100%);
   background-size: 220% 220%;
   animation: report-cta-fill-shift 5.2s ease infinite;

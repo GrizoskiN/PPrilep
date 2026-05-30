@@ -58,6 +58,39 @@ const POST_BY_SLUG_QUERY = `
   }
 `;
 
+// ── City Event types ─────────────────────────────────────────────────────────
+
+export type SanityEvent = {
+  _id: string;
+  title: string;
+  category: string;
+  startDate: string;         // "YYYY-MM-DD"
+  endDate: string | null;
+  time: string | null;
+  location: string;
+  description: string | null;
+  coverImage: {
+    asset: { _ref: string };
+    alt: string | null;
+  } | null;
+  sourceUrl: string | null;
+};
+
+const EVENTS_QUERY = `
+  *[_type == "cityEvent"] | order(startDate asc) {
+    _id,
+    title,
+    category,
+    startDate,
+    endDate,
+    time,
+    location,
+    description,
+    coverImage{ asset, alt },
+    sourceUrl
+  }
+`;
+
 // ── Fetchers ─────────────────────────────────────────────────────────────────
 
 export async function fetchPositivePosts(): Promise<PostListItem[]> {
@@ -73,5 +106,13 @@ export async function fetchPositivePost(slug: string): Promise<PostFull | null> 
     POST_BY_SLUG_QUERY,
     { slug },
     { next: { revalidate: 60 } },
+  );
+}
+
+export async function fetchCityEvents(): Promise<SanityEvent[]> {
+  return sanityClient.fetch<SanityEvent[]>(
+    EVENTS_QUERY,
+    {},
+    { next: { revalidate: 300 } }, // refresh every 5 minutes
   );
 }
