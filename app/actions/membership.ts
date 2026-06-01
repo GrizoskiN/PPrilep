@@ -1,6 +1,13 @@
 "use server";
 
 import { createClient } from "../../lib/supabase/server";
+import {
+  sendVolunteerWelcome,
+  sendRequestReceived,
+  sendAdminNotification,
+  sendApprovalConfirmation,
+  sendRejectionNotice,
+} from "../../lib/email";
 
 export type MembershipTier =
   | "volunteer"
@@ -10,7 +17,124 @@ export type MembershipTier =
   | "company_preferred"
   | "company_premium";
 
-/** Save the calling user's own membership tier */
+// ── Submit a membership request ───────────────────────────────────────────────
+
+export async function submitMembershipRequest(data: {
+  tier: MembershipTier;
+  full_name: string;
+  email: string;
+  phone?: string;
+  message?: string;
+  // company-only
+  company?: string;
+  contact?: string;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const displayName = data.company ?? data.full_name;
+  const isVolunteer = data.tier === "volunteer";
+
+  // ── Volunteer: auto-approve immediately ──────────────────────────────────
+  if (isVolunteer) {
+    if (user) {
+      await supabase.from("profiles")
+        .update({ membership_tier: "volunteer" })
+        .eq("id", user.id);
+    }
+    await sendVolunteerWelcome(data.email, displayName).catch(console.error);
+    return { ok: true, approved: true };
+  }
+
+  // ── Paid tier: save as pending ────────────────────────────────────────────
+  const { data: req, error } = await supabase
+    .from("membership_requests")
+    .insert({
+      user_id:   user?.id ?? null,
+      full_name: displayName,
+      email:     data.email,
+      phone:     data.phone ?? null,
+      message:   data.message ?? null,
+      tier:      data.tier,
+      status:    "pending",
+    })
+    .select("id")
+    .single();
+
+  if (error) return { error: error.message };
+
+  // Send confirmation to user + notification to admin (in parallel, non-blocking)
+  await Promise.all([
+    sendRequestReceived(data.email, displayName, data.tier).catch(console.error),
+    sendAdminNotification(
+      displayName, data.email, data.phone ?? null,
+      data.tier, data.message ?? null, req.id,
+    ).catch(console.error),
+  ]);
+
+  return { ok: true, approved: false };
+}
+
+// ── Admin: approve a pending request ─────────────────────────────────────────
+
+export async function adminApproveMembership(requestId: number) {
+  const supabase = await createClient();
+  const { data: isAdmin } = await supabase.rpc("is_admin");
+  if (!isAdmin) return { error: "Forbidden" };
+
+  // Fetch the request
+  const { data: req, error: fetchErr } = await supabase
+    .from("membership_requests")
+    .select("*")
+    .eq("id", requestId)
+    .single();
+
+  if (fetchErr || !req) return { error: "Request not found" };
+
+  // Mark approved
+  await supabase.from("membership_requests")
+    .update({ status: "approved" })
+    .eq("id", requestId);
+
+  // Set tier on profile if user is registered
+  if (req.user_id) {
+    await supabase.from("profiles")
+      .update({ membership_tier: req.tier })
+      .eq("id", req.user_id);
+  }
+
+  // Send approval email
+  await sendApprovalConfirmation(req.email, req.full_name, req.tier).catch(console.error);
+
+  return { ok: true };
+}
+
+// ── Admin: reject a pending request ──────────────────────────────────────────
+
+export async function adminRejectMembership(requestId: number) {
+  const supabase = await createClient();
+  const { data: isAdmin } = await supabase.rpc("is_admin");
+  if (!isAdmin) return { error: "Forbidden" };
+
+  const { data: req, error: fetchErr } = await supabase
+    .from("membership_requests")
+    .select("*")
+    .eq("id", requestId)
+    .single();
+
+  if (fetchErr || !req) return { error: "Request not found" };
+
+  await supabase.from("membership_requests")
+    .update({ status: "rejected" })
+    .eq("id", requestId);
+
+  await sendRejectionNotice(req.email, req.full_name).catch(console.error);
+
+  return { ok: true };
+}
+
+// ── Save own membership tier (used internally) ────────────────────────────────
+
 export async function saveMembershipTier(tier: MembershipTier) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -25,7 +149,8 @@ export async function saveMembershipTier(tier: MembershipTier) {
   return { ok: true };
 }
 
-/** Admin: set any user's membership tier */
+// ── Admin: set any user's tier directly ──────────────────────────────────────
+
 export async function adminSetMembershipTier(
   targetUserId: string,
   tier: MembershipTier | null,
@@ -34,7 +159,6 @@ export async function adminSetMembershipTier(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  // Check is_admin via the SECURITY DEFINER function
   const { data: isAdmin } = await supabase.rpc("is_admin");
   if (!isAdmin) return { error: "Forbidden" };
 
@@ -48,7 +172,24 @@ export async function adminSetMembershipTier(
   return { ok: true };
 }
 
-/** Admin: fetch all profiles with their membership tier */
+// ── Admin: fetch all membership requests ──────────────────────────────────────
+
+export async function adminFetchRequests() {
+  const supabase = await createClient();
+  const { data: isAdmin } = await supabase.rpc("is_admin");
+  if (!isAdmin) return { error: "Forbidden", data: null };
+
+  const { data, error } = await supabase
+    .from("membership_requests")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) return { error: error.message, data: null };
+  return { data, error: null };
+}
+
+// ── Admin: fetch all profiles ─────────────────────────────────────────────────
+
 export async function adminFetchMembers() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

@@ -14,6 +14,7 @@ export const THREE_COLUMN_ROUTES: readonly string[] = [
   "/issues", // Пријави
   "/heroes", // Херои
   "/communities", // Населби
+  "/sponsors", // Партнери
 ];
 
 /** True when the given pathname should use the 3-column layout. */

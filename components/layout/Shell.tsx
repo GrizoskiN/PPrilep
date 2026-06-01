@@ -144,7 +144,7 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
               className="scrollbar-hidden min-h-0 overflow-y-auto pb-16 outline-none lg:pb-0">
               <div
                 className={
-                  contentFull ? "w-full" : "mx-auto w-full max-w-166.75"
+                  contentFull ? "w-full" : "w-full lg:mx-auto lg:max-w-166.75"
                 }>
                 {children}
               </div>

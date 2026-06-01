@@ -185,13 +185,15 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
         </div>
       </header>
 
-      <button
-        type="button"
-        onClick={handleReportClick}
-        className="topbar-report-cta fixed bottom-5 right-4 z-50 inline-flex h-13 w-13 items-center justify-center rounded-full text-white transition-all lg:hidden"
-        aria-label="Учествувај">
-        <Plus size={22} strokeWidth={2.5} />
-      </button>
+      {!pathname?.startsWith("/sponsors") && (
+        <button
+          type="button"
+          onClick={handleReportClick}
+          className="topbar-report-cta fixed bottom-5 right-4 z-50 inline-flex h-13 w-13 items-center justify-center rounded-full text-white transition-all lg:hidden"
+          aria-label="Учествувај">
+          <Plus size={22} strokeWidth={2.5} />
+        </button>
+      )}
 
       {actionOpen && (
         <ActionModal userId={user?.id} onClose={() => setActionOpen(false)} />
