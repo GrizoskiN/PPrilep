@@ -137,7 +137,12 @@ export default function IdeaCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           {idea.profiles && (
-            <AvatarInitials name={idea.profiles.full_name} size="sm" />
+            <AvatarInitials
+              name={idea.profiles.full_name}
+              size="sm"
+              membershipTier={idea.profiles.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={idea.profiles.points}
+            />
           )}
           <span className="text-[11px] text-zinc-400 truncate">
             {idea.profiles?.full_name ?? "Анонимно"} ·{" "}

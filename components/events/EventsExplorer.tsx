@@ -78,7 +78,7 @@ function EventCover({ ev }: { ev: SanityEvent }) {
   return (
     <div
       className={cn(
-        "flex h-full w-full items-center justify-center bg-gradient-to-br",
+        "flex h-full w-full items-center justify-center bg-linear-to-br",
         visual.gradient,
       )}>
       <span className="text-5xl drop-shadow-sm">{visual.emoji}</span>
@@ -236,7 +236,7 @@ export default function EventsExplorer({ events }: Props) {
           <div
             className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm sm:flex cursor-pointer transition-shadow hover:shadow-md"
             onClick={() => setSelectedEvent(featured)}>
-            <div className="relative h-52 w-full shrink-0 sm:h-auto sm:w-2/5 lg:w-1/3">
+            <div className="relative h-70 w-full shrink-0 sm:w-2/5 lg:w-1/3">
               <EventCover ev={featured} />
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-3 p-4 sm:p-5">
@@ -298,7 +298,7 @@ export default function EventsExplorer({ events }: Props) {
                 key={ev._id}
                 onClick={() => setSelectedEvent(ev)}
                 className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md cursor-pointer">
-                <div className="relative h-44 w-full">
+                <div className="relative h-50 w-full">
                   <EventCover ev={ev} />
                 </div>
                 <div className="flex flex-1 flex-col gap-2 p-3.5">

@@ -223,7 +223,13 @@ export default function InitiativeDetailModal({
 
           {/* Author */}
           <div className="flex items-center gap-2">
-            <AvatarInitials name={authorName} size="sm" />
+            <AvatarInitials
+              name={authorName}
+              avatarUrl={initiative.author_avatar}
+              size="sm"
+              membershipTier={initiative.author_membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={initiative.author_points}
+            />
             <div className="text-[12px] text-zinc-600">
               <span className="font-medium text-zinc-800">{authorName}</span>
               <span className="text-zinc-400"> · {formatDays(initiative.created_at)}</span>

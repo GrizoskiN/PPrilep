@@ -251,6 +251,8 @@ export default function BottomNav() {
               avatarUrl={profile.avatar_url}
               size="sm"
               className={`w-5! h-5! text-[9px]! ${accountOpen ? "ring-2 ring-primary" : ""}`}
+              membershipTier={profile.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={profile.points}
             />
           ) : (
             <UserCircle2
@@ -283,6 +285,8 @@ export default function BottomNav() {
                   name={profile?.full_name}
                   avatarUrl={profile?.avatar_url}
                   size="md"
+                  membershipTier={profile?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                  points={profile?.points}
                 />
                 <div>
                   <p className="text-sm font-semibold text-zinc-800">

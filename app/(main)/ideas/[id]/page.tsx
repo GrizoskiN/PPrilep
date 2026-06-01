@@ -15,7 +15,7 @@ export default async function IdeaDetailPage({ params }: Props) {
   const supabase = await createClient();
   const { data: idea } = await supabase
     .from("ideas")
-    .select("*, profiles(id, full_name, avatar_url, username)")
+    .select("*, profiles(id, full_name, avatar_url, username, membership_tier, points)")
     .eq("id", ideaId)
     .single();
 
@@ -31,6 +31,8 @@ export default async function IdeaDetailPage({ params }: Props) {
                 name={idea.profiles.full_name}
                 avatarUrl={idea.profiles.avatar_url}
                 size="sm"
+                membershipTier={(idea.profiles as {membership_tier?: string | null}).membership_tier as import("@/components/ui/AvatarInitials").MembershipTier}
+                points={(idea.profiles as {points?: number}).points}
               />
             )}
             <span className="text-xs text-zinc-500">

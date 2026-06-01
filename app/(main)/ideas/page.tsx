@@ -19,7 +19,7 @@ export default function IdeasPage() {
   async function load() {
     const { data } = await supabase
       .from("ideas")
-      .select(`*, profiles(full_name, avatar_url, username)`)
+      .select(`*, profiles(full_name, avatar_url, username, membership_tier, points)`)
       .order("upvotes", { ascending: false });
     if (data) setIdeas(data);
     setLoading(false);

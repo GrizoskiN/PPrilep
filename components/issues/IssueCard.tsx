@@ -162,6 +162,8 @@ function UserListPopup({
               name={name}
               avatarUrl={u.profiles?.avatar_url ?? null}
               size="sm"
+              membershipTier={u.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={u.profiles?.points}
             />
             <span className="text-xs text-zinc-700 truncate">{name}</span>
           </Link>
@@ -406,6 +408,8 @@ export default function IssueCard({
               name={issue.profiles?.full_name}
               avatarUrl={issue.profiles?.avatar_url}
               size="sm"
+              membershipTier={issue.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={issue.profiles?.points}
             />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-zinc-800 group-hover:underline leading-tight truncate">
@@ -487,6 +491,8 @@ export default function IssueCard({
                       avatarUrl={issue.resolver.avatar_url}
                       size="sm"
                       className="w-4! h-4! text-[8px]!"
+                      membershipTier={issue.resolver.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                      points={issue.resolver.points}
                     />
                     <span className="text-[10px] font-semibold text-white truncate">
                       {issue.resolver.full_name ??

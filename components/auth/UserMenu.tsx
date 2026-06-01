@@ -33,6 +33,8 @@ export default function UserMenu({ profile, onSignOut }: Props) {
           name={profile?.full_name}
           avatarUrl={profile?.avatar_url}
           size="sm"
+          membershipTier={profile?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+          points={profile?.points}
         />
         <span className="hidden max-w-20 truncate text-xs text-zinc-600 sm:block">
           {profile?.full_name ?? "Профил"}

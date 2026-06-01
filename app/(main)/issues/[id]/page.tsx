@@ -50,7 +50,7 @@ export default async function IssueDetailPage({ params }: Props) {
   ] = await Promise.all([
     supabase
       .from("issues")
-      .select(`*, profiles:reported_by(id, full_name, avatar_url, username), resolver:resolved_by(id, full_name, avatar_url, username)`)
+      .select(`*, profiles:reported_by(id, full_name, avatar_url, username, membership_tier, points), resolver:resolved_by(id, full_name, avatar_url, username, membership_tier, points)`)
       .eq("id", issueId)
       .maybeSingle(),
     supabase

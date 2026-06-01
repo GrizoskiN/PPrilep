@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "../../../lib/supabase/server";
-import AvatarInitials from "../../../components/ui/AvatarInitials";
+import AvatarInitials, { type MembershipTier } from "../../../components/ui/AvatarInitials";
 
 interface HeroProfile {
   id: string;
@@ -9,6 +9,7 @@ interface HeroProfile {
   username: string | null;
   points: number;
   is_company: boolean;
+  membership_tier: string | null;
 }
 
 function HeroList({
@@ -37,6 +38,8 @@ function HeroList({
             name={profile.full_name}
             avatarUrl={profile.avatar_url}
             size="md"
+            membershipTier={profile.membership_tier as MembershipTier}
+            points={profile.points}
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate text-theme-heading">
@@ -63,7 +66,7 @@ export default async function HeroesPage() {
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name, avatar_url, username, points, is_company")
+    .select("id, full_name, avatar_url, username, points, is_company, membership_tier")
     .gt("points", 0)
     .order("points", { ascending: false })
     .limit(40);

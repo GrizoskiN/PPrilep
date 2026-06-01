@@ -118,7 +118,7 @@ function LeftNavItem({
     <Link
       href={href}
       className={cn(
-        "group flex select-none items-center gap-2.5 rounded-lg px-3 py-2 text-[15px] font-medium text-theme-muted transition-all duration-150 ease-in-out cursor-pointer lg:text-sm",
+        "group flex select-none items-center gap-2.5 rounded-lg px-3 py-2 text-[15px] font-medium text-theme-muted transition-all duration-150 ease-in-out cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#d9e1e8] focus-visible:ring-offset-2 focus-visible:ring-offset-(--theme-surface)ext-sm",
         active
           ? "bg-slate-50 font-semibold text-theme-ink"
           : "hover:bg-slate-50 hover:text-theme-ink",
@@ -369,7 +369,7 @@ export default function LeftNav() {
           </p>
           <Link
             href="/issues"
-            className="text-nav-reset text-[9px] font-semibold">
+            className="text-nav-reset text-[9px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[#d9e1e8] focus-visible:ring-offset-2 focus-visible:ring-offset-(--theme-surface)">
             Ресет
           </Link>
         </div>
@@ -385,7 +385,7 @@ export default function LeftNav() {
                     : `/issues?district=${encodeURIComponent(d.value)}`
                 }
                 className={cn(
-                  "nav-district-btn rounded-xl border px-2 py-2 transition-colors",
+                  "nav-district-btn rounded-xl border px-2 py-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#d9e1e8] focus-visible:ring-offset-2 focus-visible:ring-offset-(--theme-surface)",
                   activeDistrict === d.value
                     ? "nav-district-btn-active"
                     : "nav-district-btn-idle",

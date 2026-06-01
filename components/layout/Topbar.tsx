@@ -128,6 +128,8 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
                 name={profile?.full_name ?? profile?.username}
                 avatarUrl={profile?.avatar_url}
                 className="h-8 w-8 border border-white/70"
+                membershipTier={profile?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                points={profile?.points}
               />
               <span className="flex h-8 min-w-0 flex-1 items-center rounded-full bg-[#e2e5e9] px-3.5 text-left text-sm text-slate-500">
                 <span className="truncate text-[15px]">

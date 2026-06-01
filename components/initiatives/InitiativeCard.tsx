@@ -186,7 +186,13 @@ export default function InitiativeCard({
 
         <footer className="flex items-center justify-between gap-2 pt-1">
           <div className="flex items-center gap-2 min-w-0">
-            <AvatarInitials name={authorName} size="sm" />
+            <AvatarInitials
+              name={authorName}
+              avatarUrl={initiative.author_avatar}
+              size="sm"
+              membershipTier={initiative.author_membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={initiative.author_points}
+            />
             <span className="text-[11px] text-theme-subtle truncate">
               {authorName} · {formatDays(initiative.created_at)}
             </span>

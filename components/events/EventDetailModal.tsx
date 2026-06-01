@@ -60,7 +60,7 @@ function EventCover({ ev }: { ev: SanityEvent }) {
   return (
     <div
       className={cn(
-        "flex h-full w-full items-center justify-center bg-gradient-to-br",
+        "flex h-full w-full items-center justify-center bg-linear-to-br",
         visual.gradient,
       )}>
       <span className="text-7xl drop-shadow-sm">{visual.emoji}</span>

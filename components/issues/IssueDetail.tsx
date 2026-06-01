@@ -120,6 +120,8 @@ function PeoplePopup({
                   name={name}
                   avatarUrl={u.profiles?.avatar_url ?? null}
                   size="sm"
+                  membershipTier={u.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                  points={u.profiles?.points}
                 />
                 <span className="text-sm text-zinc-800">{name}</span>
               </Link>
@@ -1012,6 +1014,8 @@ export default function IssueDetail({
               avatarUrl={authProfile?.avatar_url ?? null}
               size="sm"
               className="mt-1 shrink-0"
+              membershipTier={authProfile?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={authProfile?.points}
             />
             {/* Unified input container */}
             <div className="flex-1 rounded-2xl bg-zinc-100 px-3 pt-2 pb-1.5">
@@ -1174,6 +1178,8 @@ export default function IssueDetail({
                   avatarUrl={comment.profiles?.avatar_url ?? null}
                   size="sm"
                   className="shrink-0 mt-0.5"
+                  membershipTier={comment.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                  points={comment.profiles?.points}
                 />
                 <div className="min-w-0 flex-1">
                   <div
@@ -1353,6 +1359,8 @@ export default function IssueDetail({
                                 avatarUrl={authProfile?.avatar_url ?? null}
                                 size="sm"
                                 className="shrink-0 mt-0.5"
+                                membershipTier={authProfile?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                                points={authProfile?.points}
                               />
                               <div className="flex-1 rounded-2xl bg-zinc-100 px-3 pt-2 pb-1.5">
                                 <textarea
@@ -1506,6 +1514,8 @@ export default function IssueDetail({
           name={name}
           avatarUrl={u.profiles?.avatar_url ?? null}
           size="sm"
+          membershipTier={u.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+          points={u.profiles?.points}
         />
         <span
           className={`text-xs ${accentColor === "teal" ? "text-teal-700" : "text-zinc-700"}`}>
@@ -1649,6 +1659,8 @@ export default function IssueDetail({
                       avatarUrl={offer.profiles?.avatar_url ?? null}
                       size="sm"
                       className="ring-2 ring-white/40"
+                      membershipTier={offer.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                      points={offer.profiles?.points}
                     />
                     <div className="text-right">
                       <p
@@ -1745,6 +1757,8 @@ export default function IssueDetail({
                 name={name}
                 avatarUrl={req.profiles?.avatar_url ?? null}
                 size="sm"
+                membershipTier={req.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                points={req.profiles?.points}
               />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-zinc-800">{name}</p>
@@ -1805,6 +1819,8 @@ export default function IssueDetail({
               name={resolver.full_name ?? resolver.username ?? "Херој"}
               avatarUrl={resolver.avatar_url}
               size="sm"
+              membershipTier={(resolver as {membership_tier?: string | null}).membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={(resolver as {points?: number}).points}
             />
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-teal-800 leading-tight">
@@ -2311,6 +2327,8 @@ export default function IssueDetail({
                 null
               }
               avatarUrl={currentIssue.profiles?.avatar_url ?? null}
+              membershipTier={currentIssue.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={currentIssue.profiles?.points}
               size="md"
             />
             <div>

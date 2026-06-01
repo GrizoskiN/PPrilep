@@ -57,6 +57,7 @@ export interface Profile {
   points: number;
   is_admin?: boolean;
   is_company?: boolean;
+  membership_tier?: string | null;
   created_at: string;
 }
 
@@ -200,6 +201,8 @@ export interface InitiativeWithDetails extends Initiative {
   author_username: string | null;
   author_full_name: string | null;
   author_avatar: string | null;
+  author_membership_tier: string | null;
+  author_points: number;
   vote_progress_pct: number;
   fund_progress_pct: number;
   supporter_count: number;
