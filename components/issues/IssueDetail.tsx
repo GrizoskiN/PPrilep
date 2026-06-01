@@ -238,6 +238,8 @@ export default function IssueDetail({
     full_name: string | null;
     username: string | null;
     avatar_url: string | null;
+    membership_tier?: string | null;
+    points?: number;
   } | null>(null);
   const [resolverUpvotes, setResolverUpvotes] = useState<number>(0);
   const [hasUpvotedResolver, setHasUpvotedResolver] = useState(false);
@@ -1492,6 +1494,8 @@ export default function IssueDetail({
         full_name: string | null;
         avatar_url: string | null;
         username: string | null;
+        membership_tier?: string | null;
+        points?: number;
       } | null;
     };
     accentColor: "slate" | "teal";
@@ -1819,8 +1823,8 @@ export default function IssueDetail({
               name={resolver.full_name ?? resolver.username ?? "Херој"}
               avatarUrl={resolver.avatar_url}
               size="sm"
-              membershipTier={(resolver as {membership_tier?: string | null}).membership_tier as import("../ui/AvatarInitials").MembershipTier}
-              points={(resolver as {points?: number}).points}
+              membershipTier={resolver.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={resolver.points}
             />
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-teal-800 leading-tight">
