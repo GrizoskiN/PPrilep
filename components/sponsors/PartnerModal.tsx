@@ -45,7 +45,7 @@ interface Props {
   prefillEmail?: string | null;
 }
 
-export default function PartnerModal({ onClose, prefillName, prefillEmail }: Props) {
+export default function PartnerModal({ onClose, userId, prefillName, prefillEmail }: Props) {
   const [step, setStep] = useState<Step>("choose");
   const [memberForm, setMemberForm] = useState<MemberForm>({ ...EMPTY_MEMBER, name: prefillName ?? "", email: prefillEmail ?? "" });
   const [companyForm, setCompanyForm] = useState<CompanyForm>({ ...EMPTY_COMPANY, contact: prefillName ?? "", email: prefillEmail ?? "" });
@@ -144,8 +144,32 @@ export default function PartnerModal({ onClose, prefillName, prefillEmail }: Pro
             </div>
           )}
 
+          {/* Member — login gate */}
+          {step === "member" && !done && !userId && (
+            <div className="flex flex-col items-center justify-center gap-5 px-5 py-14 text-center">
+              <span className="flex h-16 w-16 items-center justify-center rounded-full text-3xl" style={{ background: "#d8f4ef" }}>🔒</span>
+              <div>
+                <p className="text-base font-bold text-zinc-900">Потребна е сметка</p>
+                <p className="mt-1.5 text-sm text-zinc-500 leading-relaxed max-w-xs">
+                  За да станете член (волонтер или со членарина), треба сметка — за да можеме да ви го прикажеме статусот и значката.
+                </p>
+              </div>
+              <div className="flex w-full max-w-xs flex-col gap-2">
+                <a href="/auth/login?next=/sponsors"
+                   className="flex items-center justify-center rounded-xl py-3 text-sm font-semibold text-white transition-colors"
+                   style={{ background: "#2aa99d" }}>
+                  Најава
+                </a>
+                <a href="/auth/register?next=/sponsors"
+                   className="flex items-center justify-center rounded-xl border border-zinc-200 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors">
+                  Создадете сметка
+                </a>
+              </div>
+            </div>
+          )}
+
           {/* Member form */}
-          {step === "member" && !done && (
+          {step === "member" && !done && !!userId && (
             <form id="member-form" onSubmit={submitMember} className="px-5 py-5 space-y-5">
               <Field label="Полно Име *" icon={<User size={14} />} placeholder="Вашето Име и Презиме" value={memberForm.name} onChange={(v) => setMemberForm((f) => ({ ...f, name: v }))} required />
               <Field label="Е-пошта *" icon={<Mail size={14} />} type="email" placeholder="вашата@епошта.com" value={memberForm.email} onChange={(v) => setMemberForm((f) => ({ ...f, email: v }))} required />
@@ -154,21 +178,25 @@ export default function PartnerModal({ onClose, prefillName, prefillEmail }: Pro
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-zinc-600">Членарина</label>
                 <div className="space-y-2">
-                  {MEMBERSHIP_OPTIONS.map((opt) => (
-                    <button key={opt.value} type="button" onClick={() => setMemberForm((f) => ({ ...f, membership: opt.value }))}
-                      className={cn("flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors",
-                        memberForm.membership === opt.value ? "border-primary bg-primary-light" : "border-zinc-200 bg-zinc-50 hover:border-zinc-300")}>
-                      <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                        memberForm.membership === opt.value ? "border-primary bg-primary" : "border-zinc-300 bg-white")}>
-                        {memberForm.membership === opt.value && <Check size={11} className="text-white" strokeWidth={3} />}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-zinc-900">{opt.label}</p>
-                        <p className="text-xs text-zinc-500">{opt.desc}</p>
-                      </div>
-                      <span className="shrink-0 text-xs font-bold" style={{ color: "#2aa99d" }}>{opt.price}</span>
-                    </button>
-                  ))}
+                  {MEMBERSHIP_OPTIONS.map((opt) => {
+                    const isActive = memberForm.membership === opt.value;
+                    return (
+                      <button key={opt.value} type="button"
+                        onClick={() => setMemberForm((f) => ({ ...f, membership: opt.value }))}
+                        className={cn("flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors",
+                          isActive ? "border-primary bg-primary-light" : "border-zinc-200 bg-zinc-50 hover:border-zinc-300")}>
+                        <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                          isActive ? "border-primary bg-primary" : "border-zinc-300 bg-white")}>
+                          {isActive && <Check size={11} className="text-white" strokeWidth={3} />}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-zinc-900">{opt.label}</p>
+                          <p className="text-xs text-zinc-500">{opt.desc}</p>
+                        </div>
+                        <span className="shrink-0 text-xs font-bold" style={{ color: "#2aa99d" }}>{opt.price}</span>
+                      </button>
+                    );
+                  })}
                 </div>
                 {(memberForm.membership === "monthly" || memberForm.membership === "yearly") && (
                   <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 leading-relaxed">
@@ -226,6 +254,13 @@ export default function PartnerModal({ onClose, prefillName, prefillEmail }: Pro
                 <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 leading-relaxed">
                   Фактура и уплатница ќе добиете на е-пошта по потврдата.
                 </p>
+                {!userId && (
+                  <p className="text-xs text-zinc-500 px-1">
+                    Имате сметка?{" "}
+                    <a href="/auth/login?next=/sponsors" className="font-semibold underline text-zinc-700">Најавете се</a>
+                    {" "}за да го следите статусот на вашата апликација.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -261,7 +296,7 @@ export default function PartnerModal({ onClose, prefillName, prefillEmail }: Pro
         </div>
 
         {/* Footer */}
-        {(step === "member" || step === "company") && !done && (
+        {(step === "member" || step === "company") && !done && (step === "company" || !!userId) && (
           <div className="shrink-0 border-t border-zinc-100 px-5 py-3.5 flex gap-3">
             <button type="button" onClick={back} className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors">
               Назад

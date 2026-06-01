@@ -22,10 +22,10 @@ export default function SponsorsRightPanel({ memberCount, companyCount, onJoin }
   const remaining = Math.max(0, GOAL - memberCount);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 -mt-4 lg:mt-0 p-3 md:p-4 lg:p-2 lg:pt-5">
 
       {/* Goal tracker */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">
         <div className="flex items-center gap-2">
           <span className="text-lg">🎯</span>
           <p className="text-sm font-bold text-zinc-900">Наша цел: {GOAL} членови</p>
@@ -74,7 +74,7 @@ export default function SponsorsRightPanel({ memberCount, companyCount, onJoin }
       </div>
 
       {/* Benefits */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">
         <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Членовите добиваат</p>
         <ul className="space-y-2.5">
           {PERKS.map((p) => (
@@ -89,7 +89,7 @@ export default function SponsorsRightPanel({ memberCount, companyCount, onJoin }
       </div>
 
       {/* Company CTA */}
-      <div className="rounded-2xl border border-dashed p-5 space-y-2 text-center" style={{ borderColor: "#2aa99d", background: "#d8f4ef33" }}>
+      <div className="rounded-2xl border border-dashed p-4 space-y-2 text-center" style={{ borderColor: "#2aa99d", background: "#d8f4ef33" }}>
         <Building2 size={22} className="mx-auto" style={{ color: "#2aa99d" }} />
         <p className="text-sm font-bold text-zinc-800">Имате бизнис?</p>
         <p className="text-xs text-zinc-500 leading-relaxed">

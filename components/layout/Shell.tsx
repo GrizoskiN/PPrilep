@@ -1,15 +1,14 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import Topbar from "./Topbar";
 import LeftNav from "./LeftNav";
 import RightPanel from "./RightPanel";
+import RightPanelSkeleton from "./RightPanelSkeleton";
 import MarqueeBanner from "../ui/MarqueeBanner";
-import { useAuth } from "../../lib/hooks/useAuth";
-import { usesThreeColumns } from "../../lib/layout";
+import { usesThreeColumns, routeHasCustomPanel } from "../../lib/layout";
 
 interface Props {
   children: React.ReactNode;
@@ -18,7 +17,6 @@ interface Props {
 }
 
 export default function Shell({ children, rightPanel, fullWidth }: Props) {
-  const { user, profile } = useAuth();
   const pathname = usePathname();
 
   // 3-column routes keep the right info panel; everything else collapses the
@@ -26,6 +24,17 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
   const threeColumn = usesThreeColumns(pathname ?? "/");
   // In the 2-column layout the main content spans the full combined width.
   const contentFull = fullWidth || !threeColumn;
+
+  // The panel to render in each slot: an explicitly-passed panel wins; otherwise
+  // routes that inject their own panel show a neutral skeleton (until it mounts)
+  // and all other routes show the default info panel.
+  const panelContent =
+    rightPanel ??
+    (routeHasCustomPanel(pathname ?? "/") ? (
+      <RightPanelSkeleton />
+    ) : (
+      <RightPanel />
+    ));
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuOpenedAt, setMenuOpenedAt] = useState<number>(0);
 
@@ -43,10 +52,6 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
     setMenuOpenedAt(Date.now());
     setMenuOpen(true);
   };
-
-  const mobileUserLabel = user
-    ? (profile?.full_name ?? profile?.username ?? "Профил")
-    : "Гостин";
 
   const mainRef = useRef<HTMLElement>(null);
 
@@ -150,14 +155,14 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
                 {/* Mobile: right panel inline below content (hidden on desktop where it's the 3rd column) */}
                 {threeColumn && (
                   <div className="mt-2 border-t border-zinc-100 lg:hidden">
-                    {rightPanel ?? <RightPanel />}
+                    {panelContent}
                   </div>
                 )}
               </div>
             </main>
             {threeColumn && (
               <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block">
-                {rightPanel ?? <RightPanel />}
+                {panelContent}
               </div>
             )}
           </div>
@@ -192,40 +197,11 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
         </div>
 
         <div className="h-[calc(100%-3rem)] overflow-y-auto">
-          <section className="border-b border-[#e4ece8] px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-              Корисник
-            </p>
-            <p className="mt-1 truncate text-sm font-semibold text-slate-700">
-              {mobileUserLabel}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              {user ? (
-                <Link
-                  href="/account"
-                  onClick={closeMenu}
-                  className="rounded-lg border border-[#dce6e2] px-2.5 py-1.5 text-xs font-semibold text-slate-700">
-                  Мој профил
-                </Link>
-              ) : (
-                <Link
-                  href="/auth/login"
-                  onClick={closeMenu}
-                  className="rounded-lg border border-[#dce6e2] px-2.5 py-1.5 text-xs font-semibold text-slate-700">
-                  Најава
-                </Link>
-              )}
-            </div>
-          </section>
 
           <section
             className="border-b border-[#e4ece8]"
             onClickCapture={handleMobileNavClick}>
-            <div className="px-4 pb-2 pt-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                Навигација
-              </p>
-            </div>
+         
             <Suspense fallback={<div className="h-40" />}>
               <LeftNav />
             </Suspense>
@@ -238,7 +214,7 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
                   Инфо панел
                 </p>
               </div>
-              <div className="pb-6">{rightPanel ?? <RightPanel />}</div>
+              <div className="pb-6">{panelContent}</div>
             </section>
           )}
         </div>

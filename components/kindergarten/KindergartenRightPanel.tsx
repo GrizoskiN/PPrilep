@@ -43,7 +43,7 @@ export default function KindergartenRightPanel({
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">
         <div className="flex items-center gap-2">
           <span className="text-base">🍽️</span>
-          <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Мени</p>
+          <p className="text-xs font-semibold text-zinc-500">Мени</p>
         </div>
         <WeeklyMenuPanel menu={todayMenu} />
       </div>
@@ -52,7 +52,7 @@ export default function KindergartenRightPanel({
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-2">
         <div className="flex items-center gap-2">
           <span className="text-base">📄</span>
-          <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Документи за запишување</p>
+          <p className="text-xs font-semibold text-zinc-500">Документи за запишување</p>
         </div>
         {signupDocuments.length === 0 ? (
           <p className="text-xs text-zinc-400 italic">Наскоро ќе бидат достапни.</p>
@@ -77,7 +77,7 @@ export default function KindergartenRightPanel({
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-2">
         <div className="flex items-center gap-2">
           <span className="text-base">📢</span>
-          <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Последни вести</p>
+          <p className="text-xs font-semibold text-zinc-500">Последни вести</p>
         </div>
         {recentAnnouncements.length === 0 ? (
           <p className="text-xs text-zinc-400 italic">Нема соопштенија.</p>
@@ -95,7 +95,7 @@ export default function KindergartenRightPanel({
 
       {/* ── Contact ── */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-2.5">
-        <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Контакт</p>
+        <p className="text-xs font-semibold text-zinc-500">Контакт</p>
         {institution.phone && (
           <a href={`tel:${institution.phone.replace(/\s/g, "")}`}
              className="flex items-center gap-2.5 text-xs font-semibold text-zinc-700 hover:text-rose-500 transition-colors">
@@ -126,7 +126,7 @@ export default function KindergartenRightPanel({
       {/* ── Other institutions ── */}
       {others.length > 0 && (
         <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-1">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Останати установи</p>
+          <p className="mb-2 text-xs font-semibold text-zinc-500">Останати установи</p>
           {others.map((inst) => (
             <Link key={inst._id} href={`/kindergarten/${inst.slug}`}
                   className="flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">

@@ -5,7 +5,7 @@ import PromiseTracker from "../ui/PromiseTracker";
 
 export default function RightPanel() {
   return (
-    <aside className="mt-2 flex h-auto px-2 flex-col overflow-y-auto rounded-lg bg-transparent ">
+    <aside className="mt-2 flex h-auto px-3 lg:px-2 flex-col overflow-y-auto rounded-lg bg-transparent ">
       <PromiseTracker />
 
       <section className=" px-3  py-6 bg-white mt-5 rounded-lg">

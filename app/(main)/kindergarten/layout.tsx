@@ -1,45 +1,24 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import { useRightPanel } from "../../../lib/context/RightPanelContext";
-import KindergartenListRightPanel from "../../../components/kindergarten/KindergartenListRightPanel";
 import {
   fetchSignupDocuments,
   fetchLatestGlobalMenu,
-  type SignupDocument,
-  type MenuPost,
 } from "../../../lib/sanity/kindergarten";
+import KindergartenListPanelInjector from "../../../components/kindergarten/KindergartenListPanelInjector";
 
-export default function KindergartenLayout({ children }: { children: React.ReactNode }) {
-  const { setOverridePanel } = useRightPanel();
-  const pathname = usePathname();
-  const [signupDocs, setSignupDocs] = useState<SignupDocument[]>([]);
-  const [latestMenu, setLatestMenu] = useState<MenuPost | null>(null);
+// Server component — fetches panel data at request time so the client injector
+// has everything it needs immediately on mount (no client-side async fetch).
+export default async function KindergartenLayout({ children }: { children: React.ReactNode }) {
+  const [signupDocuments, latestMenu] = await Promise.all([
+    fetchSignupDocuments(null).catch(() => []),
+    fetchLatestGlobalMenu().catch(() => null),
+  ]);
 
-  useEffect(() => {
-    Promise.all([
-      fetchSignupDocuments(null).catch(() => [] as SignupDocument[]),
-      fetchLatestGlobalMenu().catch(() => null),
-    ]).then(([docs, menu]) => {
-      setSignupDocs(docs);
-      setLatestMenu(menu);
-    });
-
-    return () => setOverridePanel(null);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Only inject the list panel on the exact /kindergarten route —
-  // child [slug] layouts manage their own panel on detail pages
-  useEffect(() => {
-    if (pathname !== "/kindergarten") return;
-    setOverridePanel(
-      <KindergartenListRightPanel
-        signupDocuments={signupDocs}
+  return (
+    <>
+      <KindergartenListPanelInjector
+        signupDocuments={signupDocuments}
         latestMenu={latestMenu}
-      />,
-    );
-  }, [pathname, signupDocs, latestMenu, setOverridePanel]);
-
-  return <>{children}</>;
+      />
+      {children}
+    </>
+  );
 }

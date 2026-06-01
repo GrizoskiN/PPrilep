@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ImagePlus, Menu, Plus } from "lucide-react";
+import { ImagePlus, Menu, Plus, UserCircle2 } from "lucide-react";
 import Button from "../ui/Button";
 import UserMenu from "../auth/UserMenu";
 import NotificationBell from "../auth/NotificationBell";
@@ -99,7 +99,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
 
   return (
     <>
-      <header className="col-span-3 z-30 relative flex h-18 items-center justify-between border-b border-[#e4ece8] px-3 lg:px-2">
+      <header className="col-span-3 z-30 relative flex h-18 items-center justify-between border-b border-[#e4ece8] px-2">
         <Link
           href="/"
           className="ml-1 flex max-w-[60%] items-center gap-3 cursor-pointer lg:ml-0">
@@ -117,7 +117,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
           </div>
         </Link>
 
-        <div className="pointer-events-none absolute left-1/2 hidden w-full max-w-166.75 -translate-x-1/2 px-4 lg:block">
+        <div className="pointer-events-none absolute left-1/2 hidden w-full lg:max-w-lg xl:max-w-166.75 -translate-x-1/2 px-2 lg:block">
           <div className="pointer-events-auto">
             <button
               type="button"
@@ -128,10 +128,12 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
                 name={profile?.full_name ?? profile?.username}
                 avatarUrl={profile?.avatar_url}
                 className="h-8 w-8 border border-white/70"
-                membershipTier={profile?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                membershipTier={
+                  profile?.membership_tier as import("../ui/AvatarInitials").MembershipTier
+                }
                 points={profile?.points}
               />
-              <span className="flex h-8 min-w-0 flex-1 items-center rounded-full bg-[#e2e5e9] px-3.5 text-left text-sm text-slate-500">
+              <span className="flex h-8  flex-1 items-center rounded-full bg-[#e2e5e9] px-3.5 text-left text-xs text-slate-500">
                 <span className="truncate text-[15px]">
                   Кажи си ја {typedWord}
                   <span className="ml-0.5 inline-block h-[0.95em] w-px animate-pulse bg-slate-400 align-[-0.12em]" />
@@ -153,6 +155,25 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
                 buttonClassName="h-10 w-10"
                 iconSize={20}
               />
+            )}
+            {user ? (
+              <Link
+                href="/account"
+                aria-label="Мој профил"
+                className="flex h-10 w-10 items-center justify-center [-webkit-tap-highlight-color:transparent]">
+                <AvatarInitials
+                  name={profile?.full_name ?? profile?.username}
+                  avatarUrl={profile?.avatar_url}
+                  size="sm"
+                />
+              </Link>
+            ) : (
+              <Link
+                href="/auth/login"
+                aria-label="Најава"
+                className="flex h-10 w-10 items-center justify-center text-slate-700">
+                <UserCircle2 size={22} strokeWidth={2} />
+              </Link>
             )}
             <button
               onTouchEnd={(e) => {

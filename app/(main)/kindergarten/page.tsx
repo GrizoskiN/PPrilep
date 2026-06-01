@@ -116,29 +116,25 @@ export default function KindergartenPage() {
       {announcements.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Соопштенија</p>
-            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">
+            <p className="text-sm font-semibold text-zinc-700">Соопштенија</p>
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-500">
               {filteredAnnouncements.length}
             </span>
           </div>
 
           {/* Filter chips */}
           <div className="flex flex-wrap gap-1.5">
-            <button
-              onClick={() => setFilter(null)}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                filter === null ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-              }`}>
-              Сите
-            </button>
-            {INSTITUTION_FALLBACK.map((inst) => (
+            {[{ slug: null, label: "Сите" }, ...INSTITUTION_FALLBACK.map(i => ({ slug: i.slug, label: i.shortName }))].map(({ slug, label }) => (
               <button
-                key={inst.slug}
-                onClick={() => setFilter(inst.slug)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                  filter === inst.slug ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-                }`}>
-                {inst.shortName}
+                key={slug ?? "all"}
+                onClick={() => setFilter(slug)}
+                className="rounded-full px-5 py-2 text-xs font-semibold transition-colors"
+                style={
+                  filter === slug
+                    ? { background: "#2aa99d", color: "white" }
+                    : { background: "#f4f4f5", color: "#52525b" }
+                }>
+                {label}
               </button>
             ))}
           </div>

@@ -36,7 +36,7 @@ export default function WeeklyMenuPanel({ menu }: Props) {
           if (!d) return null;
           return (
             <div key={key} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 space-y-1.5">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">{DAY_FULL[i]}</p>
+              <p className="text-[11px] font-bold text-zinc-500">{DAY_FULL[i]}</p>
               {d.breakfast && <p className="text-xs text-zinc-700"><span className="text-zinc-400">Појадок: </span>{d.breakfast}</p>}
               {d.snack1    && <p className="text-xs text-zinc-700"><span className="text-zinc-400">Ужина: </span>{d.snack1}</p>}
               {d.lunch     && <p className="text-xs text-zinc-700"><span className="text-zinc-400">Ручек: </span>{d.lunch}</p>}
@@ -56,11 +56,11 @@ export default function WeeklyMenuPanel({ menu }: Props) {
           <button
             key={i}
             onClick={() => setActiveDay(i)}
-            className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold transition-colors ${
-              activeDay === i
-                ? "bg-zinc-900 text-white"
-                : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
-            }`}>
+            className="flex-1 rounded-lg py-1.5 text-[11px] font-semibold transition-colors"
+            style={activeDay === i
+              ? { background: "#2aa99d", color: "white" }
+              : { background: "#f4f4f5", color: "#71717a" }
+            }>
             {label}
           </button>
         ))}
@@ -71,25 +71,25 @@ export default function WeeklyMenuPanel({ menu }: Props) {
         <div className="space-y-2">
           {day.breakfast && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Појадок</p>
+              <p className="text-[10px] font-semibold text-zinc-400">Појадок</p>
               <p className="text-xs text-zinc-700">{day.breakfast}</p>
             </div>
           )}
           {day.snack1 && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Ужина</p>
+              <p className="text-[10px] font-semibold text-zinc-400">Ужина</p>
               <p className="text-xs text-zinc-700">{day.snack1}</p>
             </div>
           )}
           {day.lunch && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Ручек</p>
+              <p className="text-[10px] font-semibold text-zinc-400">Ручек</p>
               <p className="text-xs text-zinc-700 whitespace-pre-line">{day.lunch}</p>
             </div>
           )}
           {day.snack2 && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Ужинка 2</p>
+              <p className="text-[10px] font-semibold text-zinc-400">Ужинка 2</p>
               <p className="text-xs text-zinc-700">{day.snack2}</p>
             </div>
           )}
