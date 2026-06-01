@@ -123,6 +123,8 @@ interface UserEntry {
     full_name: string | null;
     avatar_url: string | null;
     username: string | null;
+    membership_tier?: string | null;
+    points?: number;
   } | null;
 }
 
