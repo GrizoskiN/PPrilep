@@ -1,9 +1,8 @@
 /**
- * Sanity Studio configuration.
+ * Sanity Studio — main CMS (Позитива blog + Случувања events).
+ * Mounted at /studio — admin only.
  *
- * The Studio is mounted at /studio via app/studio/[[...index]]/page.tsx.
- * Visit https://mojprilep.mk/studio (or localhost:3000/studio in dev) and
- * sign in with the Sanity account that owns this project.
+ * Kindergarten studio is separate: see sanity.kindergarten.config.ts → /gradinka
  */
 
 import { defineConfig } from "sanity";
@@ -13,14 +12,11 @@ import { schemaTypes } from "./sanity/schemas";
 import { structure } from "./sanity/structure";
 
 export default defineConfig({
-  name: "default",
-  title: "Мој Прилеп — CMS",
+  name:     "main",
+  title:    "Мој Прилеп — CMS",
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET ?? "production",
-  basePath: "/studio",
-  plugins: [
-    structureTool({ structure }),
-    visionTool(),
-  ],
-  schema: { types: schemaTypes },
+  dataset:   process.env.NEXT_PUBLIC_SANITY_DATASET ?? "production",
+  basePath:  "/studio",
+  plugins:   [structureTool({ structure }), visionTool()],
+  schema:    { types: schemaTypes },
 });

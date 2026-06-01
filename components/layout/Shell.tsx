@@ -147,6 +147,12 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
                   contentFull ? "w-full" : "w-full lg:mx-auto lg:max-w-166.75"
                 }>
                 {children}
+                {/* Mobile: right panel inline below content (hidden on desktop where it's the 3rd column) */}
+                {threeColumn && (
+                  <div className="mt-2 border-t border-zinc-100 lg:hidden">
+                    {rightPanel ?? <RightPanel />}
+                  </div>
+                )}
               </div>
             </main>
             {threeColumn && (

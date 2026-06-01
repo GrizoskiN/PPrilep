@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "../../lib/supabase/server";
+import { createAdminClient } from "../../lib/supabase/admin";
 import {
   sendVolunteerWelcome,
   sendRequestReceived,
@@ -47,7 +48,9 @@ export async function submitMembershipRequest(data: {
   }
 
   // ── Paid tier: save as pending ────────────────────────────────────────────
-  const { data: req, error } = await supabase
+  // Use admin client to bypass RLS — server action already validates the user
+  const admin = createAdminClient();
+  const { data: req, error } = await admin
     .from("membership_requests")
     .insert({
       user_id:   user?.id ?? null,

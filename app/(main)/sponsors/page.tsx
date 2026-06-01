@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Heart, Lightbulb, Trophy, Building2, Users, HandHeart } from "lucide-react";
+import { Lightbulb, Trophy, Building2, Users, HandHeart } from "lucide-react";
 import { createClient } from "../../../lib/supabase/client";
 import AvatarInitials, { type MembershipTier } from "../../../components/ui/AvatarInitials";
 import MembershipAdminPanel from "../../../components/sponsors/MembershipAdminPanel";
@@ -192,7 +192,7 @@ export default function SponsorsPage() {
         )}
 
         {/* Open slot */}
-        <div className="flex min-h-[72px] items-center justify-center gap-2 rounded-2xl border border-dashed p-5 text-sm" style={{ borderColor: "#2aa99d", color: "#2aa99d", background: "#d8f4ef33" }}>
+        <div className="flex min-h-18 items-center justify-center gap-2 rounded-2xl border border-dashed p-5 text-sm" style={{ borderColor: "#2aa99d", color: "#2aa99d", background: "#d8f4ef33" }}>
           <Building2 size={16} />
           Слободно место за нов партнер — контактирајте нè
         </div>

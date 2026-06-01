@@ -102,7 +102,7 @@ export default function PartnerModal({ onClose, prefillName, prefillEmail }: Pro
     setDone(true);
   }
 
-  const stepTitle = step === "member" ? "Станете член" : step === "company" ? "Компанија партнер" : null;
+  const stepTitle = step === "member" ? "Станете член" : step === "company" ? "Партнер" : null;
 
   const modal = (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true">
@@ -147,7 +147,7 @@ export default function PartnerModal({ onClose, prefillName, prefillEmail }: Pro
           {/* Member form */}
           {step === "member" && !done && (
             <form id="member-form" onSubmit={submitMember} className="px-5 py-5 space-y-5">
-              <Field label="Полно Иme *" icon={<User size={14} />} placeholder="Вашето Иme и Презиме" value={memberForm.name} onChange={(v) => setMemberForm((f) => ({ ...f, name: v }))} required />
+              <Field label="Полно Име *" icon={<User size={14} />} placeholder="Вашето Име и Презиме" value={memberForm.name} onChange={(v) => setMemberForm((f) => ({ ...f, name: v }))} required />
               <Field label="Е-пошта *" icon={<Mail size={14} />} type="email" placeholder="вашата@епошта.com" value={memberForm.email} onChange={(v) => setMemberForm((f) => ({ ...f, email: v }))} required />
               <Field label="Телефон" icon={<Phone size={14} />} type="tel" placeholder="+389 7X XXX XXX" value={memberForm.phone} onChange={(v) => setMemberForm((f) => ({ ...f, phone: v }))} />
 
@@ -192,7 +192,7 @@ export default function PartnerModal({ onClose, prefillName, prefillEmail }: Pro
           {step === "company" && !done && (
             <form id="company-form" onSubmit={submitCompany} className="px-5 py-5 space-y-5">
               <Field label="Назив на компанијата *" icon={<Building2 size={14} />} placeholder="ДООЕЛ / АД Пример" value={companyForm.company} onChange={(v) => setCompanyForm((f) => ({ ...f, company: v }))} required />
-              <Field label="Контакт лице" icon={<User size={14} />} placeholder="Вашето Иme и Презиме" value={companyForm.contact} onChange={(v) => setCompanyForm((f) => ({ ...f, contact: v }))} />
+              <Field label="Контакт лице" icon={<User size={14} />} placeholder="Вашето Име и Презиме" value={companyForm.contact} onChange={(v) => setCompanyForm((f) => ({ ...f, contact: v }))} />
               <Field label="Е-пошта *" icon={<Mail size={14} />} type="email" placeholder="вашата@епошта.com" value={companyForm.email} onChange={(v) => setCompanyForm((f) => ({ ...f, email: v }))} required />
               <Field label="Телефон" icon={<Phone size={14} />} type="tel" placeholder="+389 2 XXX XXX" value={companyForm.phone} onChange={(v) => setCompanyForm((f) => ({ ...f, phone: v }))} />
 
