@@ -7,7 +7,7 @@ import { Send, X, Link2 } from "lucide-react";
 import StatusPill from "../ui/StatusPill";
 import StatusTimelinePopup from "../ui/StatusTimelinePopup";
 import AvatarInitials from "../ui/AvatarInitials";
-import { formatDays, cn, getIssuePath } from "../../lib/utils";
+import { formatDays, cn, getIssuePath, userPath } from "../../lib/utils";
 import { incrementIssueViews } from "../../lib/views";
 import type { Issue } from "../../lib/types/database";
 import { toast } from "sonner";
@@ -152,9 +152,7 @@ function UserListPopup({
       {users.map((u) => {
         const name =
           u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
-        const href = u.profiles?.username
-          ? `/u/${u.profiles.username}`
-          : `/u/${u.user_id}`;
+        const href = userPath(u.profiles?.username, u.user_id);
         return (
           <Link
             key={u.user_id}
@@ -231,10 +229,9 @@ export default function IssueCard({
   const shareButtonRef = useRef<HTMLButtonElement>(null);
 
   const issuePath = getIssuePath(issue.id, issue.title);
-  const authorHref = issue.profiles?.username
-    ? `/u/${issue.profiles.username}`
-    : issue.profiles?.id
-      ? `/u/${issue.profiles.id}`
+  const authorHref =
+    issue.profiles?.username || issue.profiles?.id
+      ? userPath(issue.profiles?.username, issue.profiles?.id)
       : "#";
 
   function redirectToAuth() {

@@ -39,7 +39,10 @@ export async function submitMembershipRequest(data: {
   // ── Volunteer: auto-approve immediately ──────────────────────────────────
   if (isVolunteer) {
     if (user) {
-      await supabase.from("profiles")
+      // membership_tier is a privileged column (column-level GRANTs block the
+      // authenticated role) — write it via the service-role admin client.
+      const admin = createAdminClient();
+      await admin.from("profiles")
         .update({ membership_tier: "volunteer" })
         .eq("id", user.id);
     }
@@ -99,9 +102,11 @@ export async function adminApproveMembership(requestId: number) {
     .update({ status: "approved" })
     .eq("id", requestId);
 
-  // Set tier on profile if user is registered
+  // Set tier on profile if user is registered.
+  // membership_tier is a privileged column — write via service-role admin client.
   if (req.user_id) {
-    await supabase.from("profiles")
+    const admin = createAdminClient();
+    await admin.from("profiles")
       .update({ membership_tier: req.tier })
       .eq("id", req.user_id);
   }
@@ -165,13 +170,15 @@ export async function adminSetMembershipTier(
   const { data: isAdmin } = await supabase.rpc("is_admin");
   if (!isAdmin) return { error: "Forbidden" };
 
-  const { error, count } = await supabase
+  // membership_tier is a privileged column — write via service-role admin client.
+  const admin = createAdminClient();
+  const { error, count } = await admin
     .from("profiles")
     .update({ membership_tier: tier }, { count: "exact" })
     .eq("id", targetUserId);
 
   if (error) return { error: error.message };
-  if (count === 0) return { error: "Нема промена — проверете ги SQL политиките (RLS)" };
+  if (count === 0) return { error: "Нема промена — корисникот не е пронајден" };
   return { ok: true };
 }
 

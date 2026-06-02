@@ -29,7 +29,7 @@ import SendIcon from "../ui/SendIcon";
 
 import AvatarInitials from "../ui/AvatarInitials";
 import ImageLightbox from "../ui/ImageLightbox";
-import { formatDays, cn, getIssuePath, cdnUrl } from "../../lib/utils";
+import { formatDays, cn, getIssuePath, cdnUrl, userPath } from "../../lib/utils";
 import { incrementIssueViews } from "../../lib/views";
 import type { Issue, IssueStatus } from "../../lib/types/database";
 import { toast } from "sonner";
@@ -107,9 +107,7 @@ function PeoplePopup({
           {users.map((u) => {
             const name =
               u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
-            const href = u.profiles?.username
-              ? `/u/${u.profiles.username}`
-              : `/u/${u.user_id}`;
+            const href = userPath(u.profiles?.username, u.user_id);
             return (
               <Link
                 key={u.user_id}
@@ -351,7 +349,20 @@ export default function IssueDetail({
   async function loadResolverInfo() {
     const info = await fetchIssueResolverInfo(supabase, currentIssue.id);
     if (!info) {
-      setResolver(null);
+      // Fallback for older issues where resolved_by is NULL in the DB:
+      // show the reporter as the resolver so the card still appears.
+      if (currentIssue.profiles && currentIssue.reported_by) {
+        setResolver({
+          id: currentIssue.reported_by,
+          full_name: currentIssue.profiles.full_name ?? null,
+          username: currentIssue.profiles.username ?? null,
+          avatar_url: currentIssue.profiles.avatar_url ?? null,
+          membership_tier: currentIssue.profiles.membership_tier ?? null,
+          points: currentIssue.profiles.points ?? undefined,
+        });
+      } else {
+        setResolver(null);
+      }
       setResolverUpvotes(0);
       setHasUpvotedResolver(false);
       return;
@@ -586,9 +597,11 @@ export default function IssueDetail({
     if (newStatus === currentIssue.status) return;
     setChangingStatus(true);
     const update: Record<string, unknown> = { status: newStatus };
-    // Going to resolved: do NOT auto-assign — owner picks the resolver via the
-    // dropdown. Going to open/progress: clear any previous resolver.
-    if (newStatus !== "resolved") update.resolved_by = null;
+    // Going to resolved: auto-assign the current user as the resolver so the
+    // "Решено од" card appears immediately. They can change it via the dropdown.
+    // Going to open/progress: clear any previous resolver.
+    if (newStatus === "resolved") update.resolved_by = userId;
+    else update.resolved_by = null;
     let q = supabase.from("issues").update(update).eq("id", currentIssue.id);
     if (!isAdmin) q = q.eq("reported_by", userId);
     const { error } = await q;
@@ -1501,9 +1514,7 @@ export default function IssueDetail({
     accentColor: "slate" | "teal";
   }) {
     const name = u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
-    const href = u.profiles?.username
-      ? `/u/${u.profiles.username}`
-      : `/u/${u.user_id}`;
+    const href = userPath(u.profiles?.username, u.user_id);
 
     return (
       <Link
@@ -1581,7 +1592,7 @@ export default function IssueDetail({
     </div>
   );
 
-  const helpPlanningSection = (
+  const helpPlanningSection = currentIssue.status !== "resolved" && (
     <div>
       {/* Header */}
       <div className="mb-2 flex items-center gap-1.5">
@@ -1813,11 +1824,7 @@ export default function IssueDetail({
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg">🏆</span>
           <Link
-            href={
-              resolver.username
-                ? `/u/${resolver.username}`
-                : `/u/${resolver.id}`
-            }
+            href={userPath(resolver.username, resolver.id)}
             className="flex items-center gap-2 min-w-0 group">
             <AvatarInitials
               name={resolver.full_name ?? resolver.username ?? "Херој"}
@@ -1858,7 +1865,7 @@ export default function IssueDetail({
     </div>
   );
 
-  const helpActionsSection = userId && !isOwner && !isAdmin && (
+  const helpActionsSection = userId && !isOwner && !isAdmin && currentIssue.status !== "resolved" && (
     <button
       onClick={() => setShowProposeModal(true)}
       className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3b9f95] hover:bg-[#338c84] text-white text-xs font-semibold py-2.5 transition-colors">
@@ -2317,11 +2324,9 @@ export default function IssueDetail({
         <div className="flex items-start justify-between gap-2">
           <Link
             href={
-              currentIssue.profiles?.username
-                ? `/u/${currentIssue.profiles.username}`
-                : currentIssue.reported_by
-                  ? `/u/${currentIssue.reported_by}`
-                  : "#"
+              currentIssue.profiles?.username || currentIssue.reported_by
+                ? userPath(currentIssue.profiles?.username, currentIssue.reported_by)
+                : "#"
             }
             className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <AvatarInitials
@@ -2660,8 +2665,8 @@ export default function IssueDetail({
 
         {/* Counts row — same layout as IssueCard */}
         <div className="flex items-center gap-3 lg:gap-4">
-          {/* Помогни */}
-          <div className="flex items-center gap-1.5">
+          {/* Помогни — hidden when resolved */}
+          {currentIssue.status !== "resolved" && <div className="flex items-center gap-1.5">
             <button
               onClick={() => helperUsers.length > 0 && setShowHelperPopup(true)}
               className={cn(
@@ -2712,7 +2717,7 @@ export default function IssueDetail({
               </svg>
               <span>Помогни</span>
             </button>
-          </div>
+          </div>}
 
           {/* Иста мака */}
           <div className="flex items-center gap-1.5">

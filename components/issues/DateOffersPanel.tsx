@@ -5,7 +5,7 @@ import { Users, CalendarDays, ChevronRight, X, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "../../lib/supabase/client";
 import AvatarInitials from "../ui/AvatarInitials";
-import { cn } from "../../lib/utils";
+import { cn, userPath } from "../../lib/utils";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { toast } from "sonner";
 
@@ -330,9 +330,7 @@ export default function DateOffersPanel({
             offer.profiles?.full_name ?? offer.profiles?.username ?? "Анонимно";
           const isOwn = offer.user_id === userId;
           const { weekday, dayMonth, year } = formatDate(offer.service_date!);
-          const authorHref = offer.profiles?.username
-            ? `/u/${offer.profiles.username}`
-            : `/u/${offer.user_id}`;
+          const authorHref = userPath(offer.profiles?.username, offer.user_id);
 
           return (
             <div key={offer.id}>
@@ -456,9 +454,7 @@ export default function DateOffersPanel({
                             </button>
                           )}
                           {visible.map((c) => {
-                            const commentHref = c.profiles?.username
-                              ? `/u/${c.profiles.username}`
-                              : `/u/${c.user_id}`;
+                            const commentHref = userPath(c.profiles?.username, c.user_id);
                             const commentName =
                               c.profiles?.full_name ??
                               c.profiles?.username ??
@@ -597,9 +593,7 @@ export default function DateOffersPanel({
               {votersOffer.voters.map((v) => {
                 const vName =
                   v.profiles?.full_name ?? v.profiles?.username ?? "Анонимно";
-                const vHref = v.profiles?.username
-                  ? `/u/${v.profiles.username}`
-                  : `/u/${v.user_id}`;
+                const vHref = userPath(v.profiles?.username, v.user_id);
                 return (
                   <Link
                     key={v.user_id}

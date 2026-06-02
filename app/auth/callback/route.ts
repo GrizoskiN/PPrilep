@@ -11,6 +11,19 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      // Check if this is a new user (no username set yet) → send to onboarding
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        if (!profile?.username) {
+          return NextResponse.redirect(`${origin}/account?welcome=1`)
+        }
+      }
       return NextResponse.redirect(`${origin}${next}`)
     }
   }

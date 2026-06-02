@@ -25,7 +25,7 @@ interface Props {
 
 // ── Badge config ──────────────────────────────────────────────────────────────
 
-const TIER_CONFIG: Record<
+export const TIER_CONFIG: Record<
   NonNullable<Exclude<MembershipTier, null | undefined>>,
   { emoji: string; label: string; bg: string; color: string }
 > = {

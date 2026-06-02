@@ -58,6 +58,10 @@ export interface Profile {
   is_admin?: boolean;
   is_company?: boolean;
   membership_tier?: string | null;
+  street_name?: string | null;
+  district?: string | null;
+  email_digest?: boolean;
+  email_newsletter?: boolean;
   created_at: string;
 }
 
