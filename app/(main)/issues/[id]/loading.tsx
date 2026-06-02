@@ -2,7 +2,7 @@ import Skeleton from "../../../../components/ui/Skeleton";
 
 export default function IssueDetailLoading() {
   return (
-      <div className="mx-auto max-w-156 px-0 lg:px-3 py-3 lg:py-5">
+      <div>
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white p-4 space-y-3">
           <div className="flex items-center gap-2">
             <Skeleton className="h-4 w-14" />

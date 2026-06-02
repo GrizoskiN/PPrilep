@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function ViewsInfoPage() {
   return (
-    <div className="mx-auto max-w-156 py-4 lg:py-6 px-3 lg:px-3 space-y-4">
+    <div className="space-y-4">
       <header className="space-y-1">
         <h1 className="text-xl font-semibold text-slate-900">Прегледи</h1>
         <p className="text-sm text-slate-500">

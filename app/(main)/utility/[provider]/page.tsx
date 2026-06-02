@@ -49,7 +49,7 @@ export default async function UtilityPage({ params }: Props) {
     .order("posted_at", { ascending: false });
 
   return (
-      <div className="p-4 lg:p-6 space-y-6">
+      <div className="space-y-6">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-base font-semibold">

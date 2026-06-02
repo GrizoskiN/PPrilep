@@ -11,7 +11,7 @@ interface Props {
 
 export default function KindergartenListRightPanel({ signupDocuments, latestMenu }: Props) {
   return (
-    <div className="space-y-4 p-3 lg:p-0 lg:py-4">
+    <div className="space-y-4 lg:p-3">
 
       {/* ── Weekly menu ── */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-3 space-y-3">

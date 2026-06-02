@@ -99,7 +99,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
 
   return (
     <>
-      <header className="col-span-3 z-30 relative flex h-18 items-center justify-between border-b border-[#e4ece8] px-2">
+      <header className="col-span-3 z-30 relative flex h-18 items-center justify-between border-b border-[#e4ece8] px-3 lg:px-3.5">
         <Link
           href="/"
           className="ml-1 flex max-w-[60%] items-center gap-3 cursor-pointer lg:ml-0">
@@ -181,7 +181,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
                 openMobileMenu();
               }}
               onClick={openMobileMenu}
-              className="relative  flex h-10 w-10 items-center justify-center text-slate-800 z-50"
+              className="relative  flex h-10 w-7 items-center justify-end text-slate-800 z-50"
               aria-label="Отвори мени">
               <Menu size={22} strokeWidth={2.4} />
             </button>

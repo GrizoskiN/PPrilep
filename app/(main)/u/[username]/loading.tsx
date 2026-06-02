@@ -2,7 +2,7 @@ import Skeleton from "../../../../components/ui/Skeleton";
 
 export default function UserLoading() {
   return (
-      <div className="mx-auto w-full max-w-4xl px-4 py-6 space-y-5">
+      <div className="space-y-5">
         <section className="rounded-3xl border border-[#e4ece8] bg-white p-5">
           <div className="flex items-center gap-4">
             <Skeleton className="h-18 w-18" rounded="rounded-2xl" />

@@ -120,7 +120,7 @@ export default async function InitiativesPage({ searchParams }: PageProps) {
   const activeStage = tab === "all" ? null : (tab as "idea" | "voting" | "funding" | "completed");
 
   return (
-    <div className="px-4 py-4 space-y-4">
+    <div className="space-y-4">
       <StagePipeline activeStage={activeStage} counts={counts} />
 
       <InitiativeFilters category={category} district={district} stage={tab} />

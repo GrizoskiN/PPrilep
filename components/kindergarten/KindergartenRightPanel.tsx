@@ -37,7 +37,7 @@ export default function KindergartenRightPanel({
       .trim() || name;
 
   return (
-    <div className="space-y-4 ">
+    <div className="space-y-4 lg:p-3">
 
       {/* ── Weekly menu ── */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">

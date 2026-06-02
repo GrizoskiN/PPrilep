@@ -91,7 +91,7 @@ export default async function PositivePostPage({ params }: Props) {
   if (!post) notFound();
 
   return (
-    <article className="mx-auto max-w-156 py-4 lg:py-6 px-3">
+    <article>
       <Link
         href="/positive"
         className="inline-block text-xs text-zinc-500 hover:text-zinc-700 mb-3">

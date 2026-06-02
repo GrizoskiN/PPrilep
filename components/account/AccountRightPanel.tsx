@@ -160,7 +160,7 @@ export default function AccountRightPanel() {
       : "Сите населби";
 
   return (
-    <div className="space-y-4 p-3 -mt-4 lg:mt-0">
+    <div className="space-y-4 lg:p-3">
       <section className="rounded-2xl border border-[#e4ece8] bg-white p-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-theme-subtle">
           Микро статистика

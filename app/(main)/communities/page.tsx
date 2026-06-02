@@ -69,7 +69,7 @@ export default async function CommunitiesPage() {
   const cityResolved = allIssues.filter((i) => i.status === "resolved").length;
 
   return (
-      <div className="p-4 space-y-5">
+      <div className="space-y-5">
         {/* Page header */}
         <div>
           <h1 className="text-base font-semibold">Населби</h1>

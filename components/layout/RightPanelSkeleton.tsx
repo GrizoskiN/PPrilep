@@ -2,7 +2,7 @@
 // that panel mounts. Prevents a flash of the wrong (default) panel on refresh.
 export default function RightPanelSkeleton() {
   return (
-    <div className="space-y-4 py-4 animate-pulse" aria-hidden>
+    <div className="space-y-4 lg:p-3 animate-pulse" aria-hidden>
       {[0, 1, 2].map((i) => (
         <div key={i} className="rounded-2xl border border-zinc-100 bg-white p-4 space-y-3">
           <div className="flex items-center gap-2">

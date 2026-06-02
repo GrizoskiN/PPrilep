@@ -87,6 +87,135 @@
   max-width: var(--theme-modal);
 }
 
+/* ── App content column — SINGLE SOURCE OF TRUTH for every page's width+padding ─
+   Every page is wrapped by Shell in .app-content (3-column routes) or
+   .app-content-wide (2-column routes). Page components themselves should NOT add
+   their own outer max-width or padding — they inherit these so the whole app is
+   consistent. Change these values to resize/repad every page at once:
+     --app-content       max-width of the 3-column middle (issues, naselbi, home…)
+     --app-content-wide  max-width of the 2-column middle (events, ideas, fund…)
+     --app-gutter        left/right padding inside the column (all screen sizes)
+     --app-pad-y         top/bottom padding (mobile)
+     --app-pad-y-lg      top/bottom padding (≥1024px)                              */
+:root {
+  --app-content: 41.6875rem; /* 667px — was max-w-166.75 */
+  --app-content-wide: 70rem; /* 1040px — was max-w-260   */
+  --app-gutter: 0.75rem; /* 12px (p-3) side inset, every size */
+  --app-pad-y: 0.75rem; /* 12px (p-3) top/bottom — matches the left nav + right panel */
+  --app-pad-y-lg: 0.75rem; /* same on desktop so all 3 columns align */
+}
+
+/* 3-column middle: centered + capped. */
+.app-content {
+  width: 100%;
+  max-width: var(--app-content);
+  margin-inline: auto;
+  padding-inline: var(--app-gutter);
+  padding-block: var(--app-pad-y);
+}
+
+/* 2-column middle: right-aligned + wider cap. */
+.app-content-wide {
+  width: 100%;
+  max-width: var(--app-content-wide);
+  margin-left: auto;
+  padding-inline: var(--app-gutter);
+  padding-block: var(--app-pad-y);
+}
+
+/* Breakpoint map for quick sizing tweaks:
+   - mobile: <= 639.98px
+   - tablet: 640px - 1023.98px
+   - lg:     1024px - 1279.98px
+   - xl:     1280px - 1399.98px
+   - 2xl+:   >= 1400px */
+
+/* Mobile */
+@media (max-width: 639.98px) {
+  .app-content,
+  .app-content-wide {
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .app-content,
+  .app-content-wide {
+    padding-inline: var(--app-gutter);
+  }
+}
+
+/* Tablet */
+@media (min-width: 640px) and (max-width: 1023.98px) {
+  .app-content,
+  .app-content-wide {
+    max-width: 50rem;
+    margin-inline: 0;
+  }
+
+  .app-content,
+  .app-content-wide {
+    padding-inline: var(--app-gutter);
+  }
+}
+
+/* LG */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .app-content {
+    max-width: 32rem;
+
+  }
+
+  .app-content-wide {
+    max-width: none;
+    margin-left: 0;
+      padding: 1rem;
+  }
+}
+
+/* XL */
+@media (min-width: 1280px) and (max-width: 1399.98px) {
+  .app-content {
+    max-width: var(--app-content);
+  }
+
+  .app-content-wide {
+    max-width: 66rem;
+    margin-left: auto;
+    padding-inline: var(--app-gutter);
+  }
+}
+
+/* 2XL and up */
+@media (min-width: 1400px) {
+  .app-content {
+    max-width: var(--app-content);
+  }
+
+  .app-content-wide {
+    max-width: 66.2rem;
+    margin-left: auto;
+    padding-inline: var(--app-gutter);
+  }
+}
+/* 2XL and up */
+@media (min-width: 1700px) {
+  .app-content {
+    max-width: var(--app-content);
+  }
+
+  .app-content-wide {
+    max-width: 71.2rem;
+    margin-left: auto;
+    padding-inline: var(--app-gutter);
+  }
+}
+@media (min-width: 1024px) {
+  .app-content,
+  .app-content-wide {
+    padding-block: var(--app-pad-y-lg);
+  }
+}
+
 .text-nav-section {
   color: var(--theme-subtle);
 }

@@ -123,9 +123,9 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
 
   return (
     <>
-      <div className="flex h-screen w-full flex-col overflow-hidden bg-transparent">
+      <div className="flex h-screen w-full  flex-col overflow-hidden bg-transparent">
         <MarqueeBanner />
-        <div className="mx-auto flex h-full min-h-0 w-full max-w-350 flex-1 flex-col overflow-hidden">
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-400 flex-1 flex-col overflow-hidden">
           <div className="grid shrink-0 grid-cols-1 lg:grid-cols-[18%_1fr_18%]">
             <div className="hidden lg:block" />
             <Topbar onOpenMobileMenu={openMenu} />
@@ -133,9 +133,9 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
           </div>
 
           <div
-            className={`grid min-h-0 flex-1 grid-cols-1 ${
+            className={`grid min-h-0 flex-1  grid-cols-1 ${
               threeColumn
-                ? "lg:grid-cols-[250px_minmax(0,1fr)_250px] xl:grid-cols-[280px_minmax(0,1fr)_280px]"
+                ? "lg:grid-cols-[235px_minmax(0,1fr)_235px] xl:grid-cols-[280px_minmax(0,1fr)_280px]"
                 : "lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)]"
             }`}>
             <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block">
@@ -147,10 +147,7 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
               ref={mainRef}
               tabIndex={-1}
               className="scrollbar-hidden min-h-0 overflow-y-auto pb-16 outline-none lg:pb-0">
-              <div
-                className={
-                  contentFull ? "w-full" : "w-full lg:mx-auto lg:max-w-166.75"
-                }>
+              <div className={contentFull ? "app-content-wide" : "app-content"}>
                 {children}
                 {/* Mobile: right panel inline below content (hidden on desktop where it's the 3rd column) */}
                 {threeColumn && (
@@ -197,11 +194,9 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
         </div>
 
         <div className="h-[calc(100%-3rem)] overflow-y-auto">
-
           <section
-            className="border-b border-[#e4ece8]"
+            className="border-b border-[#e4ece8] [&_a.group]:text-[15px] [&_a.group]:py-2.5"
             onClickCapture={handleMobileNavClick}>
-         
             <Suspense fallback={<div className="h-40" />}>
               <LeftNav />
             </Suspense>
@@ -214,7 +209,7 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
                   Инфо панел
                 </p>
               </div>
-              <div className="pb-6">{panelContent}</div>
+              <div className="pb-6 px-0">{panelContent}</div>
             </section>
           )}
         </div>

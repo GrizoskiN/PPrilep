@@ -208,7 +208,7 @@ export default function IssueList({
       <div>
         <div
           suppressHydrationWarning
-          className="sticky -top-1 z-20 mt-.5 border-b border-theme bg-theme-canvas px-3 py-2 lg:border-b-0 lg:px-3">
+          className="sticky -top-1 z-20 mt-.5 border-b border-theme bg-theme-canvas py-2 lg:border-b-0">
           <div className="flex items-center justify-between gap-2">
             <button
               type="button"

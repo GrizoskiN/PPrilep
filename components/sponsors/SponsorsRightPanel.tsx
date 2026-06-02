@@ -22,7 +22,7 @@ export default function SponsorsRightPanel({ memberCount, companyCount, onJoin }
   const remaining = Math.max(0, GOAL - memberCount);
 
   return (
-    <div className="space-y-4 -mt-4 lg:mt-0 p-3 md:p-4 lg:p-2 lg:pt-5">
+    <div className="space-y-4 lg:p-3">
 
       {/* Goal tracker */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">

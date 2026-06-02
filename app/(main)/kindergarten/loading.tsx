@@ -1,7 +1,7 @@
 
 export default function KindergartenLoading() {
   return (
-      <div className="p-4 lg:p-6 space-y-5 max-w-2xl mx-auto animate-pulse">
+      <div className="space-y-5 animate-pulse">
         <div className="flex items-center gap-3">
           <div className="h-11 w-11 rounded-2xl bg-zinc-100 shrink-0" />
           <div className="space-y-1.5">

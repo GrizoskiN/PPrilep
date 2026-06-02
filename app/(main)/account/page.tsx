@@ -347,7 +347,7 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-theme-page p-3">
+    <div className="w-full">
       <section className="pb-3">
         <div className="relative" ref={sensitiveMenuRef}>
           {/* Edit (dots) button — absolute top-right */}

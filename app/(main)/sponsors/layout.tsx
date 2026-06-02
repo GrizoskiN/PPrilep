@@ -1,20 +1,17 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
+import { useState, useLayoutEffect, useCallback } from "react";
 import { Heart } from "lucide-react";
 import { useRightPanel } from "../../../lib/context/RightPanelContext";
+import { useAuth } from "../../../lib/hooks/useAuth";
 import SponsorsPanelContent from "../../../components/sponsors/SponsorsPanelContent";
 import PartnerModal from "../../../components/sponsors/PartnerModal";
-import { createClient } from "../../../lib/supabase/client";
 
 export default function SponsorsLayout({ children }: { children: React.ReactNode }) {
-  const supabase = useMemo(() => createClient(), []);
+  const { user, profile } = useAuth();
   const { setOverridePanel } = useRightPanel();
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [user, setUser] = useState<{
-    id: string; name: string | null; email: string | null;
-  } | null>(null);
 
   const openModal = useCallback(() => setModalOpen(true), []);
 
@@ -23,17 +20,6 @@ export default function SponsorsLayout({ children }: { children: React.ReactNode
     setOverridePanel(<SponsorsPanelContent onJoin={openModal} />, "/sponsors");
     return () => setOverridePanel(null);
   }, [openModal, setOverridePanel]);
-
-  // Fetch current user for modal pre-fill (independent of the panel)
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user: u } }) => {
-      if (!u) return;
-      supabase.from("profiles").select("full_name").eq("id", u.id).single()
-        .then(({ data }) =>
-          setUser({ id: u.id, name: data?.full_name ?? null, email: u.email ?? null }),
-        );
-    });
-  }, [supabase]);
 
   return (
     <>
@@ -52,8 +38,8 @@ export default function SponsorsLayout({ children }: { children: React.ReactNode
         <PartnerModal
           onClose={() => setModalOpen(false)}
           userId={user?.id}
-          prefillName={user?.name}
-          prefillEmail={user?.email}
+          prefillName={profile?.full_name ?? null}
+          prefillEmail={user?.email ?? null}
         />
       )}
     </>

@@ -51,7 +51,7 @@ export default function KindergartenPage() {
   }, [announcements, filter]);
 
   return (
-    <div className="space-y-6 px-3 py-4 sm:px-4 sm:py-6 lg:px-5">
+    <div className="space-y-6">
 
       {/* Header */}
       <div className="flex items-center gap-3">

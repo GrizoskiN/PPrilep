@@ -118,7 +118,7 @@ function LeftNavItem({
     <Link
       href={href}
       className={cn(
-        "group flex select-none items-center gap-2.5 rounded-lg px-3 py-2 text-[15px] font-medium text-theme-muted transition-all duration-150 ease-in-out cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#d9e1e8] focus-visible:ring-offset-2 focus-visible:ring-offset-(--theme-surface)ext-sm",
+        "group flex select-none items-center gap-2.5 rounded-lg px-3 py-1.5 xl:py-2 text-[13px] lg:text-[12px] xl:text-[15px] font-medium text-theme-muted transition-all duration-150 ease-in-out cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#d9e1e8] focus-visible:ring-offset-2 focus-visible:ring-offset-(--theme-surface)",
         active
           ? "bg-slate-50 font-semibold text-theme-ink"
           : "hover:bg-slate-50 hover:text-theme-ink",
@@ -206,7 +206,7 @@ export default function LeftNav() {
   }, []);
 
   return (
-    <nav className="scrollbar-hidden flex h-full min-h-0 flex-col gap-5 overflow-y-auto  py-4">
+    <nav className="scrollbar-hidden flex h-full min-h-0 flex-col gap-5 overflow-y-auto py-3">
       <section>
         <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
           Граѓани

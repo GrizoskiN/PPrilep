@@ -96,11 +96,11 @@ export default async function HomePage() {
   const latestCampaigns = (campaigns as HomeCampaign[] | null) ?? [];
 
   return (
-    <div className="mx-auto max-w-theme-page py-4 lg:py-6 lg:px-3">
-      <div className="px-3 lg:px-0">
+    <div>
+      <div>
         <DynamicGreeting fallbackName={greetingName} />
       </div>
-      <div className="mt-6 px-3 lg:mt-8 lg:px-0">
+      <div className="mt-6 lg:mt-8">
         <p className="my-3 text-lg leading-8 text-theme-muted">
           Пријави проблеми. Координирај локални акции. Држи ги лидерите
           одговорни.

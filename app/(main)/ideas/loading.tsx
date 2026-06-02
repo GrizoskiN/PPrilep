@@ -2,7 +2,7 @@ import Skeleton from "../../../components/ui/Skeleton";
 
 export default function IdeasLoading() {
   return (
-    <div className="mx-auto max-w-156 px-4 py-4 lg:py-6 space-y-3">
+    <div className="space-y-3">
       <Skeleton className="h-7 w-28 mb-4" />
       {[0, 1, 2, 3, 4].map((i) => (
         <div

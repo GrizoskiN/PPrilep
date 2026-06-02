@@ -6,10 +6,10 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { CATEGORY_LABELS, getIssuePath } from "../../lib/utils";
-import { cn } from "../../lib/utils";
 import type { Category, District, IssueStatus } from "../../lib/types/database";
 import StatusPill from "../../components/ui/StatusPill";
 import StatusTimelinePopup from "../../components/ui/StatusTimelinePopup";
+import FilterSelect from "../../components/ui/FilterSelect";
 
 export type PinnedIssue = {
   id: number;
@@ -98,18 +98,15 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [selected, setSelected] = useState<PinnedIssue | null>(null);
   const [showStatusPopup, setShowStatusPopup] = useState(false);
-  const [activeCategories, setActiveCategories] = useState<Set<Category>>(
-    new Set(),
-  );
+  const [category, setCategory] = useState<Category | "all">("all");
 
   const allCategories = Array.from(
     new Set(issues.map((i) => i.category)),
   ) as Category[];
 
   const visible =
-    activeCategories.size === 0
-      ? issues
-      : issues.filter((i) => activeCategories.has(i.category));
+    category === "all" ? issues : issues.filter((i) => i.category === category);
+  const hasActiveFilters = category !== "all";
 
   // Init map once
   useEffect(() => {
@@ -161,53 +158,36 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
       markersRef.current.push(marker);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible.length, activeCategories]);
-
-  function toggleCategory(cat: Category) {
-    setActiveCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat);
-      else next.add(cat);
-      return next;
-    });
-  }
+  }, [issues, category]);
 
   return (
-    <div className="flex flex-col gap-3 px-4 py-4">
-      {/* Category filter chips */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400 mr-1">
-          Филтрирај по категорија:
-        </span>
-        {allCategories.map((cat) => {
-          const active =
-            activeCategories.size === 0 || activeCategories.has(cat);
-          return (
-            <button
-              key={cat}
-              onClick={() => toggleCategory(cat)}
-              className={cn(
-                "flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-[12px] font-semibold  border transition-all",
-                active
-                  ? "bg-white border-zinc-200 text-zinc-700"
-                  : "bg-white/60 border-zinc-100 text-zinc-400",
-              )}>
-              <span
-                className="inline-block w-2.5 h-2.5 rounded-full shrink-0 transition-opacity"
-                style={{
-                  background: CATEGORY_COLORS[cat],
-                  opacity: active ? 1 : 0.35,
-                }}
-              />
-              {CATEGORY_LABELS[cat]}
-            </button>
-          );
-        })}
-        {activeCategories.size > 0 && (
+    <div className="flex flex-col gap-3 px-4 py-4 2xl:px-0">
+      {/* Category filter (always visible) */}
+      <div className="flex items-center gap-2">
+        <p className="shrink-0 text-sm font-semibold text-theme-muted">
+          Филтер
+        </p>
+        <div className="min-w-0 flex-1 rounded-xl border border-theme bg-theme-surface p-1.5">
+          <FilterSelect
+            value={category}
+            onChange={(v) => setCategory(v as Category | "all")}
+            isActive={hasActiveFilters}
+            className="w-full"
+            options={[
+              { value: "all", label: "Категории" },
+              ...allCategories.map((cat) => ({
+                value: cat,
+                label: CATEGORY_LABELS[cat],
+              })),
+            ]}
+          />
+        </div>
+        {hasActiveFilters && (
           <button
-            onClick={() => setActiveCategories(new Set())}
-            className="rounded-xl px-3.5 py-1.5 text-[12px] font-semibold shadow-sm border bg-zinc-800 border-zinc-800 text-white">
-            Ресетирај
+            type="button"
+            onClick={() => setCategory("all")}
+            className="shrink-0 px-2 py-1 text-xs font-medium text-theme-muted transition-colors hover:bg-theme-surface-muted hover:text-theme-ink">
+            Ресет
           </button>
         )}
       </div>

@@ -72,7 +72,7 @@ export default function SponsorsPage() {
   const companies = members.filter((m) => m.is_company  ||  COMPANY_TIERS.includes(m.membership_tier ?? ""));
 
   return (
-    <div className="space-y-6 px-3 py-4 sm:px-4 sm:py-6 lg:px-5">
+    <div className="space-y-6">
 
       {/* ── Info hero ── */}
       <section className="space-y-6">

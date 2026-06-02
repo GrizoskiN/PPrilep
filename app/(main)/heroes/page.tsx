@@ -76,7 +76,7 @@ export default async function HeroesPage() {
   const companies = all.filter((p) => p.is_company);
 
   return (
-    <div className="px-4 py-4 space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-base font-semibold text-theme-heading">
           Херои на заедницата!
