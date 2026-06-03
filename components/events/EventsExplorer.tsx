@@ -6,6 +6,7 @@ import Link from "next/link";
 import { cn } from "../../lib/utils";
 import ShareSheet from "../ui/ShareSheet";
 import EventDetailModal from "./EventDetailModal";
+import FilterSelect from "../ui/FilterSelect";
 import {
   EVENT_CATEGORY_LABELS,
   EVENT_CATEGORY_VISUAL,
@@ -16,14 +17,20 @@ import type { SanityEvent } from "../../lib/sanity/queries";
 
 type DateFilter = "upcoming" | "week" | "month" | "all";
 
-const DATE_FILTERS: { value: DateFilter; label: string }[] = [
-  { value: "upcoming", label: "Идни" },
-  { value: "week", label: "Оваа недела" },
-  { value: "month", label: "Овој месец" },
-  { value: "all", label: "Сите датуми" },
+const DATE_OPTIONS = [
+  { value: "upcoming", label: "Идни настани" },
+  { value: "week",     label: "Оваа недела" },
+  { value: "month",    label: "Овој месец" },
+  { value: "all",      label: "Сите датуми" },
 ];
 
-const CATEGORIES = Object.keys(EVENT_CATEGORY_LABELS) as EventCategory[];
+const CATEGORY_OPTIONS = [
+  { value: "all", label: "Сите категории" },
+  ...( Object.keys(EVENT_CATEGORY_LABELS) as EventCategory[]).map((c) => ({
+    value: c,
+    label: EVENT_CATEGORY_LABELS[c],
+  })),
+];
 const STORAGE_KEY = "events_interested";
 
 // ── Date helpers ─────────────────────────────────────────────────────────────
@@ -184,39 +191,23 @@ export default function EventsExplorer({ events }: Props) {
     <>
     <div className="space-y-5">
       {/* ── Filters ── */}
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {DATE_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setDateFilter(f.value)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
-                dateFilter === f.value
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300",
-              )}>
-              <CalendarDays size={13} />
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="scrollbar-hidden -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          <CategoryChip
-            label="Сите"
-            active={category === "all"}
-            onClick={() => setCategory("all")}
-          />
-          {CATEGORIES.map((c) => (
-            <CategoryChip
-              key={c}
-              label={EVENT_CATEGORY_LABELS[c]}
-              active={category === c}
-              onClick={() => setCategory(c)}
-            />
-          ))}
-        </div>
+      <div className="flex items-center gap-2">
+        <FilterSelect
+          value={dateFilter}
+          onChange={(v) => setDateFilter(v as DateFilter)}
+          options={DATE_OPTIONS}
+          placeholder="Идни настани"
+          isActive={dateFilter !== "upcoming"}
+          className="w-44"
+        />
+        <FilterSelect
+          value={category === "all" ? "" : category}
+          onChange={(v) => setCategory((v || "all") as EventCategory | "all")}
+          options={CATEGORY_OPTIONS.map((o) => ({ ...o, value: o.value === "all" ? "" : o.value }))}
+          placeholder="Сите категории"
+          isActive={category !== "all"}
+          className="w-44"
+        />
       </div>
 
       {filtered.length === 0 && (
@@ -358,24 +349,6 @@ export default function EventsExplorer({ events }: Props) {
   );
 }
 
-function CategoryChip({
-  label, active, onClick,
-}: {
-  label: string; active: boolean; onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors",
-        active
-          ? "border-rose-300 bg-rose-50 text-rose-700"
-          : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300",
-      )}>
-      {label}
-    </button>
-  );
-}
 
 function InterestedButton({
   active, onClick, large = false,

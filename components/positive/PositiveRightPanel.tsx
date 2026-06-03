@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { useAuthContext } from "../../lib/context/AuthContext";
 import { urlForImage } from "../../lib/sanity/image";
+import { formatMkDate } from "../../lib/utils";
 import type { PostListItem } from "../../lib/sanity/queries";
 import SubmitStoryModal from "./SubmitStoryModal";
 
@@ -17,7 +18,7 @@ export default function PositiveRightPanel({ recentPosts }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 p-3">
       {/* Submit CTA */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">
         <div>
@@ -72,10 +73,7 @@ export default function PositiveRightPanel({ recentPosts }: Props) {
                     {p.title}
                   </p>
                   <p className="text-[11px] text-zinc-400 mt-1">
-                    {new Date(p.publishedAt).toLocaleDateString("mk-MK", {
-                      day: "numeric",
-                      month: "short",
-                    })}
+                    {formatMkDate(p.publishedAt, false)}
                   </p>
                 </div>
               </Link>

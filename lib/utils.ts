@@ -126,6 +126,26 @@ function transliterateToLatin(text: string): string {
     .join("");
 }
 
+const MK_MONTHS_SHORT = [
+  "јан", "фев", "мар", "апр", "мај", "јун",
+  "јул", "авг", "сеп", "окт", "ное", "дек",
+];
+
+/**
+ * Deterministic Macedonian short date — "3 јун 2026".
+ *
+ * Uses a fixed month table + UTC getters so the server (Node, often without
+ * the mk-MK ICU locale) and the browser produce identical output, avoiding
+ * React hydration mismatches.
+ */
+export function formatMkDate(iso: string, withYear = true): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const day = d.getUTCDate();
+  const mon = MK_MONTHS_SHORT[d.getUTCMonth()];
+  return withYear ? `${day} ${mon} ${d.getUTCFullYear()}` : `${day} ${mon}`;
+}
+
 export function slugify(text: string): string {
   return transliterateToLatin(text)
     .toLowerCase()

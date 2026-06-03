@@ -21,6 +21,7 @@ export type PostListItem = {
   } | null;
   author: { name: string; slug: string } | null;
   tags: { title: string; slug: string }[];
+  categories: string[];
 };
 
 export type PostFull = PostListItem & {
@@ -41,7 +42,8 @@ const POST_LIST_QUERY = `
     publishedAt,
     coverImage{asset, alt},
     "author": author->{name, "slug": slug.current},
-    "tags": coalesce(tags[]->{title, "slug": slug.current}, [])
+    "tags": coalesce(tags[]->{title, "slug": slug.current}, []),
+    "categories": coalesce(categories, [])
   }
 `;
 
@@ -55,6 +57,7 @@ const POST_BY_SLUG_QUERY = `
     coverImage{asset, alt},
     "author": author->{name, "slug": slug.current},
     "tags": coalesce(tags[]->{title, "slug": slug.current}, []),
+    "categories": coalesce(categories, []),
     body,
     videoUrl
   }

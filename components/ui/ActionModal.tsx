@@ -13,6 +13,7 @@ import {
   ImagePlus,
   Lightbulb,
   MapPin,
+  Newspaper,
   X,
 } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
@@ -20,6 +21,7 @@ import Button from "./Button";
 import StreetAutocomplete from "../issues/StreetAutocomplete";
 import DuplicateAlert, { type SimilarIssue } from "../issues/DuplicateAlert";
 import NewInitiativeForm from "../initiatives/NewInitiativeForm";
+import StoryForm from "../positive/StoryForm";
 import { toast } from "sonner";
 
 const LocationPickerModal = dynamic(
@@ -87,15 +89,17 @@ const reportSchema = z.object({
 type ReportFields = z.infer<typeof reportSchema>;
 
 // ── Component types ────────────────────────────────────────────────────────────
-type Step = "choose" | "report" | "idea";
+type Step = "choose" | "report" | "idea" | "story";
 
 interface Props {
   userId?: string;
+  userEmail?: string;
+  userName?: string;
   onClose: () => void;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-export default function ActionModal({ userId, onClose }: Props) {
+export default function ActionModal({ userId, userEmail, userName, onClose }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -278,13 +282,15 @@ export default function ActionModal({ userId, onClose }: Props) {
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────────
-  const atForm = step === "report" || step === "idea";
+  const atForm = step === "report" || step === "idea" || step === "story";
   const headerTitle =
     step === "report"
       ? "Пријави проблем"
       : step === "idea"
         ? "Нова идеја"
-        : "Учествувај";
+        : step === "story"
+          ? "Сподели приказна"
+          : "Учествувај";
 
   // ──────────────────────────────────────────────────────────────────────────────
   return (
@@ -372,45 +378,62 @@ export default function ActionModal({ userId, onClose }: Props) {
               }}>
               {/* ══ Panel 0: Chooser ══ */}
               <div className="desktop-scrollbar-hidden w-1/2 overflow-y-auto">
-                <div className="flex min-h-full flex-col p-5">
-                  {/* Choice cards — grow to fill the remaining space */}
-                  <div className="flex flex-1 flex-col gap-4">
-                    {/* Report Problem */}
-                    <button
-                      type="button"
-                      onClick={() => setStep("report")}
-                      className="group flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl bg-zinc-100 p-5 text-center transition-colors hover:bg-zinc-200 active:scale-[0.99]">
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm">
-                        <AlertTriangle size={30} className="text-zinc-600" />
-                      </div>
-                      <div>
-                        <p className="text-base font-bold text-zinc-900">
-                          Пријави Проблем
-                        </p>
-                        <p className="mt-1 text-sm leading-relaxed text-zinc-500">
-                          Дупка, расипана светилка, нечистотии и слично.
-                        </p>
-                      </div>
-                    </button>
+                {/* Horizontal rows (icon left, text right) that stretch to
+                    fill the available height */}
+                <div className="flex min-h-full flex-col gap-3 p-4 sm:p-5">
+                  {/* Report Problem */}
+                  <button
+                    type="button"
+                    onClick={() => setStep("report")}
+                    className="group flex w-full flex-1 items-center gap-4 rounded-2xl bg-zinc-100 p-4 text-left transition-colors hover:bg-zinc-200 active:scale-[0.99]">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                      <AlertTriangle size={26} className="text-zinc-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base font-bold text-zinc-900">
+                        Пријави Проблем
+                      </p>
+                      <p className="mt-0.5 text-sm leading-snug text-zinc-500">
+                        Дупка, расипана светилка, нечистотии и слично.
+                      </p>
+                    </div>
+                  </button>
 
-                    {/* Share Idea */}
-                    <button
-                      type="button"
-                      onClick={() => setStep("idea")}
-                      className="group flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl bg-zinc-100 p-5 text-center transition-colors hover:bg-zinc-200 active:scale-[0.99]">
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm">
-                        <Lightbulb size={30} className="text-zinc-600" />
-                      </div>
-                      <div>
-                        <p className="text-base font-bold text-zinc-900">
-                          Кажи си ја Идејата
-                        </p>
-                        <p className="mt-1 text-sm leading-relaxed text-zinc-500">
-                          Парк, патека, настан или нешто друго за Прилеп.
-                        </p>
-                      </div>
-                    </button>
-                  </div>
+                  {/* Share Idea */}
+                  <button
+                    type="button"
+                    onClick={() => setStep("idea")}
+                    className="group flex w-full flex-1 items-center gap-4 rounded-2xl bg-zinc-100 p-4 text-left transition-colors hover:bg-zinc-200 active:scale-[0.99]">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                      <Lightbulb size={26} className="text-zinc-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base font-bold text-zinc-900">
+                        Кажи си ја Идејата
+                      </p>
+                      <p className="mt-0.5 text-sm leading-snug text-zinc-500">
+                        Парк, патека, настан или нешто друго за Прилеп.
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Share Story */}
+                  <button
+                    type="button"
+                    onClick={() => setStep("story")}
+                    className="group flex w-full flex-1 items-center gap-4 rounded-2xl bg-zinc-100 p-4 text-left transition-colors hover:bg-zinc-200 active:scale-[0.99]">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                      <Newspaper size={26} className="text-zinc-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base font-bold text-zinc-900">
+                        Сподели Приказна
+                      </p>
+                      <p className="mt-0.5 text-sm leading-snug text-zinc-500">
+                        Добра вест, успех или нешто убаво од Прилеп.
+                      </p>
+                    </div>
+                  </button>
                 </div>
               </div>
 
@@ -614,6 +637,16 @@ export default function ActionModal({ userId, onClose }: Props) {
                       router.push("/initiatives?stage=idea");
                       handleClose();
                     }}
+                  />
+                </div>
+
+                {/* ── Story wizard (creates a Позитива draft in Sanity) ── */}
+                <div className={step === "story" ? "h-full" : "hidden"}>
+                  <StoryForm
+                    onCancel={() => setStep("choose")}
+                    onClose={handleClose}
+                    userEmail={userEmail}
+                    userName={userName}
                   />
                 </div>
               </div>

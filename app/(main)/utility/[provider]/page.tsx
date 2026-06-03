@@ -2,6 +2,10 @@ import { createClient } from "../../../../lib/supabase/server";
 import Link from "next/link";
 import StatusPill from "../../../../components/ui/StatusPill";
 import BusRouteMap from "../../../../components/ui/BusRouteMap";
+import WaterQuickActions from "../../../../components/utility/WaterQuickActions";
+import WaterInfoAccordion from "../../../../components/utility/WaterInfoAccordion";
+import KomunalecQuickActions from "../../../../components/utility/KomunalecQuickActions";
+import KomunalecInfoAccordion from "../../../../components/utility/KomunalecInfoAccordion";
 import { formatDays } from "../../../../lib/utils";
 import type { Provider, IssueStatus } from "../../../../lib/types/database";
 import { notFound } from "next/navigation";
@@ -59,22 +63,23 @@ export default async function UtilityPage({ params }: Props) {
               Официјални соопштенија од комуналното претпријатие
             </p>
           </div>
-          {p === "water" && (
-            <a
-              href={FB_PAGE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-[11px] text-blue-500 hover:underline shrink-0">
-              <svg
-                viewBox="0 0 24 24"
-                className="w-3 h-3 fill-[#1877F2]"
-                aria-hidden="true">
-                <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.514c-1.491 0-1.956.93-1.956 1.887v2.267h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
-              </svg>
-              Facebook страница
-            </a>
-          )}
         </div>
+
+        {/* Water quick actions — pay bill + emergency contacts */}
+        {p === "water" && (
+          <>
+            <WaterQuickActions />
+            <WaterInfoAccordion />
+          </>
+        )}
+
+        {/* Komunalec quick actions */}
+        {p === "garbage" && (
+          <>
+            <KomunalecQuickActions />
+            <KomunalecInfoAccordion />
+          </>
+        )}
 
         {/* Bus route map — only shown for transport */}
         {p === "transport" && (
@@ -84,7 +89,8 @@ export default async function UtilityPage({ params }: Props) {
           </div>
         )}
 
-        <div className="space-y-3">
+        {/* Posts feed — hidden for providers with rich custom UI */}
+        <div className={`space-y-3${p === "water" || p === "garbage" ? " hidden" : ""}`}>
           {posts && posts.length > 0 ? (
             posts.map((post) => (
               <div

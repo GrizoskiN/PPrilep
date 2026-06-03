@@ -88,6 +88,26 @@ export default defineType({
       type: "url",
     }),
     defineField({
+      name: "categories",
+      title: "Категории",
+      type: "array",
+      of: [{ type: "string" }],
+      description: "Тематски категории — infrastructure, education, culture…",
+      options: {
+        list: [
+          { title: "Инфраструктура",   value: "infrastructure" },
+          { title: "Образование",      value: "education" },
+          { title: "Култура",          value: "culture" },
+          { title: "Спорт",            value: "sport" },
+          { title: "Животна средина",  value: "environment" },
+          { title: "Здравство",        value: "health" },
+          { title: "Бизнис",           value: "business" },
+          { title: "Заедница",         value: "community" },
+        ],
+        layout: "tags",
+      },
+    }),
+    defineField({
       name: "isSubmission",
       title: "Пратено од граѓанин",
       type: "boolean",

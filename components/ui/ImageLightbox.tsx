@@ -57,10 +57,10 @@ export default function ImageLightbox({
       onClick={onClose}
       className="fixed inset-0 z-1000 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 cursor-zoom-out">
       {/* Image / slider container — capped at 1200px and used as the
-          positioning origin for the side controls. */}
-      <div
-        onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}
-        className="relative w-full max-w-300 flex items-center justify-center cursor-default">
+          positioning origin for the side controls. Clicks on the empty space
+          around the image fall through to the backdrop and close the viewer;
+          interactive controls below stop propagation themselves. */}
+      <div className="relative w-full max-w-300 flex items-center justify-center">
         {/* Close (top-right inside container) */}
         <button
           onClick={onClose}
@@ -73,7 +73,8 @@ export default function ImageLightbox({
           <>
             {/* Пред — middle-left of image */}
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setMode("single");
                 setActive(beforeSrc!);
               }}
@@ -89,7 +90,8 @@ export default function ImageLightbox({
 
             {/* Потоа — middle-right of image */}
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setMode("single");
                 setActive(afterSrc!);
               }}
@@ -105,7 +107,10 @@ export default function ImageLightbox({
 
             {/* Слајдер — bottom-center of image */}
             <button
-              onClick={() => setMode("slider")}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMode("slider");
+              }}
               aria-label="Слајдер"
               className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors ${
                 isSliderActive
@@ -119,17 +124,20 @@ export default function ImageLightbox({
         )}
 
         {hasToggle && mode === "slider" ? (
-          <BeforeAfterSlider
-            beforeSrc={beforeSrc!}
-            afterSrc={afterSrc!}
-            alt={alt}
-          />
+          // Wrap the slider so dragging the handle never bubbles to the backdrop.
+          <div onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
+            <BeforeAfterSlider
+              beforeSrc={beforeSrc!}
+              afterSrc={afterSrc!}
+              alt={alt}
+            />
+          </div>
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={cdnUrl(active)}
             alt={alt}
-            className="max-h-[88vh] max-w-full rounded-lg object-contain shadow-2xl"
+            className="max-h-[88vh] max-w-full rounded-lg object-contain shadow-2xl cursor-zoom-out"
           />
         )}
       </div>

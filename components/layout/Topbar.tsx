@@ -12,9 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 
-const ActionModal = dynamic(() => import("../ui/ActionModal"), {
-  ssr: false,
-});
+const ActionModal = dynamic(() => import("../ui/ActionModal"), { ssr: false });
 
 const ROTATING_WORDS = ["маката", "идејата", "мислата"];
 
@@ -217,7 +215,12 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
       )}
 
       {actionOpen && (
-        <ActionModal userId={user?.id} onClose={() => setActionOpen(false)} />
+        <ActionModal
+          userId={user?.id}
+          userEmail={user?.email}
+          userName={profile?.full_name ?? user?.user_metadata?.full_name}
+          onClose={() => setActionOpen(false)}
+        />
       )}
     </>
   );

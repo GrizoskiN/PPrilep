@@ -91,6 +91,8 @@ export async function POST(req: Request) {
     const institution    = (form.get("institution")    as string)?.trim().slice(0, MAX_FIELD) || null;
     const subject        = (form.get("subject")        as string)?.trim().slice(0, MAX_FIELD) || null;
     const videoUrl       = (form.get("videoUrl")       as string)?.trim().slice(0, 500) || null;
+    const categoriesRaw  = (form.get("categories")     as string)?.trim() || "";
+    const categories     = categoriesRaw ? categoriesRaw.split(",").map((c) => c.trim()).filter(Boolean) : [];
     const submitterName  = (form.get("submitterName")  as string)?.trim().slice(0, MAX_FIELD) || null;
     const submitterEmail = (form.get("submitterEmail") as string)?.trim().slice(0, MAX_FIELD) || null;
     const phone          = (form.get("phone")          as string)?.trim().slice(0, 40) || null;
@@ -151,9 +153,10 @@ export async function POST(req: Request) {
       reviewed:     false,
       body:         bodyBlocks,
       ...(coverImageRef && { coverImage: coverImageRef }),
-      ...(institution   && { institution }),
-      ...(subject       && { subject }),
-      ...(videoUrl      && { videoUrl }),
+      ...(institution          && { institution }),
+      ...(subject              && { subject }),
+      ...(videoUrl             && { videoUrl }),
+      ...(categories.length    && { categories }),
       submittedBy: {
         name:   submitterName  ?? user.user_metadata?.full_name ?? "",
         email:  submitterEmail ?? user.email ?? "",
