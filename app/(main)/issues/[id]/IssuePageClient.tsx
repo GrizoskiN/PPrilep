@@ -35,7 +35,7 @@ export default function IssuePageClient({ issue, userId }: Props) {
   return (
     <>
       {/* ── Desktop: exact same layout as the IssueList modal ── */}
-      <div className="hidden lg:flex fixed inset-0 z-10 bg-black/95">
+      <div className="hidden lg:flex fixed inset-0 z-70 bg-black/95">
         {/* Photo area — shrinks when dates panel is open */}
         <div className="flex-1 min-w-0 flex items-center justify-center bg-black p-6">
           {issue.photo_url && issue.after_photo_url ? (
@@ -81,7 +81,7 @@ export default function IssuePageClient({ issue, userId }: Props) {
             userId={userId}
             hideImage
             onClose={goBack}
-            onOpenDates={() => datesOpen ? closeDates() : openDates()}
+            onOpenDates={() => (datesOpen ? closeDates() : openDates())}
           />
         </div>
       </div>
@@ -99,13 +99,16 @@ export default function IssuePageClient({ issue, userId }: Props) {
         {datesOpen && (
           <>
             <div
-              className="fixed inset-0 z-[58] bg-black/30 transition-opacity duration-300"
+              className="fixed inset-0 z-58 bg-black/30 transition-opacity duration-300"
               style={{ opacity: datesAnimOpen ? 1 : 0 }}
               onClick={closeDates}
             />
             <div
-              className="fixed bottom-0 left-0 right-0 z-[59] bg-white rounded-t-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-out"
-              style={{ maxHeight: "88dvh", transform: datesAnimOpen ? "translateY(0)" : "translateY(100%)" }}>
+              className="fixed bottom-0 left-0 right-0 z-59 bg-white rounded-t-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-out"
+              style={{
+                maxHeight: "88dvh",
+                transform: datesAnimOpen ? "translateY(0)" : "translateY(100%)",
+              }}>
               <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab">
                 <div className="h-1.5 w-12 rounded-full bg-zinc-300" />
               </div>

@@ -1,6 +1,7 @@
 import { createClient } from "../../../../lib/supabase/server";
 import Link from "next/link";
 import StatusPill from "../../../../components/ui/StatusPill";
+import BusRouteMap from "../../../../components/ui/BusRouteMap";
 import { formatDays } from "../../../../lib/utils";
 import type { Provider, IssueStatus } from "../../../../lib/types/database";
 import { notFound } from "next/navigation";
@@ -48,7 +49,7 @@ export default async function UtilityPage({ params }: Props) {
     .order("posted_at", { ascending: false });
 
   return (
-      <div className="p-4 lg:p-6 space-y-4 max-w-2xl mx-auto">
+      <div className="space-y-6">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-base font-semibold">
@@ -74,6 +75,14 @@ export default async function UtilityPage({ params }: Props) {
             </a>
           )}
         </div>
+
+        {/* Bus route map — only shown for transport */}
+        {p === "transport" && (
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-zinc-700">Линии на градски превоз</h2>
+            <BusRouteMap />
+          </div>
+        )}
 
         <div className="space-y-3">
           {posts && posts.length > 0 ? (

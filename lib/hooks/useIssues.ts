@@ -86,7 +86,7 @@ export function useIssues(opts: UseIssuesOptions = {}) {
     let q = supabase
       .from("issues")
       .select(
-        `*, profiles:reported_by(id, full_name, avatar_url, username), resolver:resolved_by(id, full_name, avatar_url, username)`,
+        `*, profiles:reported_by(id, full_name, avatar_url, username, membership_tier, points), resolver:resolved_by(id, full_name, avatar_url, username, membership_tier, points)`,
       )
       .order("created_at", { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1);
@@ -157,7 +157,7 @@ export function useIssues(opts: UseIssuesOptions = {}) {
             const { data } = await supabase
               .from("issues")
               .select(
-                `*, profiles:reported_by(id, full_name, avatar_url, username), resolver:resolved_by(id, full_name, avatar_url, username)`,
+                `*, profiles:reported_by(id, full_name, avatar_url, username, membership_tier, points), resolver:resolved_by(id, full_name, avatar_url, username, membership_tier, points)`,
               )
               .eq("id", (payload.new as Issue).id)
               .single();

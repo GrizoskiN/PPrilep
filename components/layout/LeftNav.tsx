@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   faHouse,
   faTriangleExclamation,
   faMedal,
-  faHandHoldingHeart,
   faLightbulb,
   faUsers,
   faDroplet,
@@ -24,9 +23,128 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Map } from "lucide-react";
-import NavItem from "../ui/NavItem";
 import { cn } from "../../lib/utils";
 import { createClient } from "../../lib/supabase/client";
+
+interface LeftNavItemProps {
+  href: string;
+  label: string;
+  iconNode: React.ReactNode;
+  iconTone?: IconTone;
+  badge?: string;
+  exact?: boolean;
+  requireNoSearchParams?: boolean;
+}
+
+type IconTone =
+  | "slate"
+  | "red"
+  | "blue"
+  | "amber"
+  | "green"
+  | "orange"
+  | "teal"
+  | "indigo"
+  | "violet"
+  | "zinc"
+  | "yellow"
+  | "cyan"
+  | "lime"
+  | "sky"
+  | "emerald";
+
+function getIconToneClasses(tone: IconTone): string {
+  switch (tone) {
+    case "red":
+      return "text-red-500 lg:group-hover:text-red-500";
+    case "blue":
+      return "text-blue-500 lg:group-hover:text-blue-500";
+    case "amber":
+      return "text-amber-500 lg:group-hover:text-amber-500";
+    case "green":
+      return "text-green-500 lg:group-hover:text-green-500";
+    case "orange":
+      return "text-orange-500 lg:group-hover:text-orange-500";
+    case "teal":
+      return "text-teal-500 lg:group-hover:text-teal-500";
+    case "indigo":
+      return "text-indigo-500 lg:group-hover:text-indigo-500";
+    case "violet":
+      return "text-violet-500 lg:group-hover:text-violet-500";
+    case "zinc":
+      return "text-zinc-500 lg:group-hover:text-zinc-500";
+    case "yellow":
+      return "text-yellow-500 lg:group-hover:text-yellow-500";
+    case "cyan":
+      return "text-cyan-500 lg:group-hover:text-cyan-500";
+    case "lime":
+      return "text-lime-500 lg:group-hover:text-lime-500";
+    case "sky":
+      return "text-sky-500 lg:group-hover:text-sky-500";
+    case "emerald":
+      return "text-emerald-500 lg:group-hover:text-emerald-500";
+    case "slate":
+    default:
+      return "text-slate-500 lg:group-hover:text-slate-500";
+  }
+}
+
+function LeftNavItem({
+  href,
+  label,
+  iconNode,
+  iconTone,
+  badge,
+  exact,
+  requireNoSearchParams,
+}: LeftNavItemProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [hrefPath, hrefQueryString] = href.split("?");
+  const hrefQuery = new URLSearchParams(hrefQueryString ?? "");
+
+  const matchesQuery = Array.from(hrefQuery.entries()).every(
+    ([key, value]) => searchParams.get(key) === value,
+  );
+
+  const active = hrefQueryString
+    ? pathname === hrefPath && matchesQuery
+    : exact
+      ? pathname === hrefPath &&
+        (!requireNoSearchParams || Array.from(searchParams.keys()).length === 0)
+      : pathname.startsWith(hrefPath);
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "group flex select-none items-center gap-2.5 rounded-lg px-3 py-1.5 xl:py-2 text-[13px] lg:text-[12px] xl:text-[15px] font-medium text-theme-muted transition-all duration-150 ease-in-out cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#d9e1e8] focus-visible:ring-offset-2 focus-visible:ring-offset-(--theme-surface)",
+        active
+          ? "bg-slate-50 font-semibold text-theme-ink"
+          : "hover:bg-slate-50 hover:text-theme-ink",
+      )}>
+      <span
+        className={cn(
+          "w-4 text-center transition-colors duration-150",
+          active
+            ? getIconToneClasses(iconTone ?? "slate")
+            : cn("text-theme-muted", getIconToneClasses(iconTone ?? "slate")),
+        )}>
+        {iconNode}
+      </span>
+      {label}
+      {badge ? (
+        <span
+          className={cn(
+            "ml-auto rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-theme-muted",
+            active && "bg-[#ccfbf1] text-theme-ink",
+          )}>
+          {badge}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
 
 const districts = [
   { value: "all", label: "Прилеп" },
@@ -42,251 +160,222 @@ const districts = [
 export default function LeftNav() {
   const searchParams = useSearchParams();
   const activeDistrict = searchParams.get("district") ?? "all";
-  const CACHE_KEY = "nav_active_issues_count";
+  const ACTIVE_CACHE_KEY = "nav_active_issues_count";
+  const TOTAL_CACHE_KEY = "nav_total_issues_count";
 
   const [activeIssuesCount, setActiveIssuesCount] = useState(0);
+  const [totalIssuesCount, setTotalIssuesCount] = useState(0);
 
   useEffect(() => {
     // Seed from cache after hydration — avoids SSR mismatch
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) setActiveIssuesCount(parseInt(cached, 10));
+    const cachedActive = localStorage.getItem(ACTIVE_CACHE_KEY);
+    const cachedTotal = localStorage.getItem(TOTAL_CACHE_KEY);
+    const seedId = setTimeout(() => {
+      if (cachedActive) setActiveIssuesCount(parseInt(cachedActive, 10));
+      if (cachedTotal) setTotalIssuesCount(parseInt(cachedTotal, 10));
+    }, 0);
 
     let mounted = true;
     const supabase = createClient();
 
     async function loadActiveIssuesCount() {
-      const { count } = await supabase
-        .from("issues")
-        .select("id", { count: "exact", head: true })
-        .neq("status", "resolved");
+      const [{ count: active }, { count: total }] = await Promise.all([
+        supabase
+          .from("issues")
+          .select("id", { count: "exact", head: true })
+          .neq("status", "resolved"),
+        supabase.from("issues").select("id", { count: "exact", head: true }),
+      ]);
 
       if (mounted) {
-        const n = count ?? 0;
-        setActiveIssuesCount(n);
-        localStorage.setItem(CACHE_KEY, String(n));
+        const a = active ?? 0;
+        const t = total ?? 0;
+        setActiveIssuesCount(a);
+        setTotalIssuesCount(t);
+        localStorage.setItem(ACTIVE_CACHE_KEY, String(a));
+        localStorage.setItem(TOTAL_CACHE_KEY, String(t));
       }
     }
 
     loadActiveIssuesCount();
 
-    return () => { mounted = false; };
+    return () => {
+      clearTimeout(seedId);
+      mounted = false;
+    };
   }, []);
 
   return (
-    <nav className="scrollbar-hidden flex h-full min-h-0 flex-col gap-5 overflow-y-auto px-4 py-4">
+    <nav className="scrollbar-hidden flex h-full min-h-0 flex-col gap-5 overflow-y-auto py-3">
       <section>
-        <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-          Платформа
+        <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
+          Граѓани
         </p>
         <div className="flex flex-col gap-1 ">
-          <NavItem
+          <LeftNavItem
             href="/"
             label="Почетна"
-            iconNode={<FontAwesomeIcon icon={faHouse} className="h-4 w-4 " />}
+            iconNode={<FontAwesomeIcon icon={faHouse} className="h-4 w-4" />}
+            iconTone="slate"
             exact
           />
-          <NavItem
+          <LeftNavItem
             href="/issues"
             label="Пријави"
-            badge={String(activeIssuesCount)}
+            badge={`${activeIssuesCount}/${totalIssuesCount}`}
             iconNode={
               <FontAwesomeIcon
                 icon={faTriangleExclamation}
                 className="h-4 w-4"
               />
             }
+            iconTone="red"
           />
-          <NavItem
-            href="/map"
-            label="Мапа"
-            iconNode={<Map className="h-4 w-4" />}
-          />
-          <NavItem
+          <div className="pl-5">
+            <LeftNavItem
+              href="/map"
+              label="Мапа на пријави"
+              iconNode={<Map className="h-4 w-4" />}
+              iconTone="blue"
+            />
+          </div>
+          <LeftNavItem
             href="/heroes"
             label="Херои"
             iconNode={<FontAwesomeIcon icon={faMedal} className="h-4 w-4" />}
+            iconTone="amber"
           />
-          <NavItem
-            href="/fund"
-            label="Фонд"
-            iconNode={
-              <FontAwesomeIcon icon={faHandHoldingHeart} className="h-4 w-4" />
-            }
-          />
-          <NavItem
-            href="/ideas"
-            label="Идеи"
+          <LeftNavItem
+            href="/initiatives"
+            label="Иницијативи"
             iconNode={
               <FontAwesomeIcon icon={faLightbulb} className="h-4 w-4" />
             }
+            iconTone="orange"
           />
-          <NavItem
+          <LeftNavItem
             href="/communities"
             label="Населби"
             iconNode={<FontAwesomeIcon icon={faUsers} className="h-4 w-4" />}
+            iconTone="teal"
           />
-          <NavItem
+        </div>
+      </section>
+
+      <section>
+        <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
+          За платформата
+        </p>
+        <div className="flex flex-col gap-1 ">
+          <LeftNavItem
             href="/about"
-            label="Мој Прилеп"
+            label="За нас"
             iconNode={
-              <FontAwesomeIcon
-                icon={faAddressCard}
-                className="h-4 w-4 text-primary"
-              />
+              <FontAwesomeIcon icon={faAddressCard} className="h-4 w-4" />
             }
+            iconTone="indigo"
           />
-          <NavItem
+          <LeftNavItem
             href="/projects"
             label="Наши Проекти"
             iconNode={
-              <FontAwesomeIcon
-                icon={faDiagramProject}
-                className="h-4 w-4 text-indigo-500"
-              />
+              <FontAwesomeIcon icon={faDiagramProject} className="h-4 w-4" />
             }
+            iconTone="violet"
           />
-          <NavItem
+          <LeftNavItem
             href="/sponsors"
             label="Партнери"
             iconNode={
-              <FontAwesomeIcon
-                icon={faHandshake}
-                className="h-4 w-4 text-emerald-600"
-              />
+              <FontAwesomeIcon icon={faHandshake} className="h-4 w-4" />
             }
+            iconTone="zinc"
           />
         </div>
       </section>
 
       <section>
-        <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+        <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
           Информации
         </p>
         <div className="flex flex-col gap-1">
-          <NavItem
+          <LeftNavItem
             href="/positive"
             label="Позитива"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faSun}
-                className="h-4 w-4 text-amber-500"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faSun} className="h-4 w-4" />}
+            iconTone="yellow"
           />
-          <NavItem
+          <LeftNavItem
             href="/events"
             label="Случувања"
             iconNode={
-              <FontAwesomeIcon
-                icon={faCalendarDays}
-                className="h-4 w-4 text-rose-500"
-              />
+              <FontAwesomeIcon icon={faCalendarDays} className="h-4 w-4" />
             }
+            iconTone="cyan"
           />
         </div>
       </section>
 
       <section>
-        <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+        <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
           Претпријатие
         </p>
         <div className="flex flex-col gap-1">
-          <NavItem
+          <LeftNavItem
             href="/utility/water"
             label="Водовод"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faDroplet}
-                className="h-4 w-4 text-blue-500"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faDroplet} className="h-4 w-4" />}
+            iconTone="blue"
           />
-          <NavItem
+          <LeftNavItem
             href="/utility/garbage"
             label="Комуналец"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faTrashCan}
-                className="h-4 w-4 text-slate-500"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faTrashCan} className="h-4 w-4" />}
+            iconTone="lime"
           />
-          <NavItem
+          <LeftNavItem
             href="/utility/power"
             label="Осветлување"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faPlug}
-                className="h-4 w-4 text-amber-500"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faPlug} className="h-4 w-4" />}
+            iconTone="amber"
           />
-          <NavItem
+          <LeftNavItem
             href="/utility/transport"
             label="Градски превоз"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faBus}
-                className="h-4 w-4 text-orange-500"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faBus} className="h-4 w-4" />}
+            iconTone="violet"
           />
-          <NavItem
+          <LeftNavItem
             href="/utility/parking"
             label="Паркинзи"
             iconNode={
-              <FontAwesomeIcon
-                icon={faSquareParking}
-                className="h-4 w-4 text-blue-700"
-              />
+              <FontAwesomeIcon icon={faSquareParking} className="h-4 w-4" />
             }
+            iconTone="teal"
           />
-          <NavItem
+          <LeftNavItem
             href="/kindergarten"
             label="Градинки — Наша Иднина"
-            iconNode={
-              <FontAwesomeIcon
-                icon={faChildren}
-                className="h-4 w-4 text-rose-400"
-              />
-            }
+            iconNode={<FontAwesomeIcon icon={faChildren} className="h-4 w-4" />}
+            iconTone="emerald"
           />
         </div>
       </section>
-      {/* 
-      <section>
-        <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-          Населби
-        </p>
-        <div className="flex flex-col gap-1">
-          {districts.map((d) => (
-            <NavItem
-              key={d.value}
-              href={
-                d.value === "all" ? "/issues" : `/issues?district=${d.value}`
-              }
-              label={d.label}
-              exact={d.value === "all"}
-              requireNoSearchParams={d.value === "all"}
-            />
-          ))}
-        </div>
-      </section> */}
 
       <section className=" rounded-3xl p-3 ">
         <div className="mb-3 flex items-center justify-between px-1">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          <p className="text-nav-section text-[9px] font-semibold uppercase tracking-[0.18em]">
             Филтер по мапа
           </p>
           <Link
             href="/issues"
-            className="text-[9px] font-semibold text-primary hover:text-primary/80">
+            className="text-nav-reset text-[9px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[#d9e1e8] focus-visible:ring-offset-2 focus-visible:ring-offset-(--theme-surface)">
             Ресет
           </Link>
         </div>
 
         <div className="">
-          <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-semibold text-slate-500">
+          <div className="text-nav-district-grid grid grid-cols-3 gap-2 text-center text-[10px] font-semibold">
             {districts.map((d) => (
               <Link
                 key={d.value}
@@ -296,26 +385,16 @@ export default function LeftNav() {
                     : `/issues?district=${encodeURIComponent(d.value)}`
                 }
                 className={cn(
-                  "rounded-xl border px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition-colors",
+                  "nav-district-btn rounded-xl border px-2 py-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#d9e1e8] focus-visible:ring-offset-2 focus-visible:ring-offset-(--theme-surface)",
                   activeDistrict === d.value
-                    ? "border-[#bfe3db] bg-[#eef8f5] text-primary"
-                    : "border-[#dde7e3] bg-white hover:border-[#cfe0da] hover:bg-[#fcfefd]",
+                    ? "nav-district-btn-active"
+                    : "nav-district-btn-idle",
                 )}>
                 {d.label}
               </Link>
             ))}
           </div>
         </div>
-
-        {/* <div className="mt-3">
-          <p className="mb-2 px-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-            Активен избор
-          </p>
-          <div className="rounded-2xl border border-[#dde7e3] bg-[#fcfefd] px-3 py-2 text-sm font-medium text-slate-600">
-            {districts.find((district) => district.value === activeDistrict)
-              ?.label ?? "Прилеп"}
-          </div>
-        </div> */}
       </section>
     </nav>
   );

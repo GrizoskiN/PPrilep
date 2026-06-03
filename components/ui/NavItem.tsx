@@ -45,28 +45,31 @@ export default function NavItem({
     <Link
       href={href}
       className={cn(
-        "flex select-none items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-all duration-150 ease-in-out cursor-pointer",
+        "flex select-none items-center gap-2.5 rounded-lg px-3 py-2 text-[15px] font-medium text-theme-muted transition-all duration-150 ease-in-out cursor-pointer lg:text-sm",
         active
-          ? "rounded-r-none rounded-l-lg border-r-[3px] border-primary bg-[#f0fdfa] text-primary font-semibold"
-          : "hover:bg-gray-100 hover:text-gray-900",
+          ? "rounded-r-none rounded-l-lg border-r-[3px] border-theme-ink bg-[#f0fdfa] text-theme-ink font-semibold"
+          : "hover:bg-gray-100 hover:text-theme-ink",
       )}>
       {iconNode ? (
         <span
           className={cn(
             "w-4 text-center",
-            active ? "text-primary" : "text-gray-500",
+            active ? "text-theme-ink" : "text-theme-muted",
           )}>
           {iconNode}
         </span>
       ) : Icon ? (
-        <Icon size={16} className={active ? "text-primary" : "text-gray-500"} />
+        <Icon
+          size={16}
+          className={active ? "text-theme-ink" : "text-theme-muted"}
+        />
       ) : null}
       {label}
       {badge ? (
         <span
           className={cn(
-            "ml-auto rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-600",
-            active && "bg-[#ccfbf1] text-primary",
+            "ml-auto rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-theme-muted",
+            active && "bg-[#ccfbf1] text-theme-ink",
           )}>
           {badge}
         </span>

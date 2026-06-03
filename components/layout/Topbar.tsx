@@ -1,22 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Plus } from "lucide-react";
+import { ImagePlus, Menu, Plus, UserCircle2 } from "lucide-react";
 import Button from "../ui/Button";
 import UserMenu from "../auth/UserMenu";
 import NotificationBell from "../auth/NotificationBell";
+import AvatarInitials from "../ui/AvatarInitials";
 import { toast } from "sonner";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { createClient } from "../../lib/supabase/client";
 
-const ReportModal = dynamic(() => import("../issues/ReportModal"), {
+const ActionModal = dynamic(() => import("../ui/ActionModal"), {
   ssr: false,
 });
 
-const ROTATING_WORDS = ["Подобар", "Почист", "Поубав", "Побезбеден"];
+const ROTATING_WORDS = ["маката", "идејата", "мислата"];
 
 interface Props {
   onOpenMobileMenu?: () => void;
@@ -24,44 +24,12 @@ interface Props {
 
 export default function Topbar({ onOpenMobileMenu }: Props) {
   const { user, profile, signOut } = useAuth();
-  const [reportOpen, setReportOpen] = useState(false);
+  const [actionOpen, setActionOpen] = useState(false);
   const [wordIndex, setWordIndex] = useState(0);
   const [typedWord, setTypedWord] = useState(ROTATING_WORDS[0]);
   const [isDeleting, setIsDeleting] = useState(false);
   const lastMenuOpenRef = useRef(0);
   const pathname = usePathname();
-  const [activeCount, setActiveCount] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-
-  useEffect(() => {
-    // Seed from cache immediately (runs after hydration — no SSR mismatch)
-    const cachedActive = parseInt(localStorage.getItem("issues_active_count") ?? "0", 10);
-    const cachedTotal  = parseInt(localStorage.getItem("issues_total_count")  ?? "0", 10);
-    if (cachedActive) setActiveCount(cachedActive);
-    if (cachedTotal)  setTotalCount(cachedTotal);
-
-    let mounted = true;
-    const supabase = createClient();
-    async function loadCounts() {
-      const [{ count: active }, { count: total }] = await Promise.all([
-        supabase
-          .from("issues")
-          .select("id", { count: "exact", head: true })
-          .neq("status", "resolved"),
-        supabase.from("issues").select("id", { count: "exact", head: true }),
-      ]);
-      if (mounted) {
-        const a = active ?? 0;
-        const t = total ?? 0;
-        setActiveCount(a);
-        setTotalCount(t);
-        localStorage.setItem("issues_active_count", String(a));
-        localStorage.setItem("issues_total_count", String(t));
-      }
-    }
-    loadCounts();
-    return () => { mounted = false; };
-  }, []);
 
   useEffect(() => {
     const currentWord = ROTATING_WORDS[wordIndex];
@@ -126,23 +94,19 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
       window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
       return;
     }
-    setReportOpen(true);
+    setActionOpen(true);
   }
 
   return (
     <>
-      <header className="col-span-3 z-30 flex h-18 items-center justify-between border-b border-[#e4ece8] px-2 ">
+      <header className="col-span-3 z-30 relative flex h-18 items-center justify-between border-b border-[#e4ece8] px-3 lg:px-3.5">
         <Link
           href="/"
-          className="flex max-w-[60%] items-center gap-3 cursor-pointer">
-          <span className="hidden h-10 w-10 items-center justify-center rounded-xl bg-[linear-gradient(180deg,#4fd4c1,#2aa99d)] text-sm font-black text-white shadow-[0_10px_20px_rgba(42,169,157,0.22)] md:flex">
-            ПП
-          </span>
+          className="ml-1 flex max-w-[60%] items-center gap-3 cursor-pointer lg:ml-0">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex min-w-0 items-baseline gap-1 text-xl leading-none tracking-tight">
-              <span className="inline-block min-w-0 truncate font-semibold text-slate-900">
-                {typedWord}
-                <span className="ml-0.5 inline-block h-[0.9em] w-px animate-pulse bg-slate-400 align-[-0.12em]" />
+              <span className="h-full min-w-0  font-semibold text-slate-900">
+                Мој
               </span>
               <span className="font-semibold text-primary">Прилеп</span>
             </div>
@@ -153,39 +117,79 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
           </div>
         </Link>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 lg:hidden">
+        <div className="pointer-events-none absolute left-1/2 hidden w-full lg:max-w-lg xl:max-w-166.75 -translate-x-1/2 px-2 lg:block">
+          <div className="pointer-events-auto">
             <button
+              type="button"
               onClick={handleReportClick}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white shadow-sm transition-colors hover:bg-primary/90"
-              aria-label="Пријави проблем">
-              <Plus size={16} />
+              aria-label="Отвори поле за објава"
+              className="flex h-12 w-full items-center gap-2.5 rounded-full border border-[#d7dfdc] bg-white px-3 shadow-[0_2px_10px_rgba(15,23,43,0.08)] transition-colors hover:bg-[#f8fafb] hover:shadow-[0_4px_14px_rgba(15,23,43,0.1)]">
+              <AvatarInitials
+                name={profile?.full_name ?? profile?.username}
+                avatarUrl={profile?.avatar_url}
+                className="h-8 w-8 border border-white/70"
+                membershipTier={
+                  profile?.membership_tier as import("../ui/AvatarInitials").MembershipTier
+                }
+                points={profile?.points}
+              />
+              <span className="flex h-8  flex-1 items-center rounded-full bg-[#e2e5e9] px-3.5 text-left text-xs text-slate-500">
+                <span className="truncate text-[15px]">
+                  Кажи си ја {typedWord}
+                  <span className="ml-0.5 inline-block h-[0.95em] w-px animate-pulse bg-slate-400 align-[-0.12em]" />
+                </span>
+              </span>
+              <ImagePlus className="h-4.5 w-4.5 shrink-0 text-[#f43f5e]" />
+              <span className="topbar-report-cta inline-flex h-8 shrink-0 items-center rounded-full px-3 text-xs font-semibold text-white">
+                Пријави +
+              </span>
             </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 lg:hidden">
+            {user && (
+              <NotificationBell
+                userId={user.id}
+                buttonClassName="h-10 w-10"
+                iconSize={20}
+              />
+            )}
+            {user ? (
+              <Link
+                href="/account"
+                aria-label="Мој профил"
+                className="flex h-10 w-10 items-center justify-center [-webkit-tap-highlight-color:transparent]">
+                <AvatarInitials
+                  name={profile?.full_name ?? profile?.username}
+                  avatarUrl={profile?.avatar_url}
+                  size="sm"
+                />
+              </Link>
+            ) : (
+              <Link
+                href="/auth/login"
+                aria-label="Најава"
+                className="flex h-10 w-10 items-center justify-center text-slate-700">
+                <UserCircle2 size={22} strokeWidth={2} />
+              </Link>
+            )}
             <button
               onTouchEnd={(e) => {
                 e.preventDefault();
                 openMobileMenu();
               }}
               onClick={openMobileMenu}
-              className="relative  flex h-10 w-10 items-center justify-center text-slate-800 z-50"
+              className="relative  flex h-10 w-7 items-center justify-end text-slate-800 z-50"
               aria-label="Отвори мени">
               <Menu size={22} strokeWidth={2.4} />
             </button>
           </div>
 
           <div className="hidden items-center gap-3 lg:flex">
-            <div className="hidden items-center gap-2 text-sm text-slate-500 lg:flex">
-              <span className="text-[#f2a93b]">⚡</span>
-              <span className="font-semibold text-slate-700">
-                {activeCount}/{totalCount} активни
-              </span>
-            </div>
-
             {user ? (
               <>
-                <Button size="sm" variant="teal" onClick={handleReportClick}>
-                  <Plus size={13} /> Пријави проблем
-                </Button>
                 <NotificationBell userId={user.id} />
                 <UserMenu profile={profile} onSignOut={signOut} />
               </>
@@ -196,21 +200,24 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
                     Најава
                   </Button>
                 </Link>
-                <Button size="sm" variant="primary" onClick={handleReportClick}>
-                  <Plus size={13} /> Пријави проблем
-                </Button>
               </>
             )}
           </div>
         </div>
       </header>
 
-      {reportOpen && (
-        <ReportModal
-          userId={user?.id}
-          onClose={() => setReportOpen(false)}
-          onSuccess={() => setReportOpen(false)}
-        />
+      {!pathname?.startsWith("/sponsors") && (
+        <button
+          type="button"
+          onClick={handleReportClick}
+          className="topbar-report-cta fixed bottom-5 right-4 z-50 inline-flex h-13 w-13 items-center justify-center rounded-full text-white transition-all lg:hidden"
+          aria-label="Учествувај">
+          <Plus size={22} strokeWidth={2.5} />
+        </button>
+      )}
+
+      {actionOpen && (
+        <ActionModal userId={user?.id} onClose={() => setActionOpen(false)} />
       )}
     </>
   );

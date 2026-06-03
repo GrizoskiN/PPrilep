@@ -2,7 +2,7 @@ import Skeleton from "../../../components/ui/Skeleton";
 
 export default function CommunitiesLoading() {
   return (
-      <div className="mx-auto max-w-156 py-4 lg:py-6 px-3 space-y-3">
+      <div className="space-y-3">
         <Skeleton className="h-7 w-32 mb-4" />
         <div className="grid grid-cols-2 gap-3">
           {[0, 1, 2, 3, 4, 5].map((i) => (

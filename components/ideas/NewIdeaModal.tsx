@@ -1,17 +1,49 @@
 "use client";
 
-import { useMemo } from "react";
-import { X } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { X, MapPin, Check } from "lucide-react";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { createClient } from "../../lib/supabase/client";
+import StreetAutocomplete from "../issues/StreetAutocomplete";
 import Button from "../ui/Button";
 import { toast } from "sonner";
+import type { District } from "../../lib/types/database";
+
+const LocationPickerModal = dynamic(
+  () => import("../issues/LocationPickerModal"),
+  { ssr: false },
+);
+
+const DISTRICTS = [
+  "Center",
+  "Varoš",
+  "Trizla",
+  "Točila",
+  "Rid",
+  "Tipski",
+  "Boncejca",
+  "KorzoMaalo",
+] as const;
+
+const DISTRICT_MK: Record<District, string> = {
+  Center: "Центар",
+  Varoš: "Варош",
+  Trizla: "Тризла",
+  Točila: "Точила",
+  Rid: "Рид",
+  Tipski: "Типски",
+  Boncejca: "Бончејца",
+  KorzoMaalo: "Корзо Маало",
+};
 
 const schema = z.object({
-  title: z.string().min(5, "Барем 5 знаци"),
+  title: z.string().trim().min(1, "Внесете наслов"),
   body: z.string().optional(),
+  street_name: z.string().optional(),
+  district: z.enum(DISTRICTS).optional(),
 });
 type Fields = z.infer<typeof schema>;
 
@@ -23,18 +55,33 @@ interface Props {
 
 export default function NewIdeaModal({ userId, onClose, onSuccess }: Props) {
   const supabase = useMemo(() => createClient(), []);
+  const [streetNumber, setStreetNumber] = useState("");
+  const [pinLat, setPinLat] = useState<number | null>(null);
+  const [pinLng, setPinLng] = useState<number | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const {
     register,
     handleSubmit,
+    control,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<Fields>({
     resolver: zodResolver(schema),
+    defaultValues: { district: "Center" },
   });
 
   async function onSubmit(values: Fields) {
-    const { error } = await supabase
-      .from("ideas")
-      .insert({ ...values, created_by: userId });
+    const street = values.street_name?.trim() || null;
+    const number = streetNumber.trim();
+    const { error } = await supabase.from("ideas").insert({
+      title: values.title.trim(),
+      body: values.body?.trim() || null,
+      street_name: street && number ? `${street} ${number}` : street,
+      district: values.district ?? null,
+      lat: pinLat,
+      lng: pinLng,
+      created_by: userId,
+    });
     if (error) {
       toast.error(error.message);
       return;
@@ -75,6 +122,72 @@ export default function NewIdeaModal({ userId, onClose, onSuccess }: Props) {
               className="mt-1 w-full border border-zinc-200 rounded px-3 py-2 text-sm outline-none focus:border-black resize-none"
             />
           </div>
+          <div>
+            <label className="text-xs font-medium text-zinc-700">
+              Улица / локација
+            </label>
+            <div className="flex items-stretch gap-2 mt-1">
+              <div className="flex-1 min-w-0">
+                <Controller
+                  name="street_name"
+                  control={control}
+                  render={({ field }) => (
+                    <StreetAutocomplete
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      placeholder="пр. Партизанска"
+                      onSelect={(s) => {
+                        if (s.district) {
+                          setValue("district", s.district, {
+                            shouldDirty: true,
+                          });
+                        }
+                      }}
+                    />
+                  )}
+                />
+              </div>
+              <input
+                value={streetNumber}
+                onChange={(e) =>
+                  setStreetNumber(e.target.value.replace(/[^\d\w/]/g, ""))
+                }
+                placeholder="Бр."
+                maxLength={8}
+                className="w-14 shrink-0 border border-zinc-200 rounded px-2 text-sm text-center outline-none focus:border-black"
+              />
+            </div>
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+              <select
+                {...register("district")}
+                className="w-36 border border-zinc-200 rounded px-2.5 py-1.5 text-xs bg-white">
+                <option value="">Населба</option>
+                {DISTRICTS.map((d) => (
+                  <option key={d} value={d}>
+                    {DISTRICT_MK[d]}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors ${
+                  pinLat !== null && pinLng !== null
+                    ? "border-teal-300 bg-teal-50 text-teal-700 hover:bg-teal-100"
+                    : "border-zinc-200 bg-white text-slate-600 hover:border-teal-300 hover:text-teal-700"
+                }`}>
+                {pinLat !== null && pinLng !== null ? (
+                  <>
+                    <Check size={11} /> Локацијата е поставена
+                  </>
+                ) : (
+                  <>
+                    <MapPin size={11} /> Обележи на мапа
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={onClose}>
               Откажи
@@ -85,6 +198,28 @@ export default function NewIdeaModal({ userId, onClose, onSuccess }: Props) {
           </div>
         </form>
       </div>
+
+      {pickerOpen && (
+        <LocationPickerModal
+          initialLat={pinLat}
+          initialLng={pinLng}
+          onClose={() => setPickerOpen(false)}
+          onConfirm={(lat, lng, streetOnly, matched, houseNumber) => {
+            setPinLat(lat);
+            setPinLng(lng);
+            if (streetOnly) {
+              setValue("street_name", streetOnly, { shouldDirty: true });
+            }
+            if (matched?.district) {
+              setValue("district", matched.district, { shouldDirty: true });
+            }
+            if (houseNumber) {
+              setStreetNumber(houseNumber);
+            }
+            setPickerOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,25 +1,29 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import CampaignCard from '../../../components/fund/CampaignCard'
-import ProposeModal from '../../../components/fund/ProposeModal'
-import { useFund } from '../../../lib/hooks/useFund'
-import { useAuth } from '../../../lib/hooks/useAuth'
-import Button from '../../../components/ui/Button'
-import { Plus } from 'lucide-react'
+import { useState } from "react";
+import CampaignCard from "../../../components/fund/CampaignCard";
+import ProposeModal from "../../../components/fund/ProposeModal";
+import { useFund } from "../../../lib/hooks/useFund";
+import { useAuth } from "../../../lib/hooks/useAuth";
+import Button from "../../../components/ui/Button";
+import { Plus } from "lucide-react";
 
 export default function FundPage() {
-  const { campaigns, loading } = useFund()
-  const { user } = useAuth()
-  const [proposeOpen, setProposeOpen] = useState(false)
+  const { campaigns, loading } = useFund();
+  const { user } = useAuth();
+  const [proposeOpen, setProposeOpen] = useState(false);
 
   return (
     <>
-      <div className="p-4 space-y-4">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-base font-semibold">Фонд кампањи</h1>
-            <p className="text-xs text-zinc-500">Граѓанско финансирање за подобрување на градот</p>
+            <h1 className="text-base font-semibold text-theme-heading">
+              Фонд кампањи
+            </h1>
+            <p className="text-xs text-theme-muted">
+              Граѓанско финансирање за подобрување на градот
+            </p>
           </div>
           {user && (
             <Button size="sm" onClick={() => setProposeOpen(true)}>
@@ -28,12 +32,18 @@ export default function FundPage() {
           )}
         </div>
 
-        {loading && <p className="text-xs text-zinc-400">Се вчитуваат кампањи…</p>}
+        {loading && (
+          <p className="text-xs text-theme-subtle">Се вчитуваат кампањи…</p>
+        )}
         <div className="space-y-3">
-          {campaigns.map(c => <CampaignCard key={c.id} campaign={c} />)}
+          {campaigns.map((c) => (
+            <CampaignCard key={c.id} campaign={c} />
+          ))}
         </div>
         {!loading && campaigns.length === 0 && (
-          <p className="text-xs text-zinc-400">Сè уште нема кампањи. Бидете први!</p>
+          <p className="text-xs text-theme-subtle">
+            Сè уште нема кампањи. Бидете први!
+          </p>
         )}
       </div>
 
@@ -45,5 +55,5 @@ export default function FundPage() {
         />
       )}
     </>
-  )
+  );
 }

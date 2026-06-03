@@ -35,7 +35,11 @@ export type Provider =
   | "parking"
   | "kindergarten";
 
-export type KindergartenPostType = "menu" | "programme" | "idea" | "announcement";
+export type KindergartenPostType =
+  | "menu"
+  | "programme"
+  | "idea"
+  | "announcement";
 export type CampaignStatus = "active" | "completed" | "cancelled";
 export type NotificationType =
   | "issue_comment"
@@ -53,6 +57,11 @@ export interface Profile {
   points: number;
   is_admin?: boolean;
   is_company?: boolean;
+  membership_tier?: string | null;
+  street_name?: string | null;
+  district?: string | null;
+  email_digest?: boolean;
+  email_newsletter?: boolean;
   created_at: string;
 }
 
@@ -114,6 +123,10 @@ export interface Idea {
   id: number;
   title: string;
   body: string | null;
+  street_name?: string | null;
+  district?: District | null;
+  lat?: number | null;
+  lng?: number | null;
   upvotes: number;
   created_by: string | null;
   created_at: string;
@@ -143,3 +156,66 @@ export interface AppNotification {
   created_at: string;
   actor?: Profile | null;
 }
+
+// ── Initiatives ────────────────────────────────────────────────────────
+export type InitiativeStage =
+  | "idea"
+  | "voting"
+  | "funding"
+  | "completed"
+  | "rejected";
+export type InitiativeCategory =
+  | "infrastructure"
+  | "education"
+  | "environment"
+  | "culture"
+  | "safety"
+  | "health"
+  | "other";
+
+export interface Initiative {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  category: InitiativeCategory;
+  stage: InitiativeStage;
+  vote_count: number;
+  vote_threshold: number;
+  district: District | null;
+  street_name: string | null;
+  lat: number | null;
+  lng: number | null;
+  cover_image_url: string | null;
+  image_urls: string[];
+  problem_statement: string | null;
+  expected_impact: string | null;
+  target_amount: number | null;
+  raised_amount: number;
+  funding_deadline: string | null;
+  completed_at: string | null;
+  completion_note: string | null;
+  completion_images: string[];
+  sanity_doc_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InitiativeWithDetails extends Initiative {
+  author_username: string | null;
+  author_full_name: string | null;
+  author_avatar: string | null;
+  author_membership_tier: string | null;
+  author_points: number;
+  vote_progress_pct: number;
+  fund_progress_pct: number;
+  supporter_count: number;
+}
+
+export type InitiativeStageCounts = {
+  idea: number;
+  voting: number;
+  funding: number;
+  completed: number;
+  rejected: number;
+};

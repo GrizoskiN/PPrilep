@@ -21,7 +21,7 @@ export default async function FundCampaignDetailPage({ params }: Props) {
   if (!campaign) notFound();
 
   return (
-      <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
+      <div className="space-y-4">
         <CampaignCard campaign={campaign} />
 
         {campaign.description && (

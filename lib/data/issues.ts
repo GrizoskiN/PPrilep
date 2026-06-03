@@ -27,6 +27,8 @@ export interface IssueComment {
     full_name: string | null;
     avatar_url: string | null;
     username: string | null;
+    membership_tier?: string | null;
+    points?: number;
   } | null;
 }
 
@@ -40,6 +42,8 @@ export interface HelpOfferComment {
     full_name: string | null;
     avatar_url: string | null;
     username: string | null;
+    membership_tier?: string | null;
+    points?: number;
   } | null;
 }
 
@@ -54,6 +58,8 @@ export interface HelpOffer {
     full_name: string | null;
     avatar_url: string | null;
     username: string | null;
+    membership_tier?: string | null;
+    points?: number;
   } | null;
   vote_count: number;
   voted_by_me: boolean;
@@ -66,6 +72,8 @@ export type PeopleUser = {
     full_name: string | null;
     avatar_url: string | null;
     username: string | null;
+    membership_tier?: string | null;
+    points?: number;
   } | null;
 };
 
@@ -85,6 +93,8 @@ export type ChangeRequest = {
     full_name: string | null;
     avatar_url: string | null;
     username: string | null;
+    membership_tier?: string | null;
+    points?: number;
   } | null;
 };
 
@@ -94,6 +104,8 @@ export type ResolverInfo = {
     full_name: string | null;
     avatar_url: string | null;
     username: string | null;
+    membership_tier?: string | null;
+    points?: number;
   } | null;
   upvote_count: number;
   has_upvoted: boolean;
@@ -105,6 +117,8 @@ type ProfileShape = {
   full_name: string | null;
   avatar_url: string | null;
   username: string | null;
+  membership_tier?: string | null;
+  points?: number;
 };
 type MaybeArrayProfile = ProfileShape | ProfileShape[] | null;
 
@@ -128,7 +142,7 @@ export async function fetchIssueComments(
   const { data, error } = await supabase
     .from("issue_comments")
     .select(
-      "id, user_id, body, photo_url, parent_comment_id, created_at, profiles:user_id(full_name, avatar_url, username)",
+      "id, user_id, body, photo_url, parent_comment_id, created_at, profiles:user_id(full_name, avatar_url, username, membership_tier, points)",
     )
     .eq("issue_id", issueId)
     .order("created_at", { ascending: false });
@@ -187,11 +201,11 @@ export async function fetchIssuePeopleStats(
   const [{ data: affected }, { data: helpers }] = await Promise.all([
     supabase
       .from("issue_affected")
-      .select("user_id, profiles:user_id(full_name, avatar_url, username)")
+      .select("user_id, profiles:user_id(full_name, avatar_url, username, membership_tier, points)")
       .eq("issue_id", issueId),
     supabase
       .from("issue_helpers")
-      .select("user_id, profiles:user_id(full_name, avatar_url, username)")
+      .select("user_id, profiles:user_id(full_name, avatar_url, username, membership_tier, points)")
       .eq("issue_id", issueId),
   ]);
 
@@ -258,7 +272,7 @@ export async function fetchIssueHelpOffers(
   const { data: offersData, error: offersError } = await supabase
     .from("issue_help_offers")
     .select(
-      "id, issue_id, user_id, note, service_date, created_at, profiles:user_id(full_name, avatar_url, username)",
+      "id, issue_id, user_id, note, service_date, created_at, profiles:user_id(full_name, avatar_url, username, membership_tier, points)",
     )
     .eq("issue_id", issueId)
     .order("created_at", { ascending: true });
@@ -301,7 +315,7 @@ export async function fetchIssueHelpOffers(
       supabase
         .from("issue_help_offer_comments")
         .select(
-          "id, offer_id, user_id, body, created_at, profiles:user_id(full_name, avatar_url, username)",
+          "id, offer_id, user_id, body, created_at, profiles:user_id(full_name, avatar_url, username, membership_tier, points)",
         )
         .in("offer_id", offerIds)
         .order("created_at", { ascending: true }),

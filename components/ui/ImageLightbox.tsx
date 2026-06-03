@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { ChevronLeft, ChevronRight, GitCompare, X } from "lucide-react";
 import { cdnUrl } from "../../lib/utils";
 import BeforeAfterSlider from "./BeforeAfterSlider";
@@ -55,12 +55,12 @@ export default function ImageLightbox({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 cursor-zoom-out">
+      className="fixed inset-0 z-1000 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 cursor-zoom-out">
       {/* Image / slider container — capped at 1200px and used as the
           positioning origin for the side controls. */}
       <div
-        onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-[1200px] flex items-center justify-center cursor-default">
+        onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+        className="relative w-full max-w-300 flex items-center justify-center cursor-default">
         {/* Close (top-right inside container) */}
         <button
           onClick={onClose}

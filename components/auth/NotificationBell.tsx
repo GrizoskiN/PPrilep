@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bell } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
 import { isMissingNotificationsTableError } from "../../lib/notifications";
+import { cn } from "../../lib/utils";
 import {
   formatDays,
   getIssuePath,
@@ -24,9 +25,15 @@ function resolveNotifLink(link: string, title: string): string {
 
 interface Props {
   userId: string;
+  buttonClassName?: string;
+  iconSize?: number;
 }
 
-export default function NotificationBell({ userId }: Props) {
+export default function NotificationBell({
+  userId,
+  buttonClassName,
+  iconSize = 17,
+}: Props) {
   const CACHE_KEY = `notif_unread_${userId}`;
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -113,14 +120,17 @@ export default function NotificationBell({ userId }: Props) {
   useEffect(() => {
     // Seed from cache after hydration — avoids SSR mismatch
     const cached = parseInt(localStorage.getItem(CACHE_KEY) ?? "0", 10);
-    if (cached) setUnreadCount(cached);
+    const seedId = setTimeout(() => {
+      if (cached) setUnreadCount(cached);
+    }, 0);
 
     const initialId = setTimeout(() => {
       void loadUnreadCount();
     }, 0);
 
+    const channelName = `notif-bell-${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const channel = supabase
-      .channel(`notif-bell-${userId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -136,6 +146,7 @@ export default function NotificationBell({ userId }: Props) {
       )
       .subscribe();
     return () => {
+      clearTimeout(seedId);
       clearTimeout(initialId);
       supabase.removeChannel(channel);
     };
@@ -155,8 +166,11 @@ export default function NotificationBell({ userId }: Props) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-zinc-100 hover:text-slate-700">
-        <Bell size={17} />
+        className={cn(
+          "relative flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-zinc-100 hover:text-slate-700",
+          buttonClassName,
+        )}>
+        <Bell size={iconSize} />
         {unreadCount > 0 && (
           <span className="absolute -right-1 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white">
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -165,43 +179,47 @@ export default function NotificationBell({ userId }: Props) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg">
-          <div className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2.5">
-            <Bell size={13} className="text-zinc-400" />
-            <p className="text-xs font-semibold text-zinc-700">Известувања</p>
-          </div>
-          <div className="max-h-85 overflow-y-auto">
-            <div className="p-2 space-y-1">
-              {loading && (
-                <p className="py-5 text-center text-xs text-zinc-400">
-                  Се вчитуваат...
-                </p>
-              )}
-              {!loading && notifications.length === 0 && (
-                <p className="py-5 text-center text-xs text-zinc-400">
-                  Нема известувања.
-                </p>
-              )}
-              {notifications.map((n) => (
-                <Link
-                  key={n.id}
-                  href={resolveNotifLink(n.link, n.title)}
-                  onClick={() => setOpen(false)}
-                  className={`block rounded-lg px-2.5 py-2 transition-colors hover:bg-zinc-50 ${
-                    !n.read_at ? "bg-teal-50" : ""
-                  }`}>
-                  <p className="text-xs font-semibold text-zinc-800">
-                    {n.actor?.full_name ?? n.actor?.username ?? "Некој"}{" "}
-                    <span className="font-normal text-zinc-600">{n.body}</span>
+        <div className="fixed inset-x-0 top-25 z-50 px-3 lg:absolute lg:inset-auto lg:right-0 lg:top-full lg:mt-2 lg:w-80 lg:px-0">
+          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg">
+            <div className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2.5">
+              <Bell size={13} className="text-zinc-400" />
+              <p className="text-sm font-semibold text-zinc-700">Известувања</p>
+            </div>
+            <div className="max-h-85 overflow-y-auto">
+              <div className="p-2 space-y-1">
+                {loading && (
+                  <p className="py-5 text-center text-xs text-zinc-400">
+                    Се вчитуваат...
                   </p>
-                  <p className="mt-0.5 line-clamp-1 text-[11px] text-zinc-500">
-                    {n.title}
+                )}
+                {!loading && notifications.length === 0 && (
+                  <p className="py-5 text-center text-xs text-zinc-400">
+                    Нема известувања.
                   </p>
-                  <p className="mt-0.5 text-[10px] text-zinc-400">
-                    {formatDays(n.created_at)}
-                  </p>
-                </Link>
-              ))}
+                )}
+                {notifications.map((n) => (
+                  <Link
+                    key={n.id}
+                    href={resolveNotifLink(n.link, n.title)}
+                    onClick={() => setOpen(false)}
+                    className={`block rounded-lg px-2.5 py-2 transition-colors hover:bg-zinc-50 ${
+                      !n.read_at ? "bg-teal-50" : ""
+                    }`}>
+                    <p className="text-sm font-semibold text-zinc-800">
+                      {n.actor?.full_name ?? n.actor?.username ?? "Некој"}{" "}
+                      <span className="font-normal text-zinc-600">
+                        {n.body}
+                      </span>
+                    </p>
+                    <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">
+                      {n.title}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-zinc-400">
+                      {formatDays(n.created_at)}
+                    </p>
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         </div>

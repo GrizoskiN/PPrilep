@@ -1,14 +1,14 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import Topbar from "./Topbar";
 import LeftNav from "./LeftNav";
 import RightPanel from "./RightPanel";
-import BottomNav from "./BottomNav";
+import RightPanelSkeleton from "./RightPanelSkeleton";
 import MarqueeBanner from "../ui/MarqueeBanner";
-import { useAuth } from "../../lib/hooks/useAuth";
+import { usesThreeColumns, routeHasCustomPanel } from "../../lib/layout";
 
 interface Props {
   children: React.ReactNode;
@@ -17,20 +17,41 @@ interface Props {
 }
 
 export default function Shell({ children, rightPanel, fullWidth }: Props) {
-  const { user, profile } = useAuth();
+  const pathname = usePathname();
+
+  // 3-column routes keep the right info panel; everything else collapses the
+  // middle + right into one wide column (see lib/layout.ts).
+  const threeColumn = usesThreeColumns(pathname ?? "/");
+  // In the 2-column layout the main content spans the full combined width.
+  const contentFull = fullWidth || !threeColumn;
+
+  // The panel to render in each slot: an explicitly-passed panel wins; otherwise
+  // routes that inject their own panel show a neutral skeleton (until it mounts)
+  // and all other routes show the default info panel.
+  const panelContent =
+    rightPanel ??
+    (routeHasCustomPanel(pathname ?? "/") ? (
+      <RightPanelSkeleton />
+    ) : (
+      <RightPanel />
+    ));
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuOpenedAt, setMenuOpenedAt] = useState<number>(0);
 
   const closeMenu = () => setMenuOpen(false);
 
+  function handleMobileNavClick(e: React.MouseEvent<HTMLElement>) {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    if (target.closest("a[href]")) {
+      closeMenu();
+    }
+  }
+
   const openMenu = () => {
     setMenuOpenedAt(Date.now());
     setMenuOpen(true);
   };
-
-  const mobileUserLabel = user
-    ? (profile?.full_name ?? profile?.username ?? "Профил")
-    : "Гостин";
 
   const mainRef = useRef<HTMLElement>(null);
 
@@ -60,7 +81,8 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
           tag === "TEXTAREA" ||
           tag === "SELECT" ||
           target.isContentEditable
-        ) return;
+        )
+          return;
       }
       const main = mainRef.current;
       if (!main) return;
@@ -101,16 +123,21 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
 
   return (
     <>
-      <MarqueeBanner />
-      <div className="flex h-screen w-full max-w-350 mx-auto flex-col overflow-hidden bg-transparent">
-        <div className="flex h-full min-h-0   flex-1 flex-col overflow-hidden">
+      <div className="flex h-screen w-full  flex-col overflow-hidden bg-transparent">
+        <MarqueeBanner />
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-400 flex-1 flex-col overflow-hidden">
           <div className="grid shrink-0 grid-cols-1 lg:grid-cols-[18%_1fr_18%]">
             <div className="hidden lg:block" />
             <Topbar onOpenMobileMenu={openMenu} />
             <div className="hidden lg:block" />
           </div>
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)_250px] xl:grid-cols-[280px_minmax(0,1fr)_280px]">
+          <div
+            className={`grid min-h-0 flex-1  grid-cols-1 ${
+              threeColumn
+                ? "lg:grid-cols-[235px_minmax(0,1fr)_235px] xl:grid-cols-[280px_minmax(0,1fr)_280px]"
+                : "lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)]"
+            }`}>
             <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block">
               <Suspense fallback={<div className="h-full" />}>
                 <LeftNav />
@@ -120,18 +147,24 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
               ref={mainRef}
               tabIndex={-1}
               className="scrollbar-hidden min-h-0 overflow-y-auto pb-16 outline-none lg:pb-0">
-              <div className={fullWidth ? "w-full" : "mx-auto w-full max-w-166.75"}>
+              <div className={contentFull ? "app-content-wide" : "app-content"}>
                 {children}
+                {/* Mobile: right panel inline below content (hidden on desktop where it's the 3rd column) */}
+                {threeColumn && (
+                  <div className="mt-2 border-t border-zinc-100 lg:hidden">
+                    {panelContent}
+                  </div>
+                )}
               </div>
             </main>
-            <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block">
-              {rightPanel ?? <RightPanel />}
-            </div>
+            {threeColumn && (
+              <div className="scrollbar-hidden hidden min-h-0 overflow-y-auto lg:block">
+                {panelContent}
+              </div>
+            )}
           </div>
         </div>
       </div>
-
-      <BottomNav />
 
       {menuOpen && (
         <button
@@ -144,7 +177,7 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[88vw] max-w-90 border-r border-[#e4ece8] bg-white shadow-xl transition-transform duration-200 ease-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-[80vw] max-w-72 border-r border-[#e4ece8] bg-white shadow-xl transition-transform duration-200 ease-out lg:hidden ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         onClick={(e) => e.stopPropagation()}>
@@ -161,51 +194,24 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
         </div>
 
         <div className="h-[calc(100%-3rem)] overflow-y-auto">
-          <section className="border-b border-[#e4ece8] px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-              Корисник
-            </p>
-            <p className="mt-1 truncate text-sm font-semibold text-slate-700">
-              {mobileUserLabel}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              {user ? (
-                <Link
-                  href="/account"
-                  onClick={closeMenu}
-                  className="rounded-lg border border-[#dce6e2] px-2.5 py-1.5 text-xs font-semibold text-slate-700">
-                  Мој профил
-                </Link>
-              ) : (
-                <Link
-                  href="/auth/login"
-                  onClick={closeMenu}
-                  className="rounded-lg border border-[#dce6e2] px-2.5 py-1.5 text-xs font-semibold text-slate-700">
-                  Најава
-                </Link>
-              )}
-            </div>
-          </section>
-
-          <section className="border-b border-[#e4ece8]">
-            <div className="px-4 pb-2 pt-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                Навигација
-              </p>
-            </div>
+          <section
+            className="border-b border-[#e4ece8] [&_a.group]:text-[15px] [&_a.group]:py-2.5"
+            onClickCapture={handleMobileNavClick}>
             <Suspense fallback={<div className="h-40" />}>
               <LeftNav />
             </Suspense>
           </section>
 
-          <section>
-            <div className="px-4 pb-2 pt-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                Инфо панел
-              </p>
-            </div>
-            <div className="pb-6">{rightPanel ?? <RightPanel />}</div>
-          </section>
+          {threeColumn && (
+            <section>
+              <div className="px-4 pb-2 pt-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  Инфо панел
+                </p>
+              </div>
+              <div className="pb-6 px-0">{panelContent}</div>
+            </section>
+          )}
         </div>
       </aside>
     </>

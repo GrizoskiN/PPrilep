@@ -150,6 +150,38 @@ export function parseIssueIdFromSegment(segment: string): number | null {
   return Number(match[1]);
 }
 
+// ── Public user profile paths (root-level: /username) ────────────────────────
+//
+// Profiles live at the URL root (e.g. /lukasmario19) — no /u/ prefix. That means
+// a username may never equal a real top-level route segment, so we reserve them.
+export const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
+  // app/(main) routes
+  "about", "account", "communities", "events", "fund", "heroes", "ideas",
+  "info", "initiatives", "issues", "kindergarten", "positive", "privacy",
+  "projects", "sponsors", "utility",
+  // top-level app routes / system
+  "admin", "api", "auth", "gradinka", "map", "studio", "u",
+  // common reserved words to keep free for the future
+  "login", "register", "settings", "help", "terms", "contact", "home", "new",
+]);
+
+/** True when a username collides with a route segment and must be rejected. */
+export function isReservedUsername(name: string): boolean {
+  return RESERVED_USERNAMES.has(name.trim().toLowerCase());
+}
+
+/**
+ * URL for a public profile. Prefers the username, falls back to the user id.
+ * Always URL-encoded so legacy usernames containing spaces still resolve.
+ */
+export function userPath(
+  username?: string | null,
+  id?: string | null,
+): string {
+  const slug = (username && username.trim()) || id || "";
+  return `/${encodeURIComponent(slug)}`;
+}
+
 // Rewrites a Supabase storage URL to go through the Cloudflare CDN
 // (env: NEXT_PUBLIC_CDN_HOST, e.g. "cdn.mojprilep.mk"). Falls back to the
 // original URL when the env var is not set, so this is safe to deploy before

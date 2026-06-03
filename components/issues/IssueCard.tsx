@@ -1,19 +1,14 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import BlurImage from "../ui/BlurImage";
 import Link from "next/link";
 import { Send, X, Link2 } from "lucide-react";
 import StatusPill from "../ui/StatusPill";
+import StatusTimelinePopup from "../ui/StatusTimelinePopup";
 import AvatarInitials from "../ui/AvatarInitials";
-import {
-  formatDays,
-  categoryIcon,
-  cn,
-  DISTRICT_LABELS,
-  CATEGORY_LABELS,
-  getIssuePath,
-} from "../../lib/utils";
+import { formatDays, cn, getIssuePath, userPath } from "../../lib/utils";
+import { incrementIssueViews } from "../../lib/views";
 import type { Issue } from "../../lib/types/database";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
@@ -88,12 +83,48 @@ function PomogniIcon({ className }: { className?: string }) {
   );
 }
 
+function ViewsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="42"
+      height="46"
+      viewBox="0 0 42 46"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      className={className}>
+      <rect y="14" width="7" height="32" rx="2" fill="#636671" />
+      <rect x="9" width="7" height="46" rx="2" fill="#636671" />
+      <rect x="35" width="7" height="46" rx="2" fill="#636671" />
+      <rect x="18" y="14" width="6" height="32" rx="2" fill="#636671" />
+      <rect x="26" y="22" width="7" height="24" rx="2" fill="#636671" />
+    </svg>
+  );
+}
+
+function ClickHintIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 512 512"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      className={className}>
+      <path
+        fill="currentColor"
+        d="m437.162 447.059-63.202 36.503c-21.239 12.269-44.049 18.405-66.85 18.406-22.807.001-45.606-6.134-66.851-18.406l-143.766-82.984c-6.377-3.684-10.942-9.654-12.857-16.81-1.916-7.156-.942-14.608 2.741-20.983 8.409-14.578 21.622-25.107 37.203-29.643 15.881-4.624 32.67-2.522 47.273 5.919l40.667 23.474-125.576-217.512c-5.554-9.631-7.017-20.882-4.124-31.684 2.897-10.814 9.801-19.824 19.438-25.373 9.61-5.559 20.866-7.03 31.679-4.134 10.808 2.894 19.825 9.788 25.392 19.412l58.078 100.625c3.215-9.795 9.807-17.934 18.757-23.086 15.144-8.744 33.563-6.89 46.596 3.247 2.443-11.065 9.335-21.11 19.888-27.203 16.92-9.74 37.887-6.294 50.897 7.112 2.954-9.358 9.189-17.144 17.705-22.051 8.984-5.204 19.503-6.589 29.61-3.888 10.121 2.704 18.565 9.164 23.776 18.189l62.484 108.215c36.857 63.874 14.893 145.812-48.958 182.656zm-357.093-395.771c40.215-23.21 91.818-9.387 115.037 30.819 4.677 8.09 7.954 16.833 9.74 25.986 1.586 8.131 9.46 13.438 17.595 11.851 8.131-1.586 13.437-9.463 11.851-17.595-2.423-12.423-6.869-24.286-13.21-35.252-31.486-54.522-101.472-73.27-156.013-41.791-54.521 31.486-73.27 101.472-41.803 155.99 6.334 11.012 14.386 20.795 23.931 29.08 2.839 2.464 6.34 3.672 9.826 3.672 4.195 0 8.369-1.751 11.335-5.168 5.43-6.257 4.76-15.731-1.497-21.161-7.01-6.084-12.929-13.278-17.601-21.399-23.21-40.214-9.387-91.817 30.809-115.031z"
+      />
+    </svg>
+  );
+}
+
 interface UserEntry {
   user_id: string;
   profiles?: {
     full_name: string | null;
     avatar_url: string | null;
     username: string | null;
+    membership_tier?: string | null;
+    points?: number;
   } | null;
 }
 
@@ -121,9 +152,7 @@ function UserListPopup({
       {users.map((u) => {
         const name =
           u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
-        const href = u.profiles?.username
-          ? `/u/${u.profiles.username}`
-          : `/u/${u.user_id}`;
+        const href = userPath(u.profiles?.username, u.user_id);
         return (
           <Link
             key={u.user_id}
@@ -133,6 +162,8 @@ function UserListPopup({
               name={name}
               avatarUrl={u.profiles?.avatar_url ?? null}
               size="sm"
+              membershipTier={u.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={u.profiles?.points}
             />
             <span className="text-xs text-zinc-700 truncate">{name}</span>
           </Link>
@@ -159,10 +190,31 @@ export default function IssueCard({
   onClick,
   eagerImage = false,
 }: Props) {
+  const cardRef = useRef<HTMLElement>(null);
   const [affectedCount, setAffectedCount] = useState(issue.affected_count ?? 0);
   const [helperCount, setHelperCount] = useState(issue.helper_count ?? 0);
   const [isAffected, setIsAffected] = useState(issue.is_affected ?? false);
   const [isHelper, setIsHelper] = useState(issue.is_helper ?? false);
+
+  // Sync local optimistic state with the parent's `issue` prop whenever it
+  // changes. Without this, the card stays visually "unliked" after the user
+  // toggles, because the parent's updated issue object can't reach our
+  // useState (it only runs on mount). Adding this is the proper fix for the
+  // remount-on-key approach we removed for perf.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setAffectedCount(issue.affected_count ?? 0);
+      setHelperCount(issue.helper_count ?? 0);
+      setIsAffected(issue.is_affected ?? false);
+      setIsHelper(issue.is_helper ?? false);
+    }, 0);
+    return () => clearTimeout(id);
+  }, [
+    issue.affected_count,
+    issue.helper_count,
+    issue.is_affected,
+    issue.is_helper,
+  ]);
   const [helperOpen, setHelperOpen] = useState(false);
   const [loadingAff, setLoadingAff] = useState(false);
 
@@ -170,15 +222,16 @@ export default function IssueCard({
   const [helperUsers, setHelperUsers] = useState<UserEntry[]>([]);
   const [showAffectedPop, setShowAffectedPop] = useState(false);
   const [showHelperPop, setShowHelperPop] = useState(false);
+  const [showStatusPopup, setShowStatusPopup] = useState(false);
+  const [showViewsPopup, setShowViewsPopup] = useState(false);
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [sharePos, setSharePos] = useState({ top: 0, right: 0 });
   const shareButtonRef = useRef<HTMLButtonElement>(null);
 
   const issuePath = getIssuePath(issue.id, issue.title);
-  const authorHref = issue.profiles?.username
-    ? `/u/${issue.profiles.username}`
-    : issue.profiles?.id
-      ? `/u/${issue.profiles.id}`
+  const authorHref =
+    issue.profiles?.username || issue.profiles?.id
+      ? userPath(issue.profiles?.username, issue.profiles?.id)
       : "#";
 
   function redirectToAuth() {
@@ -197,7 +250,10 @@ export default function IssueCard({
   function openShareSheet() {
     if (shareButtonRef.current) {
       const r = shareButtonRef.current.getBoundingClientRect();
-      setSharePos({ top: r.bottom + 8, right: window.innerWidth - r.right - 15 });
+      setSharePos({
+        top: r.bottom + 8,
+        right: window.innerWidth - r.right - 15,
+      });
     }
     setShareSheetOpen(true);
   }
@@ -302,6 +358,27 @@ export default function IssueCard({
     setShowHelperPop(false);
   }
 
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el || typeof window === "undefined") return;
+
+    let hasCounted = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting || entry.intersectionRatio < 0.6) return;
+        if (hasCounted) return;
+        hasCounted = true;
+        observer.disconnect();
+        void incrementIssueViews(issue.id);
+      },
+      { threshold: [0.6] },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [issue.id]);
+
   const hasPhoto = !!(issue.photo_url || issue.after_photo_url);
 
   return (
@@ -317,8 +394,9 @@ export default function IssueCard({
       )}
 
       <article
+        ref={cardRef}
         onClick={onClick}
-        className="cursor-pointer bg-white border border-zinc-200 rounded-none lg:rounded-xl overflow-hidden hover:border-zinc-300 transition-colors">
+        className="cursor-pointer bg-white border border-zinc-200 rounded-xl overflow-hidden hover:border-zinc-300 transition-colors">
         {/* ── Header ─────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <Link
@@ -329,6 +407,8 @@ export default function IssueCard({
               name={issue.profiles?.full_name}
               avatarUrl={issue.profiles?.avatar_url}
               size="sm"
+              membershipTier={issue.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={issue.profiles?.points}
             />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-zinc-800 group-hover:underline leading-tight truncate">
@@ -338,47 +418,28 @@ export default function IssueCard({
                 {formatDays(issue.created_at)}
               </p>
             </div>
-
-            {/* Desktop: original row layout, district+street truncated with gradient */}
-            <div className="hidden lg:flex items-center gap-1.5 justify-end shrink-0 max-w-[60%] min-w-0">
-              <div className="relative min-w-0 overflow-hidden">
-                <span className="text-[10px] text-zinc-500 font-medium whitespace-nowrap block">
-                  {DISTRICT_LABELS[issue.district] ?? issue.district}
-                  {issue.street_name ? ` | ${issue.street_name}` : ""}
-                </span>
-                <div className="absolute inset-y-0 right-0 w-8 bg-linear-to-l from-white to-transparent pointer-events-none" />
-              </div>
-              <span className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-md font-medium whitespace-nowrap shrink-0">
-                {categoryIcon(issue.category)}{" "}
-                {CATEGORY_LABELS[issue.category] ?? issue.category}
-              </span>
-              <StatusPill status={issue.status} />
-            </div>
           </Link>
 
-          {/* Mobile: category+status on top, street below with gradient */}
-          <div className="lg:hidden flex flex-col items-end gap-0.5 shrink-0 max-w-[60%]">
-            <div className="flex items-center gap-1.5">
-              <Link
-                href={`/issues?category=${issue.category}`}
-                onClick={(e) => e.stopPropagation()}
-                className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-md font-medium whitespace-nowrap hover:bg-zinc-200 transition-colors">
-                {categoryIcon(issue.category)}{" "}
-                {CATEGORY_LABELS[issue.category] ?? issue.category}
-              </Link>
-              <StatusPill status={issue.status} />
-            </div>
-            {issue.street_name && (
-              <div className="relative w-full overflow-hidden">
-                <Link
-                  href={`/issues?street=${encodeURIComponent(issue.street_name)}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="block text-[10px] text-zinc-400 font-medium whitespace-nowrap hover:text-zinc-600 transition-colors text-right pl-6">
-                  {issue.street_name}
-                </Link>
-                <div className="absolute inset-y-0 left-0 w-8 bg-linear-to-r from-white to-transparent pointer-events-none" />
-              </div>
-            )}
+          <div className="shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowStatusPopup(true);
+              }}
+              className="group cursor-pointer p-0.5 focus-visible:outline-none"
+              title="Кликни за статус детали"
+              aria-label="Прикажи статус детали">
+              <span className="inline-flex items-center gap-1.5 leading-none">
+                {issue.status === "open" && (
+                  <span className="h-1.5 w-1.5 self-center animate-[pulse_0.8s_ease-in-out_infinite] rounded-full bg-red-500" />
+                )}
+                <span className="inline-flex items-center self-center rounded-full transition-colors group-hover:bg-zinc-100">
+                  <StatusPill status={issue.status} />
+                </span>
+                <ClickHintIcon className="h-3.5 w-3.5 self-center text-zinc-400 transition-colors group-hover:text-zinc-600" />
+              </span>
+            </button>
           </div>
         </div>
 
@@ -429,6 +490,8 @@ export default function IssueCard({
                       avatarUrl={issue.resolver.avatar_url}
                       size="sm"
                       className="w-4! h-4! text-[8px]!"
+                      membershipTier={issue.resolver.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                      points={issue.resolver.points}
                     />
                     <span className="text-[10px] font-semibold text-white truncate">
                       {issue.resolver.full_name ??
@@ -462,44 +525,13 @@ export default function IssueCard({
 
         {/* ── Action bar ─────────────────────────────────── */}
         <div className="flex items-center justify-between px-4 pt-1.5 pb-4">
-          <div className="flex items-center gap-3 lg:gap-4">
-            {/* Помогни */}
-            <div className="relative flex items-center gap-1.5 lg:gap-2">
-              <button
-                onClick={showHelpers}
-                className={cn(
-                  "text-[11px] lg:text-sm font-bold tabular-nums transition-colors",
-                  helperCount > 0
-                    ? "text-zinc-700 hover:text-[#427FFF] cursor-pointer"
-                    : "text-zinc-400 cursor-default",
-                )}>
-                {helperCount}
-              </button>
-              <button
-                onClick={openHelper}
-                className={cn(
-                  "flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-sm font-medium transition-colors",
-                  isHelper
-                    ? "text-[#427FFF]"
-                    : "text-zinc-500 hover:text-[#427FFF]",
-                )}>
-                <PomogniIcon className="h-5 w-5 lg:h-4.5 lg:w-4.5" />
-                <span>Помогни</span>
-              </button>
-              {showHelperPop && helperUsers.length > 0 && (
-                <UserListPopup
-                  users={helperUsers}
-                  onClose={() => setShowHelperPop(false)}
-                />
-              )}
-            </div>
-
+          <div className="flex items-center gap-2.5 lg:gap-3">
             {/* Иста мака */}
-            <div className="relative flex items-center gap-1.5 lg:gap-2">
+            <div className="relative flex items-center gap-1 lg:gap-1.5">
               <button
                 onClick={showAffected}
                 className={cn(
-                  "text-[11px] lg:text-sm font-bold tabular-nums transition-colors",
+                  "text-[10px] lg:text-[13px] font-bold tabular-nums transition-colors",
                   affectedCount > 0
                     ? "text-zinc-700 hover:text-[#427FFF] cursor-pointer"
                     : "text-zinc-400 cursor-default",
@@ -510,12 +542,12 @@ export default function IssueCard({
                 onClick={toggleAffected}
                 disabled={loadingAff}
                 className={cn(
-                  "flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-sm font-medium transition-colors",
+                  "flex items-center gap-1 text-[9px] lg:text-[13px] font-medium transition-colors",
                   isAffected
                     ? "text-[#427FFF]"
                     : "text-zinc-500 hover:text-[#427FFF]",
                 )}>
-                <IstaMakaIcon className="h-5 w-5 lg:h-4.5 lg:w-4.5" />
+                <IstaMakaIcon className="h-4.5 w-4.5 lg:h-4 lg:w-4" />
                 <span>Иста мака</span>
               </button>
               {showAffectedPop && affectedUsers.length > 0 && (
@@ -526,34 +558,84 @@ export default function IssueCard({
               )}
             </div>
 
-            {/* Коментари */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onClick?.();
-              }}
-              className="flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-sm font-medium text-zinc-500 hover:text-[#427FFF] transition-colors">
-              <span
+            {/* Помогни */}
+            <div className="relative flex items-center gap-1 lg:gap-1.5">
+              <button
+                onClick={showHelpers}
                 className={cn(
-                  "text-[11px] lg:text-sm font-bold tabular-nums",
-                  (issue.comment_count ?? 0) > 0
-                    ? "text-zinc-700"
-                    : "text-zinc-400",
+                  "text-[10px] lg:text-[13px] font-bold tabular-nums transition-colors",
+                  helperCount > 0
+                    ? "text-zinc-700 hover:text-[#427FFF] cursor-pointer"
+                    : "text-zinc-400 cursor-default",
                 )}>
-                {issue.comment_count ?? 0}
-              </span>
-              <KomentariIcon className="h-5 w-5 lg:h-4.5 lg:w-4.5" />
-              <span>Коментари</span>
-            </button>
+                {helperCount}
+              </button>
+              <button
+                onClick={openHelper}
+                className={cn(
+                  "flex items-center gap-1 text-[9px] lg:text-[13px] font-medium transition-colors",
+                  isHelper
+                    ? "text-[#427FFF]"
+                    : "text-zinc-500 hover:text-[#427FFF]",
+                )}>
+                <PomogniIcon className="h-4.5 w-4.5 lg:h-4 lg:w-4" />
+                <span>Помогни</span>
+              </button>
+              {showHelperPop && helperUsers.length > 0 && (
+                <UserListPopup
+                  users={helperUsers}
+                  onClose={() => setShowHelperPop(false)}
+                />
+              )}
+            </div>
+
+            {/* Коментари */}
+            <div className="flex items-center gap-1.5 lg:gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick?.();
+                }}
+                className="flex items-center gap-1 text-[9px] lg:text-[13px] font-medium text-zinc-500 hover:text-[#427FFF] transition-colors">
+                <span
+                  className={cn(
+                    "text-[10px] lg:text-[13px] font-bold tabular-nums",
+                    (issue.comment_count ?? 0) > 0
+                      ? "text-zinc-700"
+                      : "text-zinc-400",
+                  )}>
+                  {issue.comment_count ?? 0}
+                </span>
+                <KomentariIcon className="h-4.5 w-4.5 lg:h-4 lg:w-4" />
+                <span>Коментари</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowViewsPopup(true);
+                }}
+                className="ml-1.5 lg:ml-2.5 flex items-center gap-1 text-[9px] lg:text-[13px] font-medium text-zinc-400 hover:text-zinc-600 transition-colors shrink-0"
+                aria-label="Информации за прегледи">
+                <ViewsIcon className="h-3.5 w-auto lg:h-3.5 lg:w-auto opacity-75" />
+                <span className="tabular-nums text-zinc-500">
+                  {issue.views ?? 0}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Сподели */}
           <div className="relative">
             <button
               ref={shareButtonRef}
-              onClick={(e) => { e.stopPropagation(); openShareSheet(); }}
-              className="flex items-center gap-1.5 text-[10px] lg:text-sm font-medium text-zinc-500 hover:text-zinc-800 transition-colors">
-              <Send size={14} className="lg:w-4.5 lg:h-4.5" />
+              onClick={(e) => {
+                e.stopPropagation();
+                openShareSheet();
+              }}
+              className="flex items-center gap-1 text-[9px] lg:text-[13px] font-medium text-zinc-500 hover:text-zinc-800 transition-colors">
+              <Send size={13} className="lg:w-4 lg:h-4" />
               <span className="hidden lg:inline">Сподели</span>
             </button>
 
@@ -561,7 +643,10 @@ export default function IssueCard({
               <>
                 <div
                   className="fixed inset-0 z-40"
-                  onClick={(e) => { e.stopPropagation(); closeShareSheet(); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeShareSheet();
+                  }}
                 />
                 <div
                   className="fixed z-50 w-48 overflow-hidden rounded-xl bg-white shadow-lg"
@@ -576,25 +661,70 @@ export default function IssueCard({
                     },
                     {
                       label: "Facebook",
-                      icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.75 h-3.75"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>,
+                      icon: (
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="w-3.75 h-3.75">
+                          <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+                        </svg>
+                      ),
                       href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath)}`,
                       action: null as (() => void) | null,
                     },
                     {
                       label: "Instagram",
-                      icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-3.75 h-3.75"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none" /></svg>,
+                      icon: (
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.75"
+                          className="w-3.75 h-3.75">
+                          <rect
+                            x="2"
+                            y="2"
+                            width="20"
+                            height="20"
+                            rx="5"
+                            ry="5"
+                          />
+                          <circle cx="12" cy="12" r="4" />
+                          <circle
+                            cx="17.5"
+                            cy="6.5"
+                            r="0.5"
+                            fill="currentColor"
+                            stroke="none"
+                          />
+                        </svg>
+                      ),
                       href: null,
                       action: shareInstagram,
                     },
                     {
                       label: "WhatsApp",
-                      icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.75 h-3.75"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>,
+                      icon: (
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="w-3.75 h-3.75">
+                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                        </svg>
+                      ),
                       href: `https://wa.me/?text=${encodeURIComponent(`${issue.title} ${typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath}`)}`,
                       action: null,
                     },
                     {
                       label: "Viber",
-                      icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.75 h-3.75"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.35A9.96 9.96 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 14.5c-.28 0-.53-.11-.71-.29l-2-2a1 1 0 0 1 0-1.42l.5-.5c.2-.2.2-.51 0-.71l-2-2a.5.5 0 0 0-.71 0l-.5.5C7.08 11.08 7 12 7 12c0 2.76 2.24 5 5 5 0 0 .92-.08 1.92-1.08l.5-.5c.2-.2.2-.51 0-.71l-2-2a.5.5 0 0 0-.71 0l-.5.5c-.2.2-.51.2-.71 0z" /></svg>,
+                      icon: (
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="w-3.75 h-3.75">
+                          <path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.35A9.96 9.96 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 14.5c-.28 0-.53-.11-.71-.29l-2-2a1 1 0 0 1 0-1.42l.5-.5c.2-.2.2-.51 0-.71l-2-2a.5.5 0 0 0-.71 0l-.5.5C7.08 11.08 7 12 7 12c0 2.76 2.24 5 5 5 0 0 .92-.08 1.92-1.08l.5-.5c.2-.2.2-.51 0-.71l-2-2a.5.5 0 0 0-.71 0l-.5.5c-.2.2-.51.2-.71 0z" />
+                        </svg>
+                      ),
                       href: `viber://forward?text=${encodeURIComponent(`${issue.title} ${typeof window !== "undefined" ? `${window.location.origin}${issuePath}` : issuePath}`)}`,
                       action: null,
                     },
@@ -618,7 +748,7 @@ export default function IssueCard({
                         <span className="text-zinc-400">{item.icon}</span>
                         {item.label}
                       </button>
-                    )
+                    ),
                   )}
                 </div>
               </>
@@ -626,6 +756,57 @@ export default function IssueCard({
           </div>
         </div>
       </article>
+
+      {showViewsPopup && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/50"
+            onClick={() => setShowViewsPopup(false)}
+          />
+          <div className="fixed inset-0 z-51 flex items-center justify-center px-4">
+            <div
+              role="dialog"
+              aria-modal="true"
+              className="w-full max-w-md rounded-3xl border border-zinc-200 bg-white p-5 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-semibold text-slate-900">
+                    Прегледи
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-600 leading-relaxed">
+                    Овој број покажува колку пати пријавата е видена во feed или
+                    отворена во детали.
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    За повеќе информации, отвори{" "}
+                    <Link
+                      href="/info/views"
+                      className="font-semibold text-slate-800 underline underline-offset-2 hover:text-slate-900"
+                      onClick={() => setShowViewsPopup(false)}>
+                      Центар за помош
+                    </Link>
+                    .
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors"
+                  onClick={() => setShowViewsPopup(false)}
+                  aria-label="Затвори">
+                  <X size={16} />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowViewsPopup(false)}
+                className="mt-5 w-full rounded-full bg-[#e4e7eb] py-2.5 text-sm font-semibold text-slate-800 hover:bg-[#d9dde2] transition-colors">
+                Во ред
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {helperOpen && userId && (
         <HelperModal
@@ -638,6 +819,13 @@ export default function IssueCard({
             setHelperCount(count);
             setHelperOpen(false);
           }}
+        />
+      )}
+
+      {showStatusPopup && (
+        <StatusTimelinePopup
+          issue={issue}
+          onClose={() => setShowStatusPopup(false)}
         />
       )}
     </>

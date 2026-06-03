@@ -10,11 +10,19 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "**.googleusercontent.com",
+      },
+      {
+        protocol: "https",
         hostname: "cdn.mojprilep.mk",
       },
       {
         protocol: "https",
         hostname: "mojprilep.mk",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.sanity.io",
       },
     ],
     // Serve modern formats with smaller payloads

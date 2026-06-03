@@ -65,6 +65,10 @@ create table ideas (
   id bigserial primary key,
   title text not null,
   body text,
+  street_name text,
+  district text check (district in ('Center','Varoš','Trizla','Točila','Rid','Tipski','Boncejca','KorzoMaalo')),
+  lat double precision,
+  lng double precision,
   upvotes integer default 0,
   created_by uuid references profiles(id) on delete set null,
   created_at timestamptz default now()

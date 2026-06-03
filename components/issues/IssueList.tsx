@@ -10,7 +10,7 @@ import DateOffersPanel from "./DateOffersPanel";
 import FilterSelect from "../ui/FilterSelect";
 import ImageLightbox from "../ui/ImageLightbox";
 import BeforeAfterSlider from "../ui/BeforeAfterSlider";
-import { X } from "lucide-react";
+import { Filter } from "lucide-react";
 import {
   DISTRICT_LABELS,
   CATEGORY_LABELS,
@@ -69,6 +69,7 @@ export default function IssueList({
   );
   const [category, setCategory] = useState<Category | "all">("all");
   const [status, setStatus] = useState<IssueStatus | "all">("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [modalIssue, setModalIssue] = useState<Issue | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -84,9 +85,19 @@ export default function IssueList({
   );
 
   const { user } = useAuth();
+  const defaultDistrictValue = defaultDistrict ?? "all";
+  const hasActiveFilters =
+    district !== defaultDistrictValue || category !== "all" || status !== "all";
+
   const { issues, loading, loadingMore, hasMore, error, fetchMore } = useIssues(
     { district, category, status, userId: user?.id },
   );
+
+  function resetFilters() {
+    setDistrict(defaultDistrictValue);
+    setCategory("all");
+    setStatus("all");
+  }
 
   function openIssueModal(issue: Issue) {
     setSwipeDy(0);
@@ -116,8 +127,6 @@ export default function IssueList({
     if (modalIssue) {
       const id = requestAnimationFrame(() => setModalOpen(true));
       return () => cancelAnimationFrame(id);
-    } else {
-      setModalOpen(false);
     }
   }, [modalIssue]);
 
@@ -174,7 +183,6 @@ export default function IssueList({
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalIssue]);
 
   // Close modal on Escape
@@ -185,7 +193,6 @@ export default function IssueList({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalIssue]);
 
   // Prevent body scroll when modal is open
@@ -201,49 +208,78 @@ export default function IssueList({
       <div>
         <div
           suppressHydrationWarning
-          className="mt-2.5 grid grid-cols-3 z-20 gap-1.5 px-2 md:px-0 lg:px-3 py-2 sticky -top-1 bg-[#f2f4f7] border-b border-zinc-200 lg:border-b-0"
-          style={{ backgroundColor: "#f2f4f7" }}>
-          {mounted ? (
-            <>
-              <FilterSelect
-                value={district}
-                onChange={(v) => setDistrict(v as District | "all")}
-                options={DISTRICTS.map((d) => ({
-                  value: d,
-                  label: DISTRICT_LABELS[d] ?? d,
-                }))}
-              />
-              <FilterSelect
-                value={category}
-                onChange={(v) => setCategory(v as Category | "all")}
-                options={[
-                  { value: "all", label: CATEGORY_ALL_LABEL_SHORT },
-                  ...(CATEGORIES.filter((c) => c !== "all") as Category[]).map(
-                    (c) => ({ value: c, label: CATEGORY_LABELS[c] }),
-                  ),
-                ]}
-              />
-              <FilterSelect
-                value={status}
-                onChange={(v) => setStatus(v as IssueStatus | "all")}
-                options={[
-                  { value: "all", label: STATUS_ALL_LABEL_SHORT },
-                  ...(STATUSES.filter((s) => s !== "all") as IssueStatus[]).map(
-                    (s) => ({ value: s, label: STATUS_LABELS[s] }),
-                  ),
-                ]}
-              />
-            </>
-          ) : (
-            <>
-              <div className="h-8 lg:h-9 rounded-lg border border-zinc-200 bg-white" />
-              <div className="h-8 lg:h-9 rounded-lg border border-zinc-200 bg-white" />
-              <div className="h-8 lg:h-9 rounded-lg border border-zinc-200 bg-white" />
-            </>
+          className="sticky -top-1 z-20 mt-.5 border-b border-theme bg-theme-canvas py-2 lg:border-b-0">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((v) => !v)}
+              className={`flex items-center justify-start gap-1.5 px-1 py-1 text-sm font-semibold transition-colors ${
+                filtersOpen
+                  ? "text-theme-ink"
+                  : "text-theme-muted hover:text-theme-ink"
+              }`}>
+              <Filter size={13} className="shrink-0" />
+              <span>{filtersOpen ? "Скриј филтри" : "Активирај филтри"}</span>
+            </button>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className=" px-2 py-1 text-xs font-medium text-theme-muted transition-colors hover:bg-theme-surface-muted hover:text-theme-ink">
+                Ресетирај филтри
+              </button>
+            )}
+          </div>
+
+          {filtersOpen && (
+            <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-xl border border-theme bg-theme-surface p-1.5">
+              {mounted ? (
+                <>
+                  <FilterSelect
+                    value={district}
+                    onChange={(v) => setDistrict(v as District | "all")}
+                    isActive={district !== "all"}
+                    options={DISTRICTS.map((d) => ({
+                      value: d,
+                      label: DISTRICT_LABELS[d] ?? d,
+                    }))}
+                  />
+                  <FilterSelect
+                    value={category}
+                    onChange={(v) => setCategory(v as Category | "all")}
+                    isActive={category !== "all"}
+                    options={[
+                      { value: "all", label: CATEGORY_ALL_LABEL_SHORT },
+                      ...(
+                        CATEGORIES.filter((c) => c !== "all") as Category[]
+                      ).map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
+                    ]}
+                  />
+                  <FilterSelect
+                    value={status}
+                    onChange={(v) => setStatus(v as IssueStatus | "all")}
+                    isActive={status !== "all"}
+                    options={[
+                      { value: "all", label: STATUS_ALL_LABEL_SHORT },
+                      ...(
+                        STATUSES.filter((s) => s !== "all") as IssueStatus[]
+                      ).map((s) => ({ value: s, label: STATUS_LABELS[s] })),
+                    ]}
+                  />
+                </>
+              ) : (
+                <>
+                  <div className="h-9 rounded-lg border border-theme bg-theme-surface-muted" />
+                  <div className="h-9 rounded-lg border border-theme bg-theme-surface-muted" />
+                  <div className="h-9 rounded-lg border border-theme bg-theme-surface-muted" />
+                </>
+              )}
+            </div>
           )}
         </div>
 
-        <div className="w-full space-y-3 px-0 lg:px-3 py-3 lg:py-5">
+        <div className="w-full space-y-3 px-0 py-2">
           {loading && (
             <>
               <IssueCardSkeleton />
@@ -293,13 +329,17 @@ export default function IssueList({
           {/* Desktop: Facebook-style multi-panel */}
           <div
             className="hidden lg:flex fixed inset-0 z-50 transition-opacity duration-300"
-            style={{ backgroundColor: "rgba(0,0,0,0.92)", opacity: modalOpen ? 1 : 0 }}
+            style={{
+              backgroundColor: "rgba(0,0,0,0.92)",
+              opacity: modalOpen ? 1 : 0,
+            }}
             onClick={closeIssueModal}>
-
             {/* Photo area — flex-1, shrinks naturally when side panels appear */}
             <div className="flex-1 flex items-center justify-center min-w-0 bg-black p-6">
               {modalIssue.photo_url && modalIssue.after_photo_url ? (
-                <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="w-full max-w-3xl"
+                  onClick={(e) => e.stopPropagation()}>
                   <BeforeAfterSlider
                     beforeSrc={modalIssue.photo_url}
                     afterSrc={modalIssue.after_photo_url}
@@ -315,7 +355,12 @@ export default function IssueList({
                   alt="Фотографија"
                   className="max-w-full object-contain rounded-xl cursor-zoom-in"
                   style={{ maxHeight: "82vh" }}
-                  onClick={(e) => { e.stopPropagation(); setLightboxSrc((modalIssue!.photo_url ?? modalIssue!.after_photo_url)!); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxSrc(
+                      (modalIssue!.photo_url ?? modalIssue!.after_photo_url)!,
+                    );
+                  }}
                 />
               ) : (
                 <div className="text-zinc-600 text-sm">Нема фотографија</div>
@@ -345,7 +390,7 @@ export default function IssueList({
                 userId={user?.id}
                 hideImage
                 onClose={closeIssueModal}
-                onOpenDates={() => datesOpen ? closeDates() : openDates()}
+                onOpenDates={() => (datesOpen ? closeDates() : openDates())}
               />
             </div>
           </div>
@@ -362,7 +407,9 @@ export default function IssueList({
             ref={drawerRef}
             className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl flex flex-col${swipeDy === 0 ? " transition-transform duration-300 ease-out" : ""}`}
             style={{
-              transform: modalOpen ? `translateY(${swipeDy}px)` : "translateY(100%)",
+              transform: modalOpen
+                ? `translateY(${swipeDy}px)`
+                : "translateY(100%)",
               maxHeight: "92dvh",
             }}>
             <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab">
@@ -381,13 +428,18 @@ export default function IssueList({
           {datesOpen && (
             <>
               <div
-                className="lg:hidden fixed inset-0 z-[58] bg-black/30 transition-opacity duration-300"
+                className="lg:hidden fixed inset-0 z-58 bg-black/30 transition-opacity duration-300"
                 style={{ opacity: datesAnimOpen ? 1 : 0 }}
                 onClick={closeDates}
               />
               <div
-                className="lg:hidden fixed bottom-0 left-0 right-0 z-[59] bg-white rounded-t-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-out"
-                style={{ maxHeight: "88dvh", transform: datesAnimOpen ? "translateY(0)" : "translateY(100%)" }}>
+                className="lg:hidden fixed bottom-0 left-0 right-0 z-59 bg-white rounded-t-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-out"
+                style={{
+                  maxHeight: "88dvh",
+                  transform: datesAnimOpen
+                    ? "translateY(0)"
+                    : "translateY(100%)",
+                }}>
                 {/* Drag handle */}
                 <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab">
                   <div className="h-1.5 w-12 rounded-full bg-zinc-300" />

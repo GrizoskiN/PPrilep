@@ -29,7 +29,8 @@ import SendIcon from "../ui/SendIcon";
 
 import AvatarInitials from "../ui/AvatarInitials";
 import ImageLightbox from "../ui/ImageLightbox";
-import { formatDays, cn, getIssuePath, cdnUrl } from "../../lib/utils";
+import { formatDays, cn, getIssuePath, cdnUrl, userPath } from "../../lib/utils";
+import { incrementIssueViews } from "../../lib/views";
 import type { Issue, IssueStatus } from "../../lib/types/database";
 import { toast } from "sonner";
 import { createClient } from "../../lib/supabase/client";
@@ -42,7 +43,6 @@ import {
   fetchIssueResolverInfo,
   fetchIssueHelpOffers,
   type IssueComment,
-  type HelpOfferComment,
   type HelpOffer,
   type PeopleUser,
   type ChangeRequest,
@@ -107,9 +107,7 @@ function PeoplePopup({
           {users.map((u) => {
             const name =
               u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
-            const href = u.profiles?.username
-              ? `/u/${u.profiles.username}`
-              : `/u/${u.user_id}`;
+            const href = userPath(u.profiles?.username, u.user_id);
             return (
               <Link
                 key={u.user_id}
@@ -120,6 +118,8 @@ function PeoplePopup({
                   name={name}
                   avatarUrl={u.profiles?.avatar_url ?? null}
                   size="sm"
+                  membershipTier={u.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                  points={u.profiles?.points}
                 />
                 <span className="text-sm text-zinc-800">{name}</span>
               </Link>
@@ -236,6 +236,8 @@ export default function IssueDetail({
     full_name: string | null;
     username: string | null;
     avatar_url: string | null;
+    membership_tier?: string | null;
+    points?: number;
   } | null>(null);
   const [resolverUpvotes, setResolverUpvotes] = useState<number>(0);
   const [hasUpvotedResolver, setHasUpvotedResolver] = useState(false);
@@ -277,9 +279,10 @@ export default function IssueDetail({
     return () => clearTimeout(id);
   }, [issue]);
 
-  const [shareUrl, setShareUrl] = useState("");
-  useEffect(() => {
-    setShareUrl(`${location.origin}${getIssuePath(currentIssue.id, currentIssue.title)}`);
+  const shareUrl = useMemo(() => {
+    const path = getIssuePath(currentIssue.id, currentIssue.title);
+    if (typeof window === "undefined") return path;
+    return `${window.location.origin}${path}`;
   }, [currentIssue.id, currentIssue.title]);
 
   async function loadComments() {
@@ -307,7 +310,10 @@ export default function IssueDetail({
   }, [currentIssue.id]);
 
   async function loadPeopleStats() {
-    const { affected, helpers } = await fetchIssuePeopleStats(supabase, currentIssue.id);
+    const { affected, helpers } = await fetchIssuePeopleStats(
+      supabase,
+      currentIssue.id,
+    );
     setAffectedUsers(affected);
     setHelperUsers(helpers);
   }
@@ -322,7 +328,11 @@ export default function IssueDetail({
     const result = await fetchIssueChangeRequests(supabase, currentIssue.id);
     if (!result.ok) {
       if (process.env.NODE_ENV !== "production") {
-        console.error("loadChangeRequests error:", result.error.message, result.error.code);
+        console.error(
+          "loadChangeRequests error:",
+          result.error.message,
+          result.error.code,
+        );
       }
       return;
     }
@@ -339,7 +349,20 @@ export default function IssueDetail({
   async function loadResolverInfo() {
     const info = await fetchIssueResolverInfo(supabase, currentIssue.id);
     if (!info) {
-      setResolver(null);
+      // Fallback for older issues where resolved_by is NULL in the DB:
+      // show the reporter as the resolver so the card still appears.
+      if (currentIssue.profiles && currentIssue.reported_by) {
+        setResolver({
+          id: currentIssue.reported_by,
+          full_name: currentIssue.profiles.full_name ?? null,
+          username: currentIssue.profiles.username ?? null,
+          avatar_url: currentIssue.profiles.avatar_url ?? null,
+          membership_tier: currentIssue.profiles.membership_tier ?? null,
+          points: currentIssue.profiles.points ?? undefined,
+        });
+      } else {
+        setResolver(null);
+      }
       setResolverUpvotes(0);
       setHasUpvotedResolver(false);
       return;
@@ -367,23 +390,14 @@ export default function IssueDetail({
 
   const [savingResolver, setSavingResolver] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-  const [viewCount, setViewCount] = useState<number | null>(issue.views ?? null);
+  const [viewCount, setViewCount] = useState<number | null>(
+    issue.views ?? null,
+  );
 
   useEffect(() => {
-    // Only count once per browser session per issue — prevents double-count
-    // from React Strict Mode double-mount and back/forward navigations.
-    // Wrapped in try/catch — Safari private mode throws on sessionStorage access.
-    const sessionKey = `viewed_issue_${issue.id}`;
-    try {
-      if (sessionStorage.getItem(sessionKey)) return;
-      sessionStorage.setItem(sessionKey, "1");
-    } catch {
-      // sessionStorage unavailable — still count the view this time
-    }
-    supabase
-      .rpc("increment_issue_views", { p_issue_id: issue.id })
-      .then(({ data }) => { if (typeof data === "number") setViewCount(data); });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    incrementIssueViews(issue.id).then((data) => {
+      if (typeof data === "number") setViewCount(data);
+    });
   }, [issue.id]);
 
   async function setResolverFor(newResolverId: string | null) {
@@ -448,10 +462,18 @@ export default function IssueDetail({
 
   async function loadHelpOffers() {
     setLoadingOffers(true);
-    const result = await fetchIssueHelpOffers(supabase, currentIssue.id, userId);
+    const result = await fetchIssueHelpOffers(
+      supabase,
+      currentIssue.id,
+      userId,
+    );
     if (!result.ok) {
       if (process.env.NODE_ENV !== "production") {
-        console.error("[loadHelpOffers]", result.error.code, result.error.message);
+        console.error(
+          "[loadHelpOffers]",
+          result.error.code,
+          result.error.message,
+        );
       }
       if (result.tableMissing) setOffersUnavailable(true);
       setLoadingOffers(false);
@@ -575,9 +597,11 @@ export default function IssueDetail({
     if (newStatus === currentIssue.status) return;
     setChangingStatus(true);
     const update: Record<string, unknown> = { status: newStatus };
-    // Going to resolved: do NOT auto-assign — owner picks the resolver via the
-    // dropdown. Going to open/progress: clear any previous resolver.
-    if (newStatus !== "resolved") update.resolved_by = null;
+    // Going to resolved: auto-assign the current user as the resolver so the
+    // "Решено од" card appears immediately. They can change it via the dropdown.
+    // Going to open/progress: clear any previous resolver.
+    if (newStatus === "resolved") update.resolved_by = userId;
+    else update.resolved_by = null;
     let q = supabase.from("issues").update(update).eq("id", currentIssue.id);
     if (!isAdmin) q = q.eq("reported_by", userId);
     const { error } = await q;
@@ -879,7 +903,10 @@ export default function IssueDetail({
     } else {
       supabase
         .from("comment_likes")
-        .upsert({ comment_id: commentId, user_id: userId }, { ignoreDuplicates: true })
+        .upsert(
+          { comment_id: commentId, user_id: userId },
+          { ignoreDuplicates: true },
+        )
         .then(() => {});
       const target = comments.find((c) => c.id === commentId);
       if (target?.user_id) {
@@ -895,7 +922,12 @@ export default function IssueDetail({
     }
   }
 
-  function replyToComment(authorName: string, authorUserId: string, commentId: number, rootParentId?: number | null) {
+  function replyToComment(
+    authorName: string,
+    authorUserId: string,
+    commentId: number,
+    rootParentId?: number | null,
+  ) {
     setReplyToUserId(authorUserId);
     const rootId = rootParentId ?? commentId;
     setReplyToCommentId(rootId);
@@ -914,7 +946,11 @@ export default function IssueDetail({
       body,
       parent_comment_id: replyToCommentId,
     });
-    if (error) { toast.error(error.message); setSavingComment(false); return; }
+    if (error) {
+      toast.error(error.message);
+      setSavingComment(false);
+      return;
+    }
     if (replyToUserId) {
       createNotification(supabase, {
         recipientUserId: replyToUserId,
@@ -993,6 +1029,8 @@ export default function IssueDetail({
               avatarUrl={authProfile?.avatar_url ?? null}
               size="sm"
               className="mt-1 shrink-0"
+              membershipTier={authProfile?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={authProfile?.points}
             />
             {/* Unified input container */}
             <div className="flex-1 rounded-2xl bg-zinc-100 px-3 pt-2 pb-1.5">
@@ -1143,7 +1181,10 @@ export default function IssueDetail({
             const cid = comment.id;
             const isLiked = likedComments.has(cid);
             const likeCount = commentLikeCounts[cid] ?? 0;
-            const aName = comment.profiles?.full_name ?? comment.profiles?.username ?? "Анонимно";
+            const aName =
+              comment.profiles?.full_name ??
+              comment.profiles?.username ??
+              "Анонимно";
             const rootParent = isReply ? comment.parent_comment_id : null;
             return (
               <div key={cid} className="flex items-start gap-2">
@@ -1152,22 +1193,44 @@ export default function IssueDetail({
                   avatarUrl={comment.profiles?.avatar_url ?? null}
                   size="sm"
                   className="shrink-0 mt-0.5"
+                  membershipTier={comment.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                  points={comment.profiles?.points}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className={cn("rounded-2xl px-3 py-2 inline-block max-w-full", isReply ? "bg-zinc-50 border border-zinc-150" : "bg-zinc-100")}>
-                    <p className="text-xs font-semibold text-zinc-800 leading-tight">{aName}</p>
+                  <div
+                    className={cn(
+                      "rounded-2xl px-3 py-2 inline-block max-w-full",
+                      isReply
+                        ? "bg-zinc-50 border border-zinc-150"
+                        : "bg-zinc-100",
+                    )}>
+                    <p className="text-xs font-semibold text-zinc-800 leading-tight">
+                      {aName}
+                    </p>
                     {comment.body && (
-                      <p className={cn("leading-snug text-zinc-700 mt-0.5", isReply ? "text-xs" : "text-sm")}>
+                      <p
+                        className={cn(
+                          "leading-snug text-zinc-700 mt-0.5",
+                          isReply ? "text-xs" : "text-sm",
+                        )}>
                         {comment.body}
                       </p>
                     )}
                     {(comment as { photo_url?: string | null }).photo_url && (
                       <button
-                        onClick={() => setLightboxSrc((comment as { photo_url?: string | null }).photo_url!)}
+                        onClick={() =>
+                          setLightboxSrc(
+                            (comment as { photo_url?: string | null })
+                              .photo_url!,
+                          )
+                        }
                         className="mt-1.5 block cursor-zoom-in p-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={(comment as { photo_url?: string | null }).photo_url!}
+                          src={
+                            (comment as { photo_url?: string | null })
+                              .photo_url!
+                          }
                           alt="Слика во коментар"
                           className="max-h-48 rounded-xl object-cover"
                         />
@@ -1175,29 +1238,50 @@ export default function IssueDetail({
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5 px-1">
-                    {comment.created_at && <p className="text-[10px] text-zinc-400">{formatDays(comment.created_at)}</p>}
+                    {comment.created_at && (
+                      <p className="text-[10px] text-zinc-400">
+                        {formatDays(comment.created_at)}
+                      </p>
+                    )}
                     <button
                       onClick={() => toggleCommentLike(cid)}
-                      className={cn("text-[10px] font-semibold transition-colors", isLiked ? "text-[#427FFF]" : "text-zinc-400 hover:text-zinc-700")}>
+                      className={cn(
+                        "text-[10px] font-semibold transition-colors",
+                        isLiked
+                          ? "text-[#427FFF]"
+                          : "text-zinc-400 hover:text-zinc-700",
+                      )}>
                       {likeCount > 0 ? `А така · ${likeCount}` : "А така"}
                     </button>
                     <button
-                      onClick={() => replyToComment(aName, comment.user_id, cid, rootParent)}
+                      onClick={() =>
+                        replyToComment(aName, comment.user_id, cid, rootParent)
+                      }
                       className="text-[10px] font-semibold text-zinc-400 hover:text-zinc-700 transition-colors">
                       Коментирај
                     </button>
                     <div className="relative ml-auto">
                       <button
-                        onClick={() => setOpenCommentMenu(openCommentMenu === cid ? null : cid)}
+                        onClick={() =>
+                          setOpenCommentMenu(
+                            openCommentMenu === cid ? null : cid,
+                          )
+                        }
                         className="flex h-5 w-5 items-center justify-center rounded-full text-zinc-300 hover:bg-zinc-100 hover:text-zinc-500 transition-colors">
                         <MoreHorizontal size={12} />
                       </button>
                       {openCommentMenu === cid && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => setOpenCommentMenu(null)} />
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setOpenCommentMenu(null)}
+                          />
                           <div className="absolute right-0 bottom-full mb-1 z-50 w-44 rounded-xl bg-white shadow-xl border border-zinc-100 py-1 overflow-hidden">
                             <button
-                              onClick={() => { setReportingCommentId(cid); setOpenCommentMenu(null); }}
+                              onClick={() => {
+                                setReportingCommentId(cid);
+                                setOpenCommentMenu(null);
+                              }}
                               className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">
                               <AlertTriangle size={12} />
                               Пријави коментар
@@ -1209,7 +1293,9 @@ export default function IssueDetail({
                   </div>
                   {reportingCommentId === cid && (
                     <div className="mt-1.5 rounded-xl border border-red-100 bg-red-50 p-2.5 space-y-2">
-                      <p className="text-[11px] font-semibold text-red-700">Пријави го коментарот</p>
+                      <p className="text-[11px] font-semibold text-red-700">
+                        Пријави го коментарот
+                      </p>
                       <textarea
                         value={reportReason}
                         onChange={(e) => setReportReason(e.target.value)}
@@ -1220,7 +1306,10 @@ export default function IssueDetail({
                       />
                       <div className="flex gap-2">
                         <button
-                          onClick={() => { setReportingCommentId(null); setReportReason(""); }}
+                          onClick={() => {
+                            setReportingCommentId(null);
+                            setReportReason("");
+                          }}
                           className="flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors">
                           Откажи
                         </button>
@@ -1248,100 +1337,116 @@ export default function IssueDetail({
                 </button>
               )}
               {visibleTopLevel.map((comment) => {
-            const replies = repliesMap[comment.id] ?? [];
-            const showInline = replyToCommentId === comment.id;
-            return (
-              <div key={comment.id} className="space-y-1.5">
-                {renderBubble(comment, false)}
-                {(replies.length > 0 || showInline) && (
-                  <div className="ml-8 space-y-2">
-                    {replies.map((reply, idx) => {
-                      const isLast = idx === replies.length - 1 && !showInline;
-                      return (
-                        <div key={reply.id} className="relative pl-4">
-                          {/* Curved L-connector */}
-                          <div className="absolute left-0 top-0 h-4 w-4 border-l-2 border-b-2 border-zinc-200 rounded-bl-xl" />
-                          {/* Vertical line continuing to next item */}
-                          {!isLast && (
-                            <div className="absolute left-0 top-4 -bottom-2 border-l-2 border-zinc-200" />
-                          )}
-                          {renderBubble(reply, true)}
-                        </div>
-                      );
-                    })}
+                const replies = repliesMap[comment.id] ?? [];
+                const showInline = replyToCommentId === comment.id;
+                return (
+                  <div key={comment.id} className="space-y-1.5">
+                    {renderBubble(comment, false)}
+                    {(replies.length > 0 || showInline) && (
+                      <div className="ml-8 space-y-2">
+                        {replies.map((reply, idx) => {
+                          const isLast =
+                            idx === replies.length - 1 && !showInline;
+                          return (
+                            <div key={reply.id} className="relative pl-4">
+                              {/* Curved L-connector */}
+                              <div className="absolute left-0 top-0 h-4 w-4 border-l-2 border-b-2 border-zinc-200 rounded-bl-xl" />
+                              {/* Vertical line continuing to next item */}
+                              {!isLast && (
+                                <div className="absolute left-0 top-4 -bottom-2 border-l-2 border-zinc-200" />
+                              )}
+                              {renderBubble(reply, true)}
+                            </div>
+                          );
+                        })}
 
-                    {/* Inline reply input */}
-                    {showInline && (
-                      <div className="relative pl-4">
-                        <div className="absolute left-0 top-0 h-4 w-4 border-l-2 border-b-2 border-zinc-200 rounded-bl-xl" />
-                        <div className="flex items-start gap-2">
-                          <AvatarInitials
-                            name={authProfile?.full_name ?? authProfile?.username ?? null}
-                            avatarUrl={authProfile?.avatar_url ?? null}
-                            size="sm"
-                            className="shrink-0 mt-0.5"
-                          />
-                          <div className="flex-1 rounded-2xl bg-zinc-100 px-3 pt-2 pb-1.5">
-                            <textarea
-                              ref={inlineReplyRef}
-                              value={inlineReplyText}
-                              onChange={(e) => {
-                                setInlineReplyText(e.target.value);
-                                e.target.style.height = "auto";
-                                e.target.style.height = e.target.scrollHeight + "px";
-                              }}
-                              rows={1}
-                              maxLength={400}
-                              placeholder="Одговори..."
-                              className="w-full resize-none bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400 leading-snug"
-                              style={{ minHeight: "1.25rem", maxHeight: "8rem" }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                  e.preventDefault();
-                                  if (inlineReplyText.trim()) submitInlineReply();
+                        {/* Inline reply input */}
+                        {showInline && (
+                          <div className="relative pl-4">
+                            <div className="absolute left-0 top-0 h-4 w-4 border-l-2 border-b-2 border-zinc-200 rounded-bl-xl" />
+                            <div className="flex items-start gap-2">
+                              <AvatarInitials
+                                name={
+                                  authProfile?.full_name ??
+                                  authProfile?.username ??
+                                  null
                                 }
-                                if (e.key === "Escape") {
-                                  setReplyToCommentId(null);
-                                  setInlineReplyText("");
-                                  setReplyToUserId(null);
-                                }
-                              }}
-                            />
-                            <div className="flex items-center justify-between mt-1">
-                              <button
-                                onClick={() => {
-                                  setReplyToCommentId(null);
-                                  setInlineReplyText("");
-                                  setReplyToUserId(null);
-                                }}
-                                className="text-[10px] text-zinc-400 hover:text-zinc-600 transition-colors">
-                                Откажи
-                              </button>
-                              <button
-                                onClick={submitInlineReply}
-                                disabled={!inlineReplyText.trim() || savingComment}
-                                className={cn(
-                                  "flex items-center justify-center transition-all",
-                                  inlineReplyText.trim()
-                                    ? "text-primary hover:opacity-80 active:scale-95"
-                                    : "text-zinc-300 cursor-default",
-                                )}>
-                                <SendIcon
-                                  size={15}
-                                  active={!!inlineReplyText.trim()}
-                                  disabled={!inlineReplyText.trim() || savingComment}
+                                avatarUrl={authProfile?.avatar_url ?? null}
+                                size="sm"
+                                className="shrink-0 mt-0.5"
+                                membershipTier={authProfile?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                                points={authProfile?.points}
+                              />
+                              <div className="flex-1 rounded-2xl bg-zinc-100 px-3 pt-2 pb-1.5">
+                                <textarea
+                                  ref={inlineReplyRef}
+                                  value={inlineReplyText}
+                                  onChange={(e) => {
+                                    setInlineReplyText(e.target.value);
+                                    e.target.style.height = "auto";
+                                    e.target.style.height =
+                                      e.target.scrollHeight + "px";
+                                  }}
+                                  rows={1}
+                                  maxLength={400}
+                                  placeholder="Одговори..."
+                                  className="w-full resize-none bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400 leading-snug"
+                                  style={{
+                                    minHeight: "1.25rem",
+                                    maxHeight: "8rem",
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                      e.preventDefault();
+                                      if (inlineReplyText.trim())
+                                        submitInlineReply();
+                                    }
+                                    if (e.key === "Escape") {
+                                      setReplyToCommentId(null);
+                                      setInlineReplyText("");
+                                      setReplyToUserId(null);
+                                    }
+                                  }}
                                 />
-                              </button>
+                                <div className="flex items-center justify-between mt-1">
+                                  <button
+                                    onClick={() => {
+                                      setReplyToCommentId(null);
+                                      setInlineReplyText("");
+                                      setReplyToUserId(null);
+                                    }}
+                                    className="text-[10px] text-zinc-400 hover:text-zinc-600 transition-colors">
+                                    Откажи
+                                  </button>
+                                  <button
+                                    onClick={submitInlineReply}
+                                    disabled={
+                                      !inlineReplyText.trim() || savingComment
+                                    }
+                                    className={cn(
+                                      "flex items-center justify-center transition-all",
+                                      inlineReplyText.trim()
+                                        ? "text-primary hover:opacity-80 active:scale-95"
+                                        : "text-zinc-300 cursor-default",
+                                    )}>
+                                    <SendIcon
+                                      size={15}
+                                      active={!!inlineReplyText.trim()}
+                                      disabled={
+                                        !inlineReplyText.trim() || savingComment
+                                      }
+                                    />
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
             </>
           );
         })()}
@@ -1402,14 +1507,14 @@ export default function IssueDetail({
         full_name: string | null;
         avatar_url: string | null;
         username: string | null;
+        membership_tier?: string | null;
+        points?: number;
       } | null;
     };
     accentColor: "slate" | "teal";
   }) {
     const name = u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
-    const href = u.profiles?.username
-      ? `/u/${u.profiles.username}`
-      : `/u/${u.user_id}`;
+    const href = userPath(u.profiles?.username, u.user_id);
 
     return (
       <Link
@@ -1424,6 +1529,8 @@ export default function IssueDetail({
           name={name}
           avatarUrl={u.profiles?.avatar_url ?? null}
           size="sm"
+          membershipTier={u.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+          points={u.profiles?.points}
         />
         <span
           className={`text-xs ${accentColor === "teal" ? "text-teal-700" : "text-zinc-700"}`}>
@@ -1485,7 +1592,7 @@ export default function IssueDetail({
     </div>
   );
 
-  const helpPlanningSection = (
+  const helpPlanningSection = currentIssue.status !== "resolved" && (
     <div>
       {/* Header */}
       <div className="mb-2 flex items-center gap-1.5">
@@ -1545,7 +1652,11 @@ export default function IssueDetail({
                       ? "bg-primary border-primary"
                       : "bg-zinc-100 border-zinc-200",
                   )}>
-                  <div className={cn("min-w-0", offer.voted_by_me ? "text-white" : "text-zinc-800")}>
+                  <div
+                    className={cn(
+                      "min-w-0",
+                      offer.voted_by_me ? "text-white" : "text-zinc-800",
+                    )}>
                     <p className="text-[10px] opacity-70 capitalize">
                       {dt.toLocaleDateString("mk-MK", { weekday: "long" })}
                     </p>
@@ -1563,12 +1674,24 @@ export default function IssueDetail({
                       avatarUrl={offer.profiles?.avatar_url ?? null}
                       size="sm"
                       className="ring-2 ring-white/40"
+                      membershipTier={offer.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                      points={offer.profiles?.points}
                     />
                     <div className="text-right">
-                      <p className={cn("text-[11px] font-semibold truncate max-w-20", offer.voted_by_me ? "text-white" : "text-zinc-700")}>
+                      <p
+                        className={cn(
+                          "text-[11px] font-semibold truncate max-w-20",
+                          offer.voted_by_me ? "text-white" : "text-zinc-700",
+                        )}>
                         {name}
                       </p>
-                      <p className={cn("text-[10px]", offer.voted_by_me ? "text-white/70" : "text-zinc-400")}>предложил/а</p>
+                      <p
+                        className={cn(
+                          "text-[10px]",
+                          offer.voted_by_me ? "text-white/70" : "text-zinc-400",
+                        )}>
+                        предложил/а
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1649,6 +1772,8 @@ export default function IssueDetail({
                 name={name}
                 avatarUrl={req.profiles?.avatar_url ?? null}
                 size="sm"
+                membershipTier={req.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                points={req.profiles?.points}
               />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-zinc-800">{name}</p>
@@ -1699,16 +1824,14 @@ export default function IssueDetail({
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg">🏆</span>
           <Link
-            href={
-              resolver.username
-                ? `/u/${resolver.username}`
-                : `/u/${resolver.id}`
-            }
+            href={userPath(resolver.username, resolver.id)}
             className="flex items-center gap-2 min-w-0 group">
             <AvatarInitials
               name={resolver.full_name ?? resolver.username ?? "Херој"}
               avatarUrl={resolver.avatar_url}
               size="sm"
+              membershipTier={resolver.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={resolver.points}
             />
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-teal-800 leading-tight">
@@ -1742,7 +1865,7 @@ export default function IssueDetail({
     </div>
   );
 
-  const helpActionsSection = userId && !isOwner && !isAdmin && (
+  const helpActionsSection = userId && !isOwner && !isAdmin && currentIssue.status !== "resolved" && (
     <button
       onClick={() => setShowProposeModal(true)}
       className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3b9f95] hover:bg-[#338c84] text-white text-xs font-semibold py-2.5 transition-colors">
@@ -2201,11 +2324,9 @@ export default function IssueDetail({
         <div className="flex items-start justify-between gap-2">
           <Link
             href={
-              currentIssue.profiles?.username
-                ? `/u/${currentIssue.profiles.username}`
-                : currentIssue.reported_by
-                  ? `/u/${currentIssue.reported_by}`
-                  : "#"
+              currentIssue.profiles?.username || currentIssue.reported_by
+                ? userPath(currentIssue.profiles?.username, currentIssue.reported_by)
+                : "#"
             }
             className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <AvatarInitials
@@ -2215,6 +2336,8 @@ export default function IssueDetail({
                 null
               }
               avatarUrl={currentIssue.profiles?.avatar_url ?? null}
+              membershipTier={currentIssue.profiles?.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={currentIssue.profiles?.points}
               size="md"
             />
             <div>
@@ -2542,8 +2665,8 @@ export default function IssueDetail({
 
         {/* Counts row — same layout as IssueCard */}
         <div className="flex items-center gap-3 lg:gap-4">
-          {/* Помогни */}
-          <div className="flex items-center gap-1.5">
+          {/* Помогни — hidden when resolved */}
+          {currentIssue.status !== "resolved" && <div className="flex items-center gap-1.5">
             <button
               onClick={() => helperUsers.length > 0 && setShowHelperPopup(true)}
               className={cn(
@@ -2594,7 +2717,7 @@ export default function IssueDetail({
               </svg>
               <span>Помогни</span>
             </button>
-          </div>
+          </div>}
 
           {/* Иста мака */}
           <div className="flex items-center gap-1.5">

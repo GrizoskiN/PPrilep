@@ -59,7 +59,7 @@ export default function LoginForm() {
     const authOrigin = getAuthRedirectOrigin();
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${authOrigin}/auth/callback` },
+      options: { emailRedirectTo: `${authOrigin}/auth/callback?next=${encodeURIComponent(next)}` },
     });
     if (error) {
       toast.error(error.message);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ThumbsUp } from "lucide-react";
+import { ThumbsUp, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "../../lib/supabase/client";
 import { createNotification } from "../../lib/notifications";
@@ -14,13 +14,40 @@ interface Props {
   idea: Idea;
   userId?: string;
   initialVoted?: boolean;
+  isAdmin?: boolean;
+  onDeleted?: () => void;
 }
 
-export default function IdeaCard({ idea, userId, initialVoted = false }: Props) {
+export default function IdeaCard({
+  idea,
+  userId,
+  initialVoted = false,
+  isAdmin = false,
+  onDeleted,
+}: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [upvotes, setUpvotes] = useState(idea.upvotes);
   const [voted, setVoted] = useState(initialVoted);
   const [pending, setPending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const canDelete = !!userId && (userId === idea.created_by || isAdmin);
+
+  async function handleDelete() {
+    if (
+      !window.confirm("Дали сте сигурни дека сакате да ја избришете идејата?")
+    )
+      return;
+    setDeleting(true);
+    const { error } = await supabase.from("ideas").delete().eq("id", idea.id);
+    setDeleting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Идејата е избришана");
+    onDeleted?.();
+  }
 
   function redirectToAuth() {
     if (typeof window === "undefined") return;
@@ -81,7 +108,7 @@ export default function IdeaCard({ idea, userId, initialVoted = false }: Props) 
   }
 
   return (
-    <div className="bg-white border border-zinc-200 rounded-lg p-4 space-y-2">
+    <div className="bg-white border border-zinc-200 rounded-lg p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-medium">
@@ -107,14 +134,31 @@ export default function IdeaCard({ idea, userId, initialVoted = false }: Props) 
           {upvotes}
         </button>
       </div>
-      <div className="flex items-center gap-1.5">
-        {idea.profiles && (
-          <AvatarInitials name={idea.profiles.full_name} size="sm" />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {idea.profiles && (
+            <AvatarInitials
+              name={idea.profiles.full_name}
+              size="sm"
+              membershipTier={idea.profiles.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+              points={idea.profiles.points}
+            />
+          )}
+          <span className="text-[11px] text-zinc-400 truncate">
+            {idea.profiles?.full_name ?? "Анонимно"} ·{" "}
+            {formatDays(idea.created_at)}
+          </span>
+        </div>
+        {canDelete && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            aria-label="Избриши идеја"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-red-500 hover:bg-red-50 disabled:opacity-60">
+            <Trash2 size={12} />
+            {deleting ? "Се брише…" : "Избриши"}
+          </button>
         )}
-        <span className="text-[11px] text-zinc-400">
-          {idea.profiles?.full_name ?? "Анонимно"} ·{" "}
-          {formatDays(idea.created_at)}
-        </span>
       </div>
     </div>
   );

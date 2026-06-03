@@ -1,0 +1,47 @@
+"use client";
+
+import { useState, useLayoutEffect, useCallback } from "react";
+import { Heart } from "lucide-react";
+import { useRightPanel } from "../../../lib/context/RightPanelContext";
+import { useAuth } from "../../../lib/hooks/useAuth";
+import SponsorsPanelContent from "../../../components/sponsors/SponsorsPanelContent";
+import PartnerModal from "../../../components/sponsors/PartnerModal";
+
+export default function SponsorsLayout({ children }: { children: React.ReactNode }) {
+  const { user, profile } = useAuth();
+  const { setOverridePanel } = useRightPanel();
+
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const openModal = useCallback(() => setModalOpen(true), []);
+
+  // Inject the self-contained panel ONCE (stable deps) before first paint.
+  useLayoutEffect(() => {
+    setOverridePanel(<SponsorsPanelContent onJoin={openModal} />, "/sponsors");
+    return () => setOverridePanel(null);
+  }, [openModal, setOverridePanel]);
+
+  return (
+    <>
+      {children}
+
+      <button
+        onClick={openModal}
+        className="fixed bottom-5 right-4 z-50 flex items-center gap-2 rounded-full px-4 py-3 text-sm font-bold text-white shadow-lg transition-opacity hover:opacity-90 lg:hidden"
+        style={{ background: "#2aa99d" }}
+        aria-label="Стани член">
+        <Heart size={17} />
+        Стани член
+      </button>
+
+      {modalOpen && (
+        <PartnerModal
+          onClose={() => setModalOpen(false)}
+          userId={user?.id}
+          prefillName={profile?.full_name ?? null}
+          prefillEmail={user?.email ?? null}
+        />
+      )}
+    </>
+  );
+}

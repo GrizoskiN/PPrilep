@@ -6,6 +6,256 @@
   --color-primary-light: #d8f4ef;
 }
 
+:root {
+  --theme-canvas: #f2f4f7;
+  --theme-surface: #ffffff;
+  --theme-surface-muted: #f7f9fb;
+  --theme-ink: #0f172b;
+  --theme-heading: #0f172b;
+  --theme-body: #314155;
+  --theme-muted: #627188;
+  --theme-subtle: #8b96a3;
+  --theme-accent: #2aa99d;
+  --theme-border: #d9e1e8;
+  --theme-page: 56rem;
+  --theme-content: 42rem;
+  --theme-card: 24rem;
+  --theme-modal: 36rem;
+}
+
+.bg-theme-canvas {
+  background: var(--theme-canvas);
+}
+
+.bg-theme-surface {
+  background: var(--theme-surface);
+}
+
+.bg-theme-surface-muted {
+  background: var(--theme-surface-muted);
+}
+
+.bg-theme-ink {
+  background: var(--theme-ink);
+}
+
+.text-theme-heading {
+  color: var(--theme-heading);
+}
+
+.text-theme-body {
+  color: var(--theme-body);
+}
+
+.text-theme-muted {
+  color: var(--theme-muted);
+}
+
+.text-theme-subtle {
+  color: var(--theme-subtle);
+}
+
+.text-theme-accent {
+  color: var(--theme-accent);
+}
+
+.text-theme-on-dark {
+  color: #f8fbff;
+}
+
+.text-theme-ink {
+  color: var(--theme-ink);
+}
+
+.border-theme {
+  border-color: var(--theme-border);
+}
+
+.max-w-theme-page {
+  max-width: var(--theme-page);
+}
+
+.max-w-theme-content {
+  max-width: var(--theme-content);
+}
+
+.max-w-theme-card {
+  max-width: var(--theme-card);
+}
+
+.max-w-theme-modal {
+  max-width: var(--theme-modal);
+}
+
+/* ── App content column — SINGLE SOURCE OF TRUTH for every page's width+padding ─
+   Every page is wrapped by Shell in .app-content (3-column routes) or
+   .app-content-wide (2-column routes). Page components themselves should NOT add
+   their own outer max-width or padding — they inherit these so the whole app is
+   consistent. Change these values to resize/repad every page at once:
+     --app-content       max-width of the 3-column middle (issues, naselbi, home…)
+     --app-content-wide  max-width of the 2-column middle (events, ideas, fund…)
+     --app-gutter        left/right padding inside the column (all screen sizes)
+     --app-pad-y         top/bottom padding (mobile)
+     --app-pad-y-lg      top/bottom padding (≥1024px)                              */
+:root {
+  --app-content: 41.6875rem; /* 667px — was max-w-166.75 */
+  --app-content-wide: 70rem; /* 1040px — was max-w-260   */
+  --app-gutter: 0.75rem; /* 12px (p-3) side inset, every size */
+  --app-pad-y: 0.75rem; /* 12px (p-3) top/bottom — matches the left nav + right panel */
+  --app-pad-y-lg: 0.75rem; /* same on desktop so all 3 columns align */
+}
+
+/* 3-column middle: centered + capped. */
+.app-content {
+  width: 100%;
+  max-width: var(--app-content);
+  margin-inline: auto;
+  padding-inline: var(--app-gutter);
+  padding-block: var(--app-pad-y);
+}
+
+/* 2-column middle: right-aligned + wider cap. */
+.app-content-wide {
+  width: 100%;
+  max-width: var(--app-content-wide);
+  margin-left: auto;
+  padding-inline: var(--app-gutter);
+  padding-block: var(--app-pad-y);
+}
+
+/* Breakpoint map for quick sizing tweaks:
+   - mobile: <= 639.98px
+   - tablet: 640px - 1023.98px
+   - lg:     1024px - 1279.98px
+   - xl:     1280px - 1399.98px
+   - 2xl+:   >= 1400px */
+
+/* Mobile */
+@media (max-width: 639.98px) {
+  .app-content,
+  .app-content-wide {
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .app-content,
+  .app-content-wide {
+    padding-inline: var(--app-gutter);
+  }
+}
+
+/* Tablet */
+@media (min-width: 640px) and (max-width: 1023.98px) {
+  .app-content,
+  .app-content-wide {
+    max-width: 50rem;
+    margin-inline: 0;
+  }
+
+  .app-content,
+  .app-content-wide {
+    padding-inline: var(--app-gutter);
+  }
+}
+
+/* LG */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .app-content {
+    max-width: 32rem;
+
+  }
+
+  .app-content-wide {
+    max-width: none;
+    margin-left: 0;
+      padding: 1rem;
+  }
+}
+
+/* XL */
+@media (min-width: 1280px) and (max-width: 1399.98px) {
+  .app-content {
+    max-width: var(--app-content);
+  }
+
+  .app-content-wide {
+    max-width: 66rem;
+    margin-left: auto;
+    padding-inline: var(--app-gutter);
+  }
+}
+
+/* 2XL and up */
+@media (min-width: 1400px) {
+  .app-content {
+    max-width: var(--app-content);
+  }
+
+  .app-content-wide {
+    max-width: 66.2rem;
+    margin-left: auto;
+    padding-inline: var(--app-gutter);
+  }
+}
+/* 2XL and up */
+@media (min-width: 1700px) {
+  .app-content {
+    max-width: var(--app-content);
+  }
+
+  .app-content-wide {
+    max-width: 71.2rem;
+    margin-left: auto;
+    padding-inline: var(--app-gutter);
+  }
+}
+@media (min-width: 1024px) {
+  .app-content,
+  .app-content-wide {
+    padding-block: var(--app-pad-y-lg);
+  }
+}
+
+.text-nav-section {
+  color: var(--theme-subtle);
+}
+
+.text-nav-reset {
+  color: var(--theme-accent);
+}
+
+.text-nav-reset:hover {
+  color: color-mix(in srgb, var(--theme-accent) 80%, black 20%);
+}
+
+.text-nav-district-grid {
+  color: var(--theme-muted);
+}
+
+.theme-ink-icons {
+  color: #0f172b/70;
+}
+
+.nav-district-btn {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.nav-district-btn-active {
+  border-color: #bfe3db;
+  background: #eef8f5;
+  color: var(--theme-accent);
+}
+
+.nav-district-btn-idle {
+  border-color: #dde7e3;
+  background: var(--theme-surface);
+}
+
+.nav-district-btn-idle:hover {
+  border-color: #cfe0da;
+  background: #fcfefd;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -14,15 +264,15 @@ body {
   height: 100%;
 }
 html {
-  background: #f2f4f7;
+  background: var(--theme-canvas);
   -webkit-text-size-adjust: 100%;
   overscroll-behavior: none;
 }
 
 body {
   margin: 0;
-  background: #f2f4f7;
-  color: #132238;
+  background: var(--theme-canvas);
+  color: var(--theme-body);
   overscroll-behavior: none;
 }
 
@@ -80,6 +330,35 @@ body {
   animation-play-state: paused;
 }
 
+@keyframes report-cta-fill-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.topbar-report-cta {
+  background: linear-gradient(120deg, #359189 0%, #58c9bf 45%, #6dd3ca 100%);
+  background-size: 220% 220%;
+  animation: report-cta-fill-shift 5.2s ease infinite;
+  transition: filter 0.2s ease;
+}
+
+.topbar-report-cta:hover {
+  filter: saturate(1.01);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-report-cta {
+    animation: none;
+  }
+}
+
 /* Ensure all interactive elements show pointer */
 button,
 [role="button"],
@@ -107,4 +386,17 @@ label[for] {
   display: none;
   width: 0;
   height: 0;
+}
+
+@media (min-width: 640px) {
+  .desktop-scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .desktop-scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 }
