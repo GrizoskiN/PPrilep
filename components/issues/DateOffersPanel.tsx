@@ -331,8 +331,8 @@ export default function DateOffersPanel({
           const isOwn = offer.user_id === userId;
           const { weekday, dayMonth, year } = formatDate(offer.service_date!);
           const authorHref = offer.profiles?.username
-            ? `/u/${offer.profiles.username}`
-            : `/u/${offer.user_id}`;
+            ? `/${offer.profiles.username}`
+            : `/${offer.user_id}`;
 
           return (
             <div key={offer.id}>
@@ -457,8 +457,8 @@ export default function DateOffersPanel({
                           )}
                           {visible.map((c) => {
                             const commentHref = c.profiles?.username
-                              ? `/u/${c.profiles.username}`
-                              : `/u/${c.user_id}`;
+                              ? `/${c.profiles.username}`
+                              : `/${c.user_id}`;
                             const commentName =
                               c.profiles?.full_name ??
                               c.profiles?.username ??
@@ -598,8 +598,8 @@ export default function DateOffersPanel({
                 const vName =
                   v.profiles?.full_name ?? v.profiles?.username ?? "Анонимно";
                 const vHref = v.profiles?.username
-                  ? `/u/${v.profiles.username}`
-                  : `/u/${v.user_id}`;
+                  ? `/${v.profiles.username}`
+                  : `/${v.user_id}`;
                 return (
                   <Link
                     key={v.user_id}

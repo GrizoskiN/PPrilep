@@ -28,7 +28,7 @@ function HeroList({
         <Link
           key={profile.id}
           href={
-            profile.username ? `/u/${profile.username}` : `/u/${profile.id}`
+            profile.username ? `/${profile.username}` : `/${profile.id}`
           }
           className="bg-theme-surface border border-theme rounded-lg p-4 flex items-center gap-3 hover:border-zinc-300 hover:bg-zinc-50 transition-colors">
           <span className="text-sm font-bold text-theme-subtle w-6 text-right shrink-0">

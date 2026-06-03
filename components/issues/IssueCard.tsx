@@ -153,8 +153,8 @@ function UserListPopup({
         const name =
           u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
         const href = u.profiles?.username
-          ? `/u/${u.profiles.username}`
-          : `/u/${u.user_id}`;
+          ? `/${u.profiles.username}`
+          : `/${u.user_id}`;
         return (
           <Link
             key={u.user_id}
@@ -232,9 +232,9 @@ export default function IssueCard({
 
   const issuePath = getIssuePath(issue.id, issue.title);
   const authorHref = issue.profiles?.username
-    ? `/u/${issue.profiles.username}`
+    ? `/${issue.profiles.username}`
     : issue.profiles?.id
-      ? `/u/${issue.profiles.id}`
+      ? `/${issue.profiles.id}`
       : "#";
 
   function redirectToAuth() {

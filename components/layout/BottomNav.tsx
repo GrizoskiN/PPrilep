@@ -306,7 +306,7 @@ export default function BottomNav() {
             <div className="border-t border-zinc-100 px-4 py-3 space-y-1">
               <Link
                 href={
-                  profile?.username ? `/u/${profile.username}` : `/u/${user.id}`
+                  profile?.username ? `/${profile.username}` : `/${user.id}`
                 }
                 onClick={() => setAccountOpen(false)}
                 className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">

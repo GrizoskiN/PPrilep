@@ -108,8 +108,8 @@ function PeoplePopup({
             const name =
               u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
             const href = u.profiles?.username
-              ? `/u/${u.profiles.username}`
-              : `/u/${u.user_id}`;
+              ? `/${u.profiles.username}`
+              : `/${u.user_id}`;
             return (
               <Link
                 key={u.user_id}
@@ -1502,8 +1502,8 @@ export default function IssueDetail({
   }) {
     const name = u.profiles?.full_name ?? u.profiles?.username ?? "Анонимно";
     const href = u.profiles?.username
-      ? `/u/${u.profiles.username}`
-      : `/u/${u.user_id}`;
+      ? `/${u.profiles.username}`
+      : `/${u.user_id}`;
 
     return (
       <Link
@@ -1815,8 +1815,8 @@ export default function IssueDetail({
           <Link
             href={
               resolver.username
-                ? `/u/${resolver.username}`
-                : `/u/${resolver.id}`
+                ? `/${resolver.username}`
+                : `/${resolver.id}`
             }
             className="flex items-center gap-2 min-w-0 group">
             <AvatarInitials
@@ -2318,9 +2318,9 @@ export default function IssueDetail({
           <Link
             href={
               currentIssue.profiles?.username
-                ? `/u/${currentIssue.profiles.username}`
+                ? `/${currentIssue.profiles.username}`
                 : currentIssue.reported_by
-                  ? `/u/${currentIssue.reported_by}`
+                  ? `/${currentIssue.reported_by}`
                   : "#"
             }
             className="flex items-center gap-3 hover:opacity-80 transition-opacity">

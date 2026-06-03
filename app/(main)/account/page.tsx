@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../../lib/hooks/useAuth";
 import { createClient } from "../../../lib/supabase/client";
@@ -12,8 +11,10 @@ import {
   formatDays,
   getIssuePath,
   cdnUrl,
+  slugify,
+  isReservedUsername,
 } from "../../../lib/utils";
-import AvatarInitials from "../../../components/ui/AvatarInitials";
+import { TIER_CONFIG } from "../../../components/ui/AvatarInitials";
 import Button from "../../../components/ui/Button";
 import { toast } from "sonner";
 import { MoreVertical } from "lucide-react";
@@ -64,12 +65,206 @@ const INITIATIVE_STAGE_LABELS: Record<string, string> = {
 
 const LIST_PAGE_SIZE = 7;
 
+// ── Security section component ────────────────────────────────────────────────
+
+function SecuritySection({
+  userId,
+  userEmail,
+  hasPassword,
+  supabase,
+  onSignOut,
+}: {
+  userId: string | null;
+  userEmail: string | null;
+  /** Whether the account already has an email+password identity. */
+  hasPassword: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
+  onSignOut: () => void;
+}) {
+  const [mode, setMode] = useState<"idle" | "password" | "delete">("idle");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPw, setSavingPw] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  function resetPwForm() {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  }
+
+  async function changePassword() {
+    if (newPassword.length < 6) { toast.error("Лозинката мора да има барем 6 знаци"); return; }
+    if (newPassword !== confirmPassword) { toast.error("Лозинките не се совпаѓаат"); return; }
+
+    setSavingPw(true);
+
+    // Re-authentication for accounts that already have a password — verifies the
+    // user knows the current password before allowing a change. Protects against
+    // session hijacking on shared/unlocked devices.
+    if (hasPassword) {
+      if (!currentPassword) { toast.error("Внесете ја тековната лозинка"); setSavingPw(false); return; }
+      if (!userEmail) { toast.error("Недостига е-пошта на сметката"); setSavingPw(false); return; }
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: currentPassword,
+      });
+      if (reauthError) {
+        toast.error("Тековната лозинка е неточна");
+        setSavingPw(false);
+        return;
+      }
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSavingPw(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(hasPassword ? "Лозинката е сменета" : "Лозинката е поставена");
+    resetPwForm();
+    setMode("idle");
+  }
+
+  async function deleteAccount() {
+    if (!userId) return;
+    setDeleting(true);
+    const res = await fetch("/api/account/delete", { method: "DELETE" });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: "Грешка" }));
+      toast.error(error ?? "Неуспешно бришење");
+      setDeleting(false);
+      return;
+    }
+    toast.success("Профилот е избришан");
+    onSignOut();
+  }
+
+  return (
+    <div className="rounded-lg border border-[#e6edf5] p-2.5 space-y-2.5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-500">
+        Безбедност
+      </p>
+
+      {mode === "idle" && (
+        <div className="flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={() => setMode("password")}
+            className="w-full rounded-lg border border-[#dce6e2] bg-white px-2.5 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+            🔑 {hasPassword ? "Промени лозинка" : "Постави лозинка"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("delete")}
+            className="w-full rounded-lg border border-red-100 bg-red-50 px-2.5 py-2 text-left text-xs font-semibold text-red-600 hover:bg-red-100 transition-colors">
+            🗑 Избриши профил
+          </button>
+        </div>
+      )}
+
+      {mode === "password" && (
+        <div className="space-y-2">
+          {userEmail && (
+            <p className="text-[10px] text-slate-400">Сметка: {userEmail}</p>
+          )}
+          {!hasPassword && (
+            <p className="rounded-lg bg-[#eef8f5] px-2.5 py-1.5 text-[10px] text-teal-700 leading-snug">
+              Се најавувате преку Google/линк. Поставете лозинка за да можете да се најавувате и со е-пошта.
+            </p>
+          )}
+          {hasPassword && (
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Тековна лозинка"
+              autoComplete="current-password"
+              className="w-full rounded-lg border border-[#dce6e2] px-2.5 py-2 text-xs outline-none focus:border-primary"
+            />
+          )}
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Нова лозинка"
+            autoComplete="new-password"
+            className="w-full rounded-lg border border-[#dce6e2] px-2.5 py-2 text-xs outline-none focus:border-primary"
+          />
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Потврди лозинка"
+            autoComplete="new-password"
+            className="w-full rounded-lg border border-[#dce6e2] px-2.5 py-2 text-xs outline-none focus:border-primary"
+            onKeyDown={(e) => { if (e.key === "Enter") changePassword(); }}
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setMode("idle"); resetPwForm(); }}
+              className="flex-1 rounded-lg border border-[#dce6e2] bg-white py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+              Откажи
+            </button>
+            <button
+              type="button"
+              onClick={changePassword}
+              disabled={savingPw}
+              className="flex-1 rounded-lg bg-primary py-1.5 text-xs font-semibold text-white hover:bg-primary/90 disabled:opacity-60">
+              {savingPw ? "Се зачувува…" : hasPassword ? "Зачувај" : "Постави"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mode === "delete" && (
+        <div className="space-y-2">
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Ова ќе го избрише вашиот профил засекогаш. Пријавите што ги направивте ќе останат анонимни.
+          </p>
+          <p className="text-[11px] font-semibold text-slate-600">
+            Напишете <span className="font-bold text-red-600">ИЗБРИШИ</span> за да потврдите:
+          </p>
+          <input
+            value={deleteConfirm}
+            onChange={(e) => setDeleteConfirm(e.target.value)}
+            className="w-full rounded-lg border border-red-200 px-2.5 py-2 text-xs outline-none focus:border-red-400"
+            placeholder="ИЗБРИШИ"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setMode("idle"); setDeleteConfirm(""); }}
+              className="flex-1 rounded-lg border border-[#dce6e2] bg-white py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+              Откажи
+            </button>
+            <button
+              type="button"
+              onClick={deleteAccount}
+              disabled={deleteConfirm !== "ИЗБРИШИ" || deleting}
+              className="flex-1 rounded-lg bg-red-600 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-40 transition-colors">
+              {deleting ? "Се брише…" : "Избриши"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AccountPage() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isWelcome = searchParams.get("welcome") === "1";
   const supabase = useMemo(() => createClient(), []);
 
   const [username, setUsername] = useState("");
+  const [streetName, setStreetName] = useState("");
+  const [emailDigest, setEmailDigest] = useState(true);
+  const [emailNewsletter, setEmailNewsletter] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -106,9 +301,23 @@ export default function AccountPage() {
     const id = setTimeout(() => {
       setUsername(profile?.username ?? "");
       setAvatarUrl(profile?.avatar_url ?? null);
+      setStreetName(profile?.street_name ?? "");
+      setEmailDigest(profile?.email_digest !== false); // default true
+      setEmailNewsletter(Boolean(profile?.email_newsletter)); // default false (opt-in)
+      // District is DB-backed (profiles.district). Always sync from the profile
+      // so a refresh restores the saved value (null → "all"/Прилеп).
+      setPrimaryDistrict(profile?.district ?? "all");
     }, 0);
     return () => clearTimeout(id);
   }, [profile]);
+
+  // Auto-open edit drawer for new users coming from onboarding redirect
+  useEffect(() => {
+    if (isWelcome && !loading && user) {
+      const id = setTimeout(() => setSensitiveMenuOpen(true), 300);
+      return () => clearTimeout(id);
+    }
+  }, [isWelcome, loading, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -194,13 +403,9 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!user) return;
-    const districtKey = `account_primary_district_${user.id}`;
     const settingsKey = `account_notification_settings_${user.id}`;
 
     const hydrationId = setTimeout(() => {
-      const savedDistrict = localStorage.getItem(districtKey);
-      if (savedDistrict) setPrimaryDistrict(savedDistrict);
-
       const rawSettings = localStorage.getItem(settingsKey);
       if (rawSettings) {
         try {
@@ -216,17 +421,18 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!user) return;
-    const districtKey = `account_primary_district_${user.id}`;
     const settingsKey = `account_notification_settings_${user.id}`;
-    localStorage.setItem(districtKey, primaryDistrict);
     localStorage.setItem(settingsKey, JSON.stringify(notificationSettings));
+  }, [notificationSettings, user]);
 
+  // Let the right panel preview the district live as the dropdown changes.
+  useEffect(() => {
     window.dispatchEvent(
       new CustomEvent("account-settings-changed", {
         detail: { primaryDistrict },
       }),
     );
-  }, [notificationSettings, primaryDistrict, user]);
+  }, [primaryDistrict]);
 
   async function uploadAvatar(file: File) {
     if (!user) return;
@@ -277,18 +483,37 @@ export default function AccountPage() {
     if (!user) return;
 
     setSaving(true);
-    const safeUsername = username.trim() || null;
 
-    const { error } = await supabase.from("profiles").upsert({
-      id: user.id,
-      username: safeUsername,
-      avatar_url: avatarUrl,
-    });
+    // Usernames live at the URL root (/<username>), so they must be URL-safe and
+    // not collide with route names.
+    const safeUsername = username.trim() ? slugify(username) || null : null;
+    if (safeUsername && isReservedUsername(safeUsername)) {
+      toast.error("Ова корисничко име е резервирано, изберете друго");
+      setSaving(false);
+      return;
+    }
+
+    // The profile row always exists (created by the signup trigger), so use a
+    // plain UPDATE — this only touches the user-editable columns that the
+    // column-level GRANTs allow. An upsert would include `id` in the SET list
+    // and require UPDATE privilege on the primary key.
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        username: safeUsername,
+        avatar_url: avatarUrl,
+        street_name: streetName.trim() || null,
+        district: primaryDistrict === "all" ? null : primaryDistrict,
+        email_digest: emailDigest,
+        email_newsletter: emailNewsletter,
+      })
+      .eq("id", user.id);
 
     if (!error) {
       toast.success("Профилот е зачуван");
       setSaving(false);
-      router.refresh();
+      if (isWelcome) router.replace("/account");
+      else router.refresh();
       return;
     }
 
@@ -312,6 +537,16 @@ export default function AccountPage() {
   const identityName = profile?.full_name?.trim() || profile?.username || "Мој профил";
   const identityHandle = username?.trim() || profile?.username || "корисник";
   const activityTotal = helperActivity.length + affectedActivity.length;
+  const headerTier = profile?.membership_tier
+    ? TIER_CONFIG[profile.membership_tier as keyof typeof TIER_CONFIG] ?? null
+    : null;
+  const headerInitials = (identityName || "?")
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  const headerDistrict = DISTRICT_LABELS[primaryDistrict] ?? "Прилеп";
 
   const activityFeedItems: ActivityFeedItem[] = [
     ...helperActivity.map((item) => ({
@@ -348,6 +583,15 @@ export default function AccountPage() {
 
   return (
     <div className="w-full">
+      {/* Welcome banner for new users */}
+      {isWelcome && (
+        <div className="mb-4 rounded-2xl border border-teal-200 bg-linear-to-br from-teal-50 to-emerald-50 px-4 py-3">
+          <p className="text-sm font-semibold text-teal-800">👋 Добредојдовте во Мој Прилеп!</p>
+          <p className="mt-0.5 text-xs text-teal-700">
+            Пополнете го вашиот профил — корисничко ime, населба и улица — за да добивате известувања за проблеми во вашето маало.
+          </p>
+        </div>
+      )}
       <section className="pb-3">
         <div className="relative" ref={sensitiveMenuRef}>
           {/* Edit (dots) button — absolute top-right */}
@@ -361,29 +605,46 @@ export default function AccountPage() {
           </button>
 
           {/* Centered identity */}
-          <div className="flex flex-col items-center gap-2 pt-2 text-center">
-            {avatarUrl ? (
-              <Image
-                src={cdnUrl(avatarUrl)}
-                alt="Профил слика"
-                width={96}
-                height={96}
-                sizes="96px"
-                className="h-24 w-24 rounded-full border border-[#dce6e2] object-cover"
-              />
-            ) : (
-              <AvatarInitials
-                name={username || profile?.username}
-                avatarUrl={null}
-                size="lg"
-              />
-            )}
+          <div className="flex flex-col items-center gap-2.5 pt-2 text-center">
+            {/* Big avatar with badge-colored ring + badge overlay */}
+            <div className="relative">
+              <div
+                className="h-28 w-28 overflow-hidden rounded-full"
+                style={{
+                  padding: "3px",
+                  background: headerTier ? headerTier.color : "#dce6e2",
+                }}>
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={cdnUrl(avatarUrl)}
+                    alt="Профил слика"
+                    className="h-full w-full rounded-full border-2 border-white object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center rounded-full border-2 border-white bg-zinc-900 text-2xl font-semibold text-white">
+                    {headerInitials}
+                  </div>
+                )}
+              </div>
+              {headerTier && (
+                <span
+                  className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full text-base ring-2 ring-white"
+                  style={{ background: headerTier.bg, color: headerTier.color }}
+                  title={headerTier.label}>
+                  {headerTier.emoji}
+                </span>
+              )}
+            </div>
 
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold text-theme-heading">
                 {identityName}
               </h1>
               <p className="truncate text-sm text-theme-muted">@{identityHandle}</p>
+              <p className="mt-0.5 text-xs text-theme-subtle">
+                📍 {headerDistrict}
+              </p>
               {user?.email && (
                 <p className="mt-0.5 truncate text-xs text-theme-subtle">{user.email}</p>
               )}
@@ -430,6 +691,21 @@ export default function AccountPage() {
 
                 <div>
                   <label className="text-[11px] font-semibold text-slate-600">
+                    Улица (опционално)
+                  </label>
+                  <input
+                    value={streetName}
+                    onChange={(e) => setStreetName(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-[#dce6e2] px-2.5 py-2 text-xs outline-none focus:border-primary"
+                    placeholder="пр. ул. Партизанска"
+                  />
+                  <p className="mt-0.5 text-[10px] text-slate-400">
+                    За известувања за проблеми на твојата улица
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-600">
                     Примарна населба
                   </label>
                   <select
@@ -448,61 +724,16 @@ export default function AccountPage() {
                   </select>
                 </div>
 
-                <div>
-                  <p className="text-[11px] font-semibold text-slate-600">
-                    Известувања
-                  </p>
-                  <div className="mt-1.5 space-y-1.5 text-xs text-theme-body">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.issueStatus}
-                        onChange={(e) =>
-                          setNotificationSettings((prev) => ({
-                            ...prev,
-                            issueStatus: e.target.checked,
-                          }))
-                        }
-                      />
-                      Статус на мои пријави
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.neighborhoodInitiatives}
-                        onChange={(e) =>
-                          setNotificationSettings((prev) => ({
-                            ...prev,
-                            neighborhoodInitiatives: e.target.checked,
-                          }))
-                        }
-                      />
-                      Нови иницијативи во населба
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.utilityUrgent}
-                        onChange={(e) =>
-                          setNotificationSettings((prev) => ({
-                            ...prev,
-                            utilityUrgent: e.target.checked,
-                          }))
-                        }
-                      />
-                      Ургентни известувања од претпријатија
-                    </label>
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-[#e6edf5] p-2.5">
-                  <p className="text-[11px] font-semibold text-slate-700">
-                    Безбедност
-                  </p>
-                  <p className="mt-1 text-[11px] text-slate-500">
-                    Промена на лозинка и поврзани профили наскоро.
-                  </p>
-                </div>
+                {/* Security section */}
+                <SecuritySection
+                  userId={user?.id ?? null}
+                  userEmail={user?.email ?? null}
+                  hasPassword={Boolean(
+                    user?.identities?.some((i) => i.provider === "email"),
+                  )}
+                  supabase={supabase}
+                  onSignOut={signOut}
+                />
 
                 <div className="flex items-center justify-end gap-2 pt-1">
                   <button
@@ -532,7 +763,7 @@ export default function AccountPage() {
             onClick={() => setActiveTab("reports")}
             className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
               activeTab === "reports"
-                ? "border-[#cde7df] text-theme-accent"
+                ? "border-primary bg-primary text-white shadow-sm"
                 : "border-[#e4ece8] text-theme-muted hover:text-theme-heading"
             }`}>
             Мои пријави ({myIssues.length})
@@ -542,7 +773,7 @@ export default function AccountPage() {
             onClick={() => setActiveTab("initiatives")}
             className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
               activeTab === "initiatives"
-                ? "border-[#cde7df] text-theme-accent"
+                ? "border-primary bg-primary text-white shadow-sm"
                 : "border-[#e4ece8] text-theme-muted hover:text-theme-heading"
             }`}>
             Иницијативи ({myInitiatives.length})
@@ -552,13 +783,14 @@ export default function AccountPage() {
             onClick={() => setActiveTab("activity")}
             className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
               activeTab === "activity"
-                ? "border-[#cde7df] text-theme-accent"
+                ? "border-primary bg-primary text-white shadow-sm"
                 : "border-[#e4ece8] text-theme-muted hover:text-theme-heading"
             }`}>
             Моја активност ({activityTotal})
           </button>
         </div>
 
+        <div className="max-h-112 overflow-y-auto pr-1.5">
         {loadingData ? (
           <p className="text-sm text-slate-500">Се вчитуваат податоци…</p>
         ) : activeTab === "reports" ? (
@@ -663,6 +895,7 @@ export default function AccountPage() {
             )}
           </div>
         )}
+        </div>
       </section>
     </div>
   );
