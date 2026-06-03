@@ -790,7 +790,7 @@ export default function AccountPage() {
           </button>
         </div>
 
-        <div className="max-h-[28rem] overflow-y-auto pr-1.5">
+        <div className="max-h-112 overflow-y-auto pr-1.5">
         {loadingData ? (
           <p className="text-sm text-slate-500">Се вчитуваат податоци…</p>
         ) : activeTab === "reports" ? (

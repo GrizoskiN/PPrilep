@@ -147,26 +147,10 @@ export default function InitiativeCard({
           </div>
 
           {showVoteCluster && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onVote();
-              }}
-              disabled={isPending}
-              aria-pressed={optimistic.voted}
-              aria-label={optimistic.voted ? "Тргни глас" : "Гласај"}
-              className={cn(
-                "inline-flex items-center gap-1 pl-2 pr-2.5 py-1 rounded-full text-sm font-medium transition-colors shrink-0",
-                optimistic.voted
-                  ? "bg-primary text-white hover:bg-primary/90"
-                  : "text-zinc-500 hover:text-primary",
-              )}>
+            <span className="inline-flex items-center gap-1 text-zinc-400 shrink-0 text-sm">
               <span className="text-base leading-none">👏</span>
-              <span className="tabular-nums font-semibold">
-                {optimistic.count}
-              </span>
-            </button>
+              <span className="tabular-nums font-semibold">{optimistic.count}</span>
+            </span>
           )}
         </header>
 
@@ -197,12 +181,29 @@ export default function InitiativeCard({
               {authorName} · {formatDays(initiative.created_at)}
             </span>
           </div>
-          {stage === "funding" && initiative.supporter_count > 0 && (
+          {showVoteCluster ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onVote();
+              }}
+              disabled={isPending}
+              aria-pressed={optimistic.voted}
+              className={cn(
+                "shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors",
+                optimistic.voted
+                  ? "bg-primary text-white hover:bg-primary/90"
+                  : "bg-primary/10 text-primary hover:bg-primary/20",
+              )}>
+              {optimistic.voted ? "Поддржано ✓" : "Поддржи"}
+            </button>
+          ) : stage === "funding" && initiative.supporter_count > 0 ? (
             <span className="inline-flex items-center gap-1 text-[11px] text-theme-muted">
               <Users size={11} />
               {initiative.supporter_count} поддржувачи
             </span>
-          )}
+          ) : null}
         </footer>
       </article>
 

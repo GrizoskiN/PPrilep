@@ -26,6 +26,30 @@ export async function generateMetadata({ params }: Props) {
   };
 }
 
+// Convert a YouTube/Vimeo watch URL into an embeddable URL.
+function getEmbedUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    // YouTube — youtu.be/ID or youtube.com/watch?v=ID
+    if (u.hostname.includes("youtu.be")) {
+      return `https://www.youtube.com/embed/${u.pathname.slice(1)}`;
+    }
+    if (u.hostname.includes("youtube.com")) {
+      const id = u.searchParams.get("v");
+      if (id) return `https://www.youtube.com/embed/${id}`;
+      if (u.pathname.startsWith("/embed/")) return url;
+    }
+    // Vimeo — vimeo.com/ID
+    if (u.hostname.includes("vimeo.com")) {
+      const id = u.pathname.split("/").filter(Boolean)[0];
+      if (id) return `https://player.vimeo.com/video/${id}`;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 // Renderers for PortableText rich-text blocks.
 const portableTextComponents: PortableTextComponents = {
   types: {
@@ -137,6 +161,34 @@ export default async function PositivePostPage({ params }: Props) {
           <PortableText value={post.body as never} components={portableTextComponents} />
         )}
       </div>
+
+      {/* Video */}
+      {post.videoUrl && (
+        <div className="my-5 space-y-2">
+          {getEmbedUrl(post.videoUrl) ? (
+            <div className="overflow-hidden rounded-2xl bg-black">
+              <div className="relative aspect-video w-full">
+                <iframe
+                  src={getEmbedUrl(post.videoUrl)!}
+                  title="Видео"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="absolute inset-0 h-full w-full"
+                />
+              </div>
+            </div>
+          ) : null}
+          {/* Always show the direct link — covers both non-embeddable platforms
+              and videos where the owner has disabled embedding (YT error 152-4) */}
+          <a
+            href={post.videoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-primary hover:bg-zinc-100 transition-colors w-fit">
+            🎥 Отвори го видеото во нов прозорец →
+          </a>
+        </div>
+      )}
 
       {post.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-6 pt-4 border-t border-zinc-100">

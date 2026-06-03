@@ -30,7 +30,7 @@ export default function InitiativeFilters({ category, district, stage }: Props) 
   const router = useRouter();
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
-  const [open, setOpen] = useState(!!category || !!district);
+  const [open, setOpen] = useState(true);
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
