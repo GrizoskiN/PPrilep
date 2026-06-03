@@ -25,7 +25,7 @@ interface Props {
 
 // ── Badge config ──────────────────────────────────────────────────────────────
 
-const TIER_CONFIG: Record<
+export const TIER_CONFIG: Record<
   NonNullable<Exclude<MembershipTier, null | undefined>>,
   { emoji: string; label: string; bg: string; color: string }
 > = {
@@ -44,7 +44,7 @@ interface TooltipPos { top: number; left: number; }
 function TooltipPortal({ text, pos }: { text: string; pos: TooltipPos }) {
   return createPortal(
     <span
-      className="pointer-events-none fixed z-[9999] whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-xl"
+      className="pointer-events-none fixed z-9999 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-xl"
       style={{
         top: pos.top,
         left: pos.left,

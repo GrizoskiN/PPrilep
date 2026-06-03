@@ -40,7 +40,7 @@ const POST_LIST_QUERY = `
     publishedAt,
     coverImage{asset, alt},
     "author": author->{name, "slug": slug.current},
-    "tags": tags[]->{title, "slug": slug.current}
+    "tags": coalesce(tags[]->{title, "slug": slug.current}, [])
   }
 `;
 
@@ -53,7 +53,7 @@ const POST_BY_SLUG_QUERY = `
     publishedAt,
     coverImage{asset, alt},
     "author": author->{name, "slug": slug.current},
-    "tags": tags[]->{title, "slug": slug.current},
+    "tags": coalesce(tags[]->{title, "slug": slug.current}, []),
     body
   }
 `;

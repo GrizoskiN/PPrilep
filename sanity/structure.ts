@@ -41,9 +41,32 @@ export const structure: StructureResolver = (S) =>
           S.list()
             .title("Позитива")
             .items([
+              // Citizen submissions awaiting review (isSubmission && not reviewed)
+              S.listItem()
+                .title("📥 Приказни за преглед")
+                .child(
+                  S.documentList()
+                    .title("Приказни за преглед")
+                    .filter('_type == "post" && isSubmission == true && reviewed != true')
+                    .apiVersion("2024-01-01"),
+                ),
+              S.divider(),
               S.documentTypeListItem("post").title("Постови"),
               S.documentTypeListItem("author").title("Автори"),
               S.documentTypeListItem("tag").title("Тагови / Категории"),
+            ]),
+        ),
+
+      S.divider(),
+
+      // ── 🏗️ Наши Проекти ──────────────────────────────────────────────
+      S.listItem()
+        .title("🏗️ Наши Проекти")
+        .child(
+          S.list()
+            .title("Наши Проекти")
+            .items([
+              S.documentTypeListItem("project").title("Проекти"),
             ]),
         ),
 

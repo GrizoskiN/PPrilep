@@ -79,13 +79,21 @@ export default function BusRouteMap() {
         },
       });
 
-      // Outer white circle
+      // Invisible large hit target — makes stops easy to tap on mobile
+      map.addLayer({
+        id: "stops-hit",
+        type: "circle",
+        source: "bus-stops",
+        paint: { "circle-radius": 18, "circle-color": "transparent", "circle-opacity": 0 },
+      });
+
+      // Outer white circle — larger at lower zoom (mobile users zoom out more)
       map.addLayer({
         id: "stops-bg",
         type: "circle",
         source: "bus-stops",
         paint: {
-          "circle-radius": 7,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 11, 15, 8],
           "circle-color": "#ffffff",
           "circle-stroke-color": "#52525b",
           "circle-stroke-width": 1.5,
@@ -97,18 +105,21 @@ export default function BusRouteMap() {
         id: "stops-dot",
         type: "circle",
         source: "bus-stops",
-        paint: { "circle-radius": 3.5, "circle-color": "#27272a" },
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 5, 15, 3.5],
+          "circle-color": "#27272a",
+        },
       });
 
       // ── Stop interactions ────────────────────────────────────────────────────
-      map.on("mouseenter", "stops-bg", () => {
+      map.on("mouseenter", "stops-hit", () => {
         map.getCanvas().style.cursor = "pointer";
       });
-      map.on("mouseleave", "stops-bg", () => {
+      map.on("mouseleave", "stops-hit", () => {
         map.getCanvas().style.cursor = "";
       });
 
-      map.on("click", "stops-bg", (e) => {
+      map.on("click", "stops-hit", (e) => {
         if (!e.features?.length) return;
         const props = e.features[0].properties as { name: string; routeIds: string };
         const coords = (
@@ -140,7 +151,7 @@ export default function BusRouteMap() {
 
       // Dismiss popup when clicking the map background
       map.on("click", (e) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: ["stops-bg"] });
+        const features = map.queryRenderedFeatures(e.point, { layers: ["stops-hit"] });
         if (!features.length) popupRef.current?.remove();
       });
 
@@ -178,6 +189,7 @@ export default function BusRouteMap() {
         ["get", "id"],
         ["literal", activeIds],
       ];
+      map.setFilter("stops-hit", filter);
       map.setFilter("stops-bg", filter);
       map.setFilter("stops-dot", filter);
     }
@@ -230,7 +242,7 @@ export default function BusRouteMap() {
 
         {/* Hint label */}
         <div className="pointer-events-none absolute bottom-3 left-3 rounded-xl bg-white/80 backdrop-blur-sm px-2.5 py-1 text-[11px] text-zinc-500 border border-zinc-100 shadow-sm">
-          Кликни на стопица за детали
+          Допри / кликни на стопица за детали
         </div>
       </div>
     </div>

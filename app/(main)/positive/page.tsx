@@ -36,6 +36,9 @@ export default async function PositivePage() {
       ) : (
         <div className="space-y-3">
           {posts.map((p) => (
+            (() => {
+              const tags = (p.tags ?? []).filter((t) => !!t?.title);
+              return (
             <Link
               key={p._id}
               href={`/positive/${p.slug}`}
@@ -70,17 +73,19 @@ export default async function PositivePage() {
                       year: "numeric",
                     })}
                   </time>
-                  {p.tags.length > 0 && (
+                  {tags.length > 0 && (
                     <>
                       <span>·</span>
                       <span className="truncate">
-                        {p.tags.map((t) => t.title).join(", ")}
+                        {tags.map((t) => t.title).join(", ")}
                       </span>
                     </>
                   )}
                 </div>
               </div>
             </Link>
+              );
+            })()
           ))}
         </div>
       )}

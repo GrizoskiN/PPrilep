@@ -2,7 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
-
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
@@ -53,6 +54,8 @@ export default function RootLayout({
       <body className="h-full bg-theme-canvas font-sans antialiased text-theme-body">
         <div className=" mx-auto h-full">{children}</div>
         <Toaster position="bottom-right" />
+        < Analytics />
+        < SpeedInsights />
       </body>
     </html>
   );
