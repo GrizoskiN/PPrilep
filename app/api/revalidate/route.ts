@@ -14,7 +14,7 @@
  *       HTTP method: POST
  */
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 const SECRET = process.env.SANITY_REVALIDATE_SECRET;
@@ -34,16 +34,13 @@ export async function POST(req: Request) {
     if (!docType || docType === "post") {
       revalidatePath("/positive", "page");
       revalidatePath("/positive/[slug]", "page");
-      revalidateTag("positive");
     }
     if (!docType || docType === "project") {
       revalidatePath("/projects", "page");
       revalidatePath("/projects/[slug]", "page");
-      revalidateTag("projects");
     }
     if (!docType || docType === "cityEvent") {
       revalidatePath("/events", "page");
-      revalidateTag("events");
     }
 
     // Always revalidate the home page (it may show recent posts/events)
