@@ -25,9 +25,9 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
   // In the 2-column layout the main content spans the full combined width.
   const contentFull = fullWidth || !threeColumn;
 
-  // The panel to render in each slot: an explicitly-passed panel wins; otherwise
-  // routes that inject their own panel show a neutral skeleton (until it mounts)
-  // and all other routes show the default info panel.
+  // The panel to render in each slot: an explicitly-injected panel wins;
+  // otherwise routes that inject their own panel show a neutral skeleton (until
+  // their client effect mounts it) and all other routes show the default panel.
   const panelContent =
     rightPanel ??
     (routeHasCustomPanel(pathname ?? "/") ? (

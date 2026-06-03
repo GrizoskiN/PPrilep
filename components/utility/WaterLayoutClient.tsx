@@ -13,7 +13,7 @@ export default function WaterLayoutClient({ children }: Props) {
 
   useEffect(() => {
     setOverridePanel(<WaterRightPanel />, "/utility/water", false);
-    return () => setOverridePanel(null);
+    return () => setOverridePanel(null, "/utility/water");
   }, [setOverridePanel]);
 
   return <>{children}</>;

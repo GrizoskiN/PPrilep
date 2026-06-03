@@ -16,7 +16,7 @@ export default function PositiveLayoutClient({ children, recentPosts }: Props) {
   useEffect(() => {
     // exact: false → matches /positive AND /positive/[slug]
     setOverridePanel(<PositiveRightPanel recentPosts={recentPosts} />, "/positive", false);
-    return () => setOverridePanel(null);
+    return () => setOverridePanel(null, "/positive");
   }, [setOverridePanel, recentPosts]);
 
   return <>{children}</>;

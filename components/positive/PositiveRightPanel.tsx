@@ -60,6 +60,7 @@ export default function PositiveRightPanel({ recentPosts }: Props) {
                       src={urlForImage(p.coverImage).width(112).height(112).url()}
                       alt={p.coverImage.alt ?? p.title}
                       fill
+                      sizes="56px"
                       className="object-cover"
                     />
                   </div>

@@ -13,7 +13,7 @@ export default function AccountLayout({
 
   useLayoutEffect(() => {
     setOverridePanel(<AccountRightPanel />, "/account");
-    return () => setOverridePanel(null);
+    return () => setOverridePanel(null, "/account");
   }, [setOverridePanel]);
 
   return <>{children}</>;

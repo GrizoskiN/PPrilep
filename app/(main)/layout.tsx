@@ -7,8 +7,12 @@ import { RightPanelProvider, useRightPanel } from "../../lib/context/RightPanelC
 
 function MainLayoutInner({ children }: { children: React.ReactNode }) {
   const { entry } = useRightPanel();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "/";
 
+  // An injected panel only applies on the route that registered it (so a stale
+  // panel from a previous route never bleeds onto the current one). When it
+  // doesn't match, pass undefined → Shell shows skeleton (custom route) or the
+  // default panel.
   const effectivePanel = entry
     ? entry.exact
       ? pathname === entry.route ? entry.panel : null

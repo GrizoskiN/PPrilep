@@ -25,7 +25,7 @@ export default function KindergartenListPanelInjector({ signupDocuments, latestM
       "/kindergarten",
       true,
     );
-    return () => setOverridePanel(null);
+    return () => setOverridePanel(null, "/kindergarten");
   }, [pathname, signupDocuments, latestMenu, setOverridePanel]);
 
   return null;

@@ -13,7 +13,7 @@ export default function KomunalecLayoutClient({ children }: Props) {
 
   useEffect(() => {
     setOverridePanel(<KomunalecRightPanel />, "/utility/garbage", false);
-    return () => setOverridePanel(null);
+    return () => setOverridePanel(null, "/utility/garbage");
   }, [setOverridePanel]);
 
   return <>{children}</>;

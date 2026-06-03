@@ -18,7 +18,7 @@ export default function SponsorsLayout({ children }: { children: React.ReactNode
   // Inject the self-contained panel ONCE (stable deps) before first paint.
   useLayoutEffect(() => {
     setOverridePanel(<SponsorsPanelContent onJoin={openModal} />, "/sponsors");
-    return () => setOverridePanel(null);
+    return () => setOverridePanel(null, "/sponsors");
   }, [openModal, setOverridePanel]);
 
   return (

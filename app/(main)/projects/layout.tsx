@@ -4,12 +4,12 @@ import { useEffect } from "react";
 import { useRightPanel } from "../../../lib/context/RightPanelContext";
 import AboutRightPanel from "../../../components/about/AboutRightPanel";
 
-export default function AboutLayout({ children }: { children: React.ReactNode }) {
+export default function ProjectsLayout({ children }: { children: React.ReactNode }) {
   const { setOverridePanel } = useRightPanel();
 
   useEffect(() => {
-    setOverridePanel(<AboutRightPanel />, "/about", true);
-    return () => setOverridePanel(null, "/about");
+    setOverridePanel(<AboutRightPanel />, "/projects", true);
+    return () => setOverridePanel(null, "/projects");
   }, [setOverridePanel]);
 
   return <>{children}</>;

@@ -39,7 +39,7 @@ export default function InstitutionPanelInjector({
       />,
       `/kindergarten/${slug}`,
     );
-    return () => setOverridePanel(null);
+    return () => setOverridePanel(null, `/kindergarten/${slug}`);
   }, [slug, institution, allInstitutions, todayMenu, currentProgramme,
       recentAnnouncements, signupDocuments, setOverridePanel]);
 
