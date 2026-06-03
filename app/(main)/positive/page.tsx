@@ -44,7 +44,7 @@ export default async function PositivePage() {
               href={`/positive/${p.slug}`}
               className="block overflow-hidden rounded-2xl border border-zinc-200 bg-white transition-colors hover:border-zinc-300">
               {p.coverImage && (
-                <div className="relative aspect-[16/9] w-full bg-zinc-100">
+                <div className="relative aspect-video w-full bg-zinc-100">
                   <Image
                     src={urlForImage(p.coverImage).width(800).height(450).url()}
                     alt={p.coverImage.alt ?? p.title}
