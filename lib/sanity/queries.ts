@@ -26,6 +26,7 @@ export type PostListItem = {
 export type PostFull = PostListItem & {
   // PortableText blocks — opaque on the type level, rendered with PortableText
   body: unknown[] | null;
+  videoUrl: string | null;
 };
 
 // ── Queries ──────────────────────────────────────────────────────────────────
@@ -54,7 +55,8 @@ const POST_BY_SLUG_QUERY = `
     coverImage{asset, alt},
     "author": author->{name, "slug": slug.current},
     "tags": coalesce(tags[]->{title, "slug": slug.current}, []),
-    body
+    body,
+    videoUrl
   }
 `;
 
@@ -93,11 +95,15 @@ const EVENTS_QUERY = `
 
 // ── Fetchers ─────────────────────────────────────────────────────────────────
 
+// Fallback ISR interval — webhook at /api/revalidate handles instant updates.
+// 86 400 s = 24 h, so pages stay fresh even if the webhook misfires.
+const REVALIDATE_CONTENT = 86_400;
+
 export async function fetchPositivePosts(): Promise<PostListItem[]> {
   return sanityClient.fetch<PostListItem[]>(
     POST_LIST_QUERY,
     {},
-    { next: { revalidate: 60 } }, // ISR: refresh at most every 60s
+    { next: { revalidate: REVALIDATE_CONTENT, tags: ["positive"] } },
   );
 }
 
@@ -105,7 +111,7 @@ export async function fetchPositivePost(slug: string): Promise<PostFull | null> 
   return sanityClient.fetch<PostFull | null>(
     POST_BY_SLUG_QUERY,
     { slug },
-    { next: { revalidate: 60 } },
+    { next: { revalidate: REVALIDATE_CONTENT, tags: ["positive"] } },
   );
 }
 
@@ -113,6 +119,84 @@ export async function fetchCityEvents(): Promise<SanityEvent[]> {
   return sanityClient.fetch<SanityEvent[]>(
     EVENTS_QUERY,
     {},
-    { next: { revalidate: 300 } }, // refresh every 5 minutes
+    { next: { revalidate: REVALIDATE_CONTENT, tags: ["events"] } },
+  );
+}
+
+// ── Project types ─────────────────────────────────────────────────────────────
+
+export type SanityProject = {
+  _id: string;
+  title: string;
+  slug: string;
+  status: "ongoing" | "completed" | "planned";
+  category: string;
+  excerpt: string | null;
+  coverImage: { asset: { _ref: string }; alt: string | null } | null;
+  location: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  volunteersCount: number | null;
+  featured: boolean;
+  publishedAt: string;
+};
+
+export type SanityProjectFull = SanityProject & {
+  body: unknown[] | null;
+  gallery: { asset: { _ref: string }; alt: string | null; caption: string | null }[] | null;
+};
+
+const PROJECTS_QUERY = `
+  *[_type == "project"]
+  | order(featured desc, publishedAt desc) {
+    _id,
+    title,
+    "slug": slug.current,
+    status,
+    category,
+    excerpt,
+    coverImage{ asset, alt },
+    location,
+    startDate,
+    endDate,
+    volunteersCount,
+    featured,
+    publishedAt
+  }
+`;
+
+const PROJECT_BY_SLUG_QUERY = `
+  *[_type == "project" && slug.current == $slug][0] {
+    _id,
+    title,
+    "slug": slug.current,
+    status,
+    category,
+    excerpt,
+    coverImage{ asset, alt },
+    location,
+    startDate,
+    endDate,
+    volunteersCount,
+    featured,
+    publishedAt,
+    body,
+    gallery[]{ asset, alt, caption }
+  }
+`;
+
+export async function fetchProjects(): Promise<SanityProject[]> {
+  return sanityClient.fetch<SanityProject[]>(
+    PROJECTS_QUERY,
+    {},
+    { next: { revalidate: REVALIDATE_CONTENT, tags: ["projects"] } },
+  );
+}
+
+export async function fetchProject(slug: string): Promise<SanityProjectFull | null> {
+  return sanityClient.fetch<SanityProjectFull | null>(
+    PROJECT_BY_SLUG_QUERY,
+    { slug },
+    { next: { revalidate: REVALIDATE_CONTENT, tags: ["projects"] } },
   );
 }
