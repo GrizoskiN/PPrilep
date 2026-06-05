@@ -312,6 +312,26 @@ body {
   color: #0f766e;
 }
 
+/* Global navigation progress bar (top of viewport) */
+.nav-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  z-index: 200;
+  background: linear-gradient(90deg, #2aa99d 0%, #5fe0d2 100%);
+  box-shadow:
+    0 0 8px rgba(42, 169, 157, 0.55),
+    0 0 3px rgba(42, 169, 157, 0.9);
+  border-top-right-radius: 3px;
+  border-bottom-right-radius: 3px;
+  transition:
+    width 0.2s ease,
+    opacity 0.25s ease;
+  pointer-events: none;
+  will-change: width, opacity;
+}
+
 /* Marquee scroll animation */
 @keyframes marquee {
   0% {
