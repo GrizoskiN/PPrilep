@@ -77,6 +77,7 @@ export default function KindergartenPage() {
                 <Image
                   src={urlForImage(inst.coverImage).width(400).height(200).fit("crop").url()}
                   alt={inst.shortName} fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
                   className="object-cover transition-transform group-hover:scale-[1.02]"
                 />
               </div>
@@ -164,7 +165,7 @@ function AnnouncementCard({ announcement: a }: { announcement: KindergartenAnnou
         <div className="relative h-44 w-full">
           <Image
             src={urlForImage(a.coverImage).width(600).height(280).url()}
-            alt={a.title} fill className="object-cover"
+            alt={a.title} fill sizes="(max-width: 640px) 100vw, 600px" className="object-cover"
           />
         </div>
       )}

@@ -38,6 +38,7 @@ function ProjectCard({ project }: { project: SanityProject }) {
             src={coverUrl}
             alt={project.coverImage?.alt ?? project.title}
             fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
             className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : (

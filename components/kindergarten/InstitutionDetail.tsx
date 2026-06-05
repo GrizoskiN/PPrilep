@@ -40,6 +40,7 @@ export default function InstitutionDetail({ institution, staff }: Props) {
               src={urlForImage(institution.coverImage).width(800).height(300).url()}
               alt={institution.coverImage.alt ?? institution.name}
               fill
+              sizes="(max-width: 640px) 100vw, 800px"
               className="object-cover"
             />
             <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />

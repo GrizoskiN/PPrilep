@@ -6,10 +6,46 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
+const SITE_URL = "https://mojprilep.mk";
+const SITE_NAME = "Мој Прилеп";
+const SITE_TITLE =
+  "Мој Прилеп | Платформа за афирмација на граѓанските вредности";
+const SITE_DESCRIPTION =
+  "Граѓанска платформа за афирмација на граѓанските вредности преку реализација на проекти од јавен интерес";
+
 export const metadata: Metadata = {
-  title: "Мој Прилеп | Платформа за афирмација на граѓанските вредности",
-  description:
-    "Граѓанска платформа за афирмација на граѓанските вредности преку реализација на проекти од јавен интерес",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_TITLE,
+    template: "%s | Мој Прилеп",
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "Прилеп",
+    "Мој Прилеп",
+    "граѓанска платформа",
+    "пријави проблем",
+    "иницијативи",
+    "комунални услуги",
+    "Водовод Прилеп",
+    "Комуналец Прилеп",
+  ],
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    locale: "mk_MK",
+    siteName: SITE_NAME,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
   icons: {
     icon: [
       {
