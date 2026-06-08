@@ -37,7 +37,9 @@ export default function LoginForm() {
   function getAuthRedirectOrigin() {
     const envOrigin = process.env.NEXT_PUBLIC_AUTH_REDIRECT_ORIGIN?.trim();
     if (envOrigin) return envOrigin.replace(/\/$/, "");
-    if (process.env.NODE_ENV !== "production") return "http://localhost:3000";
+    // Use whatever host the browser is actually on — keeps phone-on-LAN
+    // (192.168.x.x:3000) and localhost testing on the same origin instead of
+    // bouncing to the production Site URL.
     return location.origin;
   }
 

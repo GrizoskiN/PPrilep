@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Shell from "../../components/layout/Shell";
+import OnboardingTour from "../../components/onboarding/OnboardingTour";
 import { AuthProvider } from "../../lib/context/AuthContext";
 import { RightPanelProvider, useRightPanel } from "../../lib/context/RightPanelContext";
 
@@ -19,7 +20,12 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
       : pathname.startsWith(entry.route) ? entry.panel : null
     : null;
 
-  return <Shell rightPanel={effectivePanel ?? undefined}>{children}</Shell>;
+  return (
+    <>
+      <Shell rightPanel={effectivePanel ?? undefined}>{children}</Shell>
+      <OnboardingTour />
+    </>
+  );
 }
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {

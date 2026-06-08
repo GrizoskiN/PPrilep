@@ -45,6 +45,21 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
 
   const closeMenu = () => setMenuOpen(false);
 
+  // The onboarding tour opens the drawer on menu steps and closes it otherwise.
+  useEffect(() => {
+    const close = () => setMenuOpen(false);
+    const open = () => {
+      setMenuOpenedAt(Date.now());
+      setMenuOpen(true);
+    };
+    window.addEventListener("pp:close-mobile-menu", close);
+    window.addEventListener("pp:open-mobile-menu", open);
+    return () => {
+      window.removeEventListener("pp:close-mobile-menu", close);
+      window.removeEventListener("pp:open-mobile-menu", open);
+    };
+  }, []);
+
   function handleMobileNavClick(e: React.MouseEvent<HTMLElement>) {
     const target = e.target as HTMLElement | null;
     if (!target) return;

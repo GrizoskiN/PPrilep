@@ -179,6 +179,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
                 openMobileMenu();
               }}
               onClick={openMobileMenu}
+              data-tour="menu"
               className="relative  flex h-10 w-7 items-center justify-end text-slate-800 z-50"
               aria-label="Отвори мени">
               <Menu size={22} strokeWidth={2.4} />

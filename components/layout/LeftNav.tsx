@@ -206,8 +206,8 @@ export default function LeftNav() {
   }, []);
 
   return (
-    <nav className="scrollbar-hidden flex h-full min-h-0 flex-col gap-5 overflow-y-auto py-3">
-      <section>
+    <nav data-tour="menu" className="scrollbar-hidden flex h-full min-h-0 flex-col gap-5 overflow-y-auto py-3">
+      <section data-tour="menu-citizens">
         <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
           Граѓани
         </p>
@@ -262,7 +262,7 @@ export default function LeftNav() {
         </div>
       </section>
 
-      <section>
+      <section data-tour="menu-platform">
         <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
           За платформата
         </p>
@@ -294,7 +294,7 @@ export default function LeftNav() {
         </div>
       </section>
 
-      <section>
+      <section data-tour="menu-info">
         <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
           Информации
         </p>
@@ -316,7 +316,7 @@ export default function LeftNav() {
         </div>
       </section>
 
-      <section>
+      <section data-tour="menu-enterprise">
         <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
           Претпријатие
         </p>

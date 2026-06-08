@@ -449,7 +449,7 @@ export default function IssueCard({
         {/* ── Image ──────────────────────────────────────── */}
         {hasPhoto &&
           (issue.photo_url && issue.after_photo_url ? (
-            <div className="grid grid-cols-2">
+            <div className="relative grid grid-cols-2">
               <div className="relative">
                 <BlurImage
                   src={issue.photo_url}
@@ -460,9 +460,9 @@ export default function IssueCard({
                   priority={eagerImage}
                   sizes="50vw"
                   rounded="rounded-none"
-                  className="h-96 w-full object-cover"
+                  className="h-[26rem] w-full object-cover lg:h-[32rem]"
                 />
-                <span className="absolute top-1.5 left-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                <span className="absolute top-2 left-2 rounded-md bg-black/60 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
                   Пред
                 </span>
               </div>
@@ -476,34 +476,39 @@ export default function IssueCard({
                   priority={eagerImage}
                   sizes="50vw"
                   rounded="rounded-none"
-                  className="h-96 w-full object-cover"
+                  className="h-[26rem] w-full object-cover lg:h-[32rem]"
                 />
-                <span className="absolute top-1.5 left-1.5 rounded-md bg-teal-600/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                <span className="absolute top-2 left-2 rounded-md bg-teal-600/90 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
                   Потоа
                 </span>
-                {issue.resolver && (
-                  <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center gap-1.5 rounded-lg bg-black/65 backdrop-blur-sm px-2 py-1">
-                    <span className="text-xs">🏆</span>
-                    <AvatarInitials
-                      name={
-                        issue.resolver.full_name ??
-                        issue.resolver.username ??
-                        ""
-                      }
-                      avatarUrl={issue.resolver.avatar_url}
-                      size="sm"
-                      className="w-4! h-4! text-[8px]!"
-                      membershipTier={issue.resolver.membership_tier as import("../ui/AvatarInitials").MembershipTier}
-                      points={issue.resolver.points}
-                    />
-                    <span className="text-[10px] font-semibold text-white truncate">
+              </div>
+              {/* Solver bar — spans both images on mobile, confined to the
+                  "Потоа" image (no avatar) on desktop. */}
+              {issue.resolver && (
+                <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center gap-2 bg-gradient-to-t from-black/85 to-black/35 px-3 py-2 backdrop-blur-sm lg:left-1/2">
+                  <span className="text-[30px] leading-none">🏆</span>
+                  <AvatarInitials
+                    name={
+                      issue.resolver.full_name ??
+                      issue.resolver.username ??
+                      ""
+                    }
+                    avatarUrl={issue.resolver.avatar_url}
+                    size="sm"
+                    className="w-8! h-8! text-[11px]!"
+                  />
+                  <span className="flex min-w-0 flex-col leading-tight">
+                    <span className="text-[8px] font-medium uppercase tracking-wide text-white/70">
+                      Решено од
+                    </span>
+                    <span className="truncate text-sm font-bold text-white">
                       {issue.resolver.full_name ??
                         issue.resolver.username ??
                         "Херој"}
                     </span>
-                  </div>
-                )}
-              </div>
+                  </span>
+                </div>
+              )}
             </div>
           ) : (
             <BlurImage
@@ -515,13 +520,13 @@ export default function IssueCard({
               priority={eagerImage}
               sizes="(max-width: 768px) 100vw, 640px"
               rounded="rounded-none"
-              className="h-106.75 w-full object-cover"
+              className="h-[28rem] w-full object-cover lg:h-[34rem]"
             />
           ))}
 
         {/* ── Title ──────────────────────────────────────── */}
         <div className={cn("px-4", hasPhoto ? "pt-3 pb-1" : "pt-2 pb-1")}>
-          <p className="text-sm font-semibold text-zinc-800 line-clamp-2 leading-snug">
+          <p className="text-base font-semibold text-zinc-800 line-clamp-2 leading-snug lg:text-lg">
             {issue.title}
           </p>
         </div>

@@ -193,7 +193,7 @@ export default function AccountRightPanel() {
     <div className="space-y-4 lg:p-3">
 
       {/* ── Notification toggles — always at the top ── */}
-      <section className="rounded-2xl border border-[#e4ece8] bg-white p-3 space-y-3">
+      <section data-tour="notifications" className="rounded-2xl border border-[#e4ece8] bg-white p-3 space-y-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-theme-subtle">
           Известувања
         </p>
