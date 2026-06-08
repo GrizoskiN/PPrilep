@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Shell from "../../components/layout/Shell";
 import OnboardingTour from "../../components/onboarding/OnboardingTour";
+import InstallBanner from "../../components/ui/InstallBanner";
 import { AuthProvider } from "../../lib/context/AuthContext";
 import { RightPanelProvider, useRightPanel } from "../../lib/context/RightPanelContext";
 
@@ -24,6 +25,7 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
     <>
       <Shell rightPanel={effectivePanel ?? undefined}>{children}</Shell>
       <OnboardingTour />
+      <InstallBanner />
     </>
   );
 }

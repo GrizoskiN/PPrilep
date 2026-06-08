@@ -48,29 +48,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      {
-        url: "/logo/logo-black.svg",
-        type: "image/svg+xml",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/logo/logo-white.svg",
-        type: "image/svg+xml",
-        media: "(prefers-color-scheme: dark)",
-      },
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48", type: "image/x-icon" },
+      { url: "/logo/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/logo/app-icon.svg", type: "image/svg+xml" },
     ],
-    shortcut: [
-      {
-        url: "/logo/logo-black.svg",
-        type: "image/svg+xml",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/logo/logo-white.svg",
-        type: "image/svg+xml",
-        media: "(prefers-color-scheme: dark)",
-      },
-    ],
+    shortcut: [{ url: "/favicon.ico", type: "image/x-icon" }],
+    apple: [{ url: "/logo/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
