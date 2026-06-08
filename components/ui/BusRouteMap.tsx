@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { Bus, ChevronDown, Check } from "lucide-react";
 import { BUS_ROUTES, BUS_STOPS } from "../../lib/data/busRoutes";
 
 const PRILEP_BOUNDS: [[number, number], [number, number]] = [
@@ -14,6 +15,7 @@ export default function BusRouteMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const [activeRoutes, setActiveRoutes] = useState<Set<string>>(
     () => new Set(BUS_ROUTES.map((r) => r.id)),
   );
@@ -195,6 +197,16 @@ export default function BusRouteMap() {
     }
   }, [activeRoutes, mapReady]);
 
+  // Close the line dropdown when clicking anywhere outside it.
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      const d = detailsRef.current;
+      if (d?.open && !d.contains(e.target as Node)) d.open = false;
+    }
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
+
   function toggleRoute(id: string) {
     setActiveRoutes((prev) => {
       const next = new Set(prev);
@@ -206,35 +218,56 @@ export default function BusRouteMap() {
 
   return (
     <div className="space-y-3">
-      {/* Route toggle chips */}
-      <div className="flex flex-wrap gap-2">
-        {BUS_ROUTES.map((route) => {
-          const active = activeRoutes.has(route.id);
-          return (
-            <button
-              key={route.id}
-              onClick={() => toggleRoute(route.id)}
-              className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-[12px] font-semibold border transition-all ${
-                active
-                  ? "bg-white border-zinc-200 text-zinc-700 shadow-sm"
-                  : "bg-white/60 border-zinc-100 text-zinc-400"
-              }`}>
-              {/* Route color swatch */}
-              <span
-                className="inline-block h-2 w-5 rounded-full shrink-0 transition-opacity"
-                style={{ background: route.color, opacity: active ? 1 : 0.25 }}
-              />
-              <span>{route.name}</span>
-              <span
-                className={`text-[10px] font-normal transition-opacity ${
-                  active ? "text-zinc-400" : "text-zinc-300"
-                }`}>
-                {route.description}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {/* Route filter — dropdown list (toggle each line's visibility) */}
+      <details ref={detailsRef} className="group relative z-20">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-zinc-700 [&::-webkit-details-marker]:hidden">
+          <span className="flex items-center gap-2">
+            <Bus size={15} className="text-zinc-400" />
+            Линии на превоз
+            <span className="text-[11px] font-normal text-zinc-400">
+              ({activeRoutes.size}/{BUS_ROUTES.length} прикажани)
+            </span>
+          </span>
+          <ChevronDown
+            size={16}
+            className="shrink-0 text-zinc-400 transition-transform group-open:rotate-180"
+          />
+        </summary>
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 space-y-0.5 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-lg">
+          {BUS_ROUTES.map((route) => {
+            const active = activeRoutes.has(route.id);
+            return (
+              <button
+                key={route.id}
+                onClick={() => toggleRoute(route.id)}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-zinc-50">
+                <span
+                  className="inline-block h-2 w-5 shrink-0 rounded-full transition-opacity"
+                  style={{ background: route.color, opacity: active ? 1 : 0.3 }}
+                />
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={`block text-[13px] font-semibold ${
+                      active ? "text-zinc-700" : "text-zinc-400"
+                    }`}>
+                    {route.name}
+                  </span>
+                  <span className="block truncate text-[11px] text-zinc-400">
+                    {route.description}
+                  </span>
+                </span>
+                {active ? (
+                  <Check size={16} className="shrink-0 text-emerald-500" />
+                ) : (
+                  <span className="shrink-0 text-[10px] font-medium text-zinc-300">
+                    скриено
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </details>
 
       {/* Map frame */}
       <div className="relative rounded-2xl overflow-hidden border border-zinc-200 h-[460px]">
@@ -242,7 +275,7 @@ export default function BusRouteMap() {
 
         {/* Hint label */}
         <div className="pointer-events-none absolute bottom-3 left-3 rounded-xl bg-white/80 backdrop-blur-sm px-2.5 py-1 text-[11px] text-zinc-500 border border-zinc-100 shadow-sm">
-          Допри / кликни на стопица за детали
+          Кликни на точките за повеќе детели
         </div>
       </div>
     </div>

@@ -56,7 +56,7 @@ export default function WeeklyMenuPanel({ menu }: Props) {
           <button
             key={i}
             onClick={() => setActiveDay(i)}
-            className="flex-1 rounded-lg py-1.5 text-[11px] font-semibold transition-colors"
+            className="flex-1 rounded-lg py-1.5 text-xs lg:text-[11px] font-semibold transition-colors"
             style={activeDay === i
               ? { background: "#2aa99d", color: "white" }
               : { background: "#f4f4f5", color: "#71717a" }
@@ -71,25 +71,25 @@ export default function WeeklyMenuPanel({ menu }: Props) {
         <div className="space-y-2">
           {day.breakfast && (
             <div>
-              <p className="text-[10px] font-semibold text-zinc-400">Појадок</p>
+              <p className="text-xs lg:text-[10px] font-semibold text-zinc-400">Појадок</p>
               <p className="text-xs text-zinc-700">{day.breakfast}</p>
             </div>
           )}
           {day.snack1 && (
             <div>
-              <p className="text-[10px] font-semibold text-zinc-400">Ужина</p>
+              <p className="text-xs lg:text-[10px] font-semibold text-zinc-400">Ужина</p>
               <p className="text-xs text-zinc-700">{day.snack1}</p>
             </div>
           )}
           {day.lunch && (
             <div>
-              <p className="text-[10px] font-semibold text-zinc-400">Ручек</p>
+              <p className="text-xs lg:text-[10px] font-semibold text-zinc-400">Ручек</p>
               <p className="text-xs text-zinc-700 whitespace-pre-line">{day.lunch}</p>
             </div>
           )}
           {day.snack2 && (
             <div>
-              <p className="text-[10px] font-semibold text-zinc-400">Ужинка 2</p>
+              <p className="text-xs lg:text-[10px] font-semibold text-zinc-400">Ужинка 2</p>
               <p className="text-xs text-zinc-700">{day.snack2}</p>
             </div>
           )}

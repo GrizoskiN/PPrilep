@@ -47,7 +47,8 @@ export type NotificationType =
   | "issue_helper"
   | "issue_help_comment"
   | "issue_help_vote"
-  | "idea_upvote";
+  | "idea_upvote"
+  | "issue_in_district";
 
 export interface Profile {
   id: string;
@@ -62,6 +63,7 @@ export interface Profile {
   district?: string | null;
   email_digest?: boolean;
   email_newsletter?: boolean;
+  notif_local_issues?: boolean;
   created_at: string;
 }
 

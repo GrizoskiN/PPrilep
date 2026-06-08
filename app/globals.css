@@ -216,6 +216,17 @@
   }
 }
 
+/* Auth screens: teal brand background on mobile (the desktop brand panel is
+   hidden < lg), plain canvas on desktop where the split-screen takes over. */
+.auth-bg {
+  background: var(--theme-canvas);
+}
+@media (max-width: 1023.98px) {
+  .auth-bg {
+    background: linear-gradient(150deg, #1b837a 0%, #2aa99d 52%, #4fd0c2 100%);
+  }
+}
+
 /* Issues feed: edge-to-edge (no side gutter) on mobile + tablet so cards span
    the full width. Desktop keeps the normal gutter. */
 @media (max-width: 1023.98px) {

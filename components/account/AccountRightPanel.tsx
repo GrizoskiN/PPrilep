@@ -79,7 +79,7 @@ export default function AccountRightPanel() {
   // ── Notification toggles ──────────────────────────────────────────────────
   const [emailDigest, setEmailDigest] = useState(true);
   const [emailNewsletter, setEmailNewsletter] = useState(false);
-  const [notifIssueStatus, setNotifIssueStatus] = useState(true);
+  const [notifLocalIssues, setNotifLocalIssues] = useState(true);
   const [notifNeighbourhood, setNotifNeighbourhood] = useState(true);
   const [notifUrgent, setNotifUrgent] = useState(false);
 
@@ -90,11 +90,11 @@ export default function AccountRightPanel() {
     const id = setTimeout(() => {
       setEmailDigest(profile?.email_digest !== false);
       setEmailNewsletter(Boolean(profile?.email_newsletter));
+      setNotifLocalIssues(profile?.notif_local_issues !== false);
       try {
         const raw = localStorage.getItem(settingsKey);
         if (raw) {
           const s = JSON.parse(raw);
-          if (typeof s.issueStatus === "boolean") setNotifIssueStatus(s.issueStatus);
           if (typeof s.neighborhoodInitiatives === "boolean") setNotifNeighbourhood(s.neighborhoodInitiatives);
           if (typeof s.utilityUrgent === "boolean") setNotifUrgent(s.utilityUrgent);
         }
@@ -103,17 +103,17 @@ export default function AccountRightPanel() {
     return () => clearTimeout(id);
   }, [user, profile]);
 
-  async function saveEmailPref(field: "email_digest" | "email_newsletter", value: boolean) {
+  async function saveEmailPref(field: "email_digest" | "email_newsletter" | "notif_local_issues", value: boolean) {
     if (!user) return;
     await supabase.from("profiles").update({ [field]: value }).eq("id", user.id);
   }
 
-  function saveLocalNotif(updates: Partial<{ issueStatus: boolean; neighborhoodInitiatives: boolean; utilityUrgent: boolean }>) {
+  function saveLocalNotif(updates: Partial<{ localIssues: boolean; neighborhoodInitiatives: boolean; utilityUrgent: boolean }>) {
     if (!user) return;
     const key = `account_notification_settings_${user.id}`;
     try {
       const raw = localStorage.getItem(key);
-      const current = raw ? JSON.parse(raw) : { issueStatus: notifIssueStatus, neighborhoodInitiatives: notifNeighbourhood, utilityUrgent: notifUrgent };
+      const current = raw ? JSON.parse(raw) : { localIssues: notifLocalIssues, neighborhoodInitiatives: notifNeighbourhood, utilityUrgent: notifUrgent };
       localStorage.setItem(key, JSON.stringify({ ...current, ...updates }));
     } catch { /* ignore */ }
   }
@@ -199,10 +199,10 @@ export default function AccountRightPanel() {
         </p>
 
         <Toggle
-          checked={notifIssueStatus}
-          onChange={(v) => { setNotifIssueStatus(v); saveLocalNotif({ issueStatus: v }); }}
-          label="Статус на мои пријави"
-          description="Кога пријавата ќе смени статус"
+          checked={notifLocalIssues}
+          onChange={(v) => { setNotifLocalIssues(v); saveEmailPref("notif_local_issues", v); }}
+          label="Пријави во мојата населба"
+          description="Нови пријави во твојата улица или населба"
         />
         <Toggle
           checked={notifNeighbourhood}

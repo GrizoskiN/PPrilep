@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Mail, Lock, Eye, EyeOff, MailCheck } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
-import Button from "../ui/Button";
+import GoogleIcon from "./GoogleIcon";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -15,6 +16,13 @@ const schema = z.object({
 });
 type Fields = z.infer<typeof schema>;
 
+const inputCls =
+  "w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-10 pr-3 text-sm text-theme-ink outline-none transition-colors placeholder:text-zinc-400 focus:border-primary focus:ring-2 focus:ring-primary/20";
+const primaryBtn =
+  "flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60";
+const outlineBtn =
+  "flex w-full items-center justify-center gap-2.5 rounded-xl border border-zinc-200 bg-white py-2.5 text-sm font-semibold text-theme-heading transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60";
+
 export default function LoginForm() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -22,7 +30,9 @@ export default function LoginForm() {
   const next = params.get("next") ?? "/";
   const [magicSent, setMagicSent] = useState(false);
   const [magicEmail, setMagicEmail] = useState("");
+  const [magicLoading, setMagicLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   function getAuthRedirectOrigin() {
     const envOrigin = process.env.NEXT_PUBLIC_AUTH_REDIRECT_ORIGIN?.trim();
@@ -56,11 +66,13 @@ export default function LoginForm() {
       toast.error("Прво внесете е-пошта");
       return;
     }
+    setMagicLoading(true);
     const authOrigin = getAuthRedirectOrigin();
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${authOrigin}/auth/callback` },
     });
+    setMagicLoading(false);
     if (error) {
       toast.error(error.message);
       return;
@@ -74,22 +86,11 @@ export default function LoginForm() {
     setOauthLoading(true);
     const authOrigin = getAuthRedirectOrigin();
     const redirectTo = `${authOrigin}/auth/callback?next=${encodeURIComponent(next)}`;
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[auth] Google OAuth redirectTo", {
-        redirectTo,
-        origin: location.origin,
-        authOrigin,
-        next,
-      });
-    }
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
     });
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[auth] Google OAuth provider URL", data?.url);
-    }
     if (error) {
       setOauthLoading(false);
       toast.error(error.message);
@@ -98,14 +99,20 @@ export default function LoginForm() {
 
   if (magicSent) {
     return (
-      <div className="text-center space-y-2">
-        <p className="text-sm font-medium">Проверете ја вашата е-пошта</p>
-        <p className="text-xs text-zinc-500">
-          Испративме линк на <strong>{magicEmail}</strong>
+      <div className="flex flex-col items-center gap-3 py-4 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-light">
+          <MailCheck size={22} className="text-primary" />
+        </span>
+        <p className="text-sm font-semibold text-theme-heading">
+          Проверете ја вашата е-пошта
+        </p>
+        <p className="text-xs text-theme-muted">
+          Испративме линк за најава на <strong>{magicEmail}</strong>. Ако не го
+          гледате, проверете ја и spam папката.
         </p>
         <button
           onClick={() => setMagicSent(false)}
-          className="text-xs underline text-zinc-400">
+          className="text-xs font-medium text-primary underline">
           Обидете се повторно
         </button>
       </div>
@@ -113,61 +120,91 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div>
-        <label className="text-xs font-medium text-zinc-700">Е-пошта</label>
-        <input
-          {...register("email")}
-          type="email"
-          placeholder="vие@primer.mk"
-          className="mt-1 w-full border border-zinc-200 rounded px-3 py-2 text-sm outline-none focus:border-black"
-        />
+        <label className="mb-1.5 block text-xs font-semibold text-theme-body">
+          Е-пошта
+        </label>
+        <div className="relative">
+          <Mail
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+          />
+          <input
+            {...register("email")}
+            type="email"
+            autoComplete="email"
+            placeholder="вие@primer.mk"
+            className={inputCls}
+          />
+        </div>
         {errors.email && (
-          <p className="text-[11px] text-red-500 mt-1">
-            {errors.email.message}
-          </p>
+          <p className="mt-1 text-[11px] text-red-500">{errors.email.message}</p>
         )}
       </div>
+
       <div>
-        <label className="text-xs font-medium text-zinc-700">Лозинка</label>
-        <input
-          {...register("password")}
-          type="password"
-          placeholder="••••••••"
-          className="mt-1 w-full border border-zinc-200 rounded px-3 py-2 text-sm outline-none focus:border-black"
-        />
+        <label className="mb-1.5 block text-xs font-semibold text-theme-body">
+          Лозинка
+        </label>
+        <div className="relative">
+          <Lock
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+          />
+          <input
+            {...register("password")}
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            placeholder="••••••••"
+            className={`${inputCls} pr-10`}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((s) => !s)}
+            aria-label={showPassword ? "Сокриј лозинка" : "Прикажи лозинка"}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-zinc-400 hover:text-zinc-600">
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
         {errors.password && (
-          <p className="text-[11px] text-red-500 mt-1">
+          <p className="mt-1 text-[11px] text-red-500">
             {errors.password.message}
           </p>
         )}
       </div>
-      <Button type="submit" disabled={isSubmitting} className="w-full">
+
+      <button type="submit" disabled={isSubmitting} className={primaryBtn}>
         {isSubmitting ? "Се најавувате…" : "Најава"}
-      </Button>
-      <div className="relative">
+      </button>
+
+      <div className="relative py-1">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-zinc-100" />
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-white px-2 text-[11px] text-zinc-400">или</span>
+          <span className="bg-white px-3 text-[11px] uppercase tracking-wider text-zinc-400">
+            или
+          </span>
         </div>
       </div>
-      <Button
+
+      <button
         type="button"
-        variant="outline"
-        className="w-full"
-        onClick={sendMagicLink}>
-        Испрати магичен линк
-      </Button>
-      <Button
+        className={outlineBtn}
+        onClick={sendMagicLink}
+        disabled={magicLoading}>
+        <Mail size={16} className="text-zinc-500" />
+        {magicLoading ? "Се испраќа…" : "Најави се без лозинка"}
+      </button>
+      <button
         type="button"
-        variant="outline"
-        className="w-full"
+        className={outlineBtn}
         onClick={signInWithGoogle}
         disabled={isSubmitting || oauthLoading}>
+        <GoogleIcon size={18} />
         {oauthLoading ? "Се пренасочува…" : "Најава со Google"}
-      </Button>
+      </button>
     </form>
   );
 }

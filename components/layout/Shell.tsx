@@ -31,6 +31,8 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
   // The panel to render in each slot: an explicitly-injected panel wins;
   // otherwise routes that inject their own panel show a neutral skeleton (until
   // their client effect mounts it) and all other routes show the default panel.
+  // Default right panel = promise tracker + sponsors (RightPanel). Custom-panel
+  // routes show a skeleton until their injected panel mounts.
   const panelContent =
     rightPanel ??
     (routeHasCustomPanel(pathname ?? "/") ? (
@@ -158,8 +160,8 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
                   flush ? " app-content--flush" : ""
                 }`}>
                 {children}
-                {/* Mobile: right panel inline below content (hidden on desktop where it's the 3rd column) */}
-                {threeColumn && (
+                {/* Mobile: right panel inline below content (hidden on desktop where it's the 3rd column). Suppressed on the issues feed to keep it clean. */}
+                {threeColumn && !flush && (
                   <div className="mt-2 border-t border-zinc-100 lg:hidden">
                     {panelContent}
                   </div>

@@ -6,7 +6,7 @@ const FB_PAGE_URL = "https://www.facebook.com/JKP.VIK.PP/";
 
 export default function WaterRightPanel() {
   return (
-    <div className="space-y-4 p-3">
+    <div className="space-y-4 lg:p-3">
 
       {/* ── Water quality status ─────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-2.5">

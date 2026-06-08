@@ -5,7 +5,7 @@ const WEBSITE_URL = "https://komunalecprilep.com.mk/";
 
 export default function KomunalecRightPanel() {
   return (
-    <div className="space-y-4 p-3">
+    <div className="space-y-4 lg:p-3">
 
       {/* ── Address & info ───────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">

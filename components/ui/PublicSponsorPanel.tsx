@@ -60,8 +60,8 @@ export default function PublicSponsorPanel() {
 
   return (
     <div className="space-y-4 lg:p-3">
-      <section className="rounded-2xl border border-[#e4ece8] bg-white p-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-theme-subtle mb-3">
+      <section className="rounded-2xl border border-[#e4ece8] bg-white p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.13em] text-theme-subtle mb-3">
           Официјални партнери
         </p>
 
@@ -112,7 +112,7 @@ export default function PublicSponsorPanel() {
 
         <Link
           href="/sponsors"
-          className="mt-3 block rounded-xl border border-dashed border-[#cfe0da] py-2 text-center text-[11px] font-semibold text-primary hover:bg-[#f0faf7] transition-colors">
+          className="mt-3 block rounded-xl border border-dashed border-[#cfe0da] py-2 text-center text-xs font-semibold text-primary hover:bg-[#f0faf7] transition-colors">
           Стани партнер →
         </Link>
       </section>

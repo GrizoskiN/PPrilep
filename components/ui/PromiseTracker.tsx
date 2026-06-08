@@ -69,17 +69,18 @@ export default function PromiseTracker() {
   const active = PROMISES.filter((p) => p.status !== "completed");
 
   return (
-    <div className="bg-[#ffffff] rounded-lg  px-3 py-4">
+    <div className="lg:p-3">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4">
       <div className="pb-5">
         <div className="xl:flex items-start gap-3">
           <div className="mt-0.5 text-gray-400">
             <FontAwesomeIcon icon={faBuildingColumns} className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-[14px] xl:text-[16px] font-semibold tracking-tight text-gray-800">
+            <h3 className="text-sm font-semibold tracking-tight text-gray-800">
               Следење на ветувања
             </h3>
-            <p className="mt-1 text-[11px] xl:text-xs leading-5 text-gray-500">
+            <p className="mt-1 text-xs leading-5 text-gray-500">
               Следење на општинските рокови и јавно ветените проекти.
             </p>
           </div>
@@ -95,7 +96,7 @@ export default function PromiseTracker() {
               className="border-b border-gray-200 py-5 first:pt-6 last:border-b-0 transition-all duration-150 ease-in-out hover:bg-gray-50">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] xl:text-sm font-semibold leading-snug text-gray-800">
+                  <p className="text-sm font-semibold leading-snug text-gray-800">
                     {p.title}
                   </p>
                 </div>
@@ -111,7 +112,7 @@ export default function PromiseTracker() {
                   style={{ width: p.status === "delayed" ? "44%" : "76%" }}
                 />
               </div>
-              <p className="mt-2 text-[11px] xl:text-xs text-gray-500">
+              <p className="mt-2 text-xs text-gray-500">
                 Ветено до {p.deadline} • {p.daysInfo}
               </p>
             </div>
@@ -120,9 +121,10 @@ export default function PromiseTracker() {
       </div>
 
       <div className="pt-5">
-        <button className="w-full cursor-pointer rounded-lg border border-gray-200 bg-gray-800 px-2 py-2.5 text-[13px] xl:text-sm font-semibold text-gray-100 transition-all duration-150 ease-in-out hover:bg-gray-900 hover:text-gray-100">
+        <button className="w-full cursor-pointer rounded-lg border border-gray-200 bg-gray-800 px-2 py-2.5 text-sm font-semibold text-gray-100 transition-all duration-150 ease-in-out hover:bg-gray-900 hover:text-gray-100">
           Види ги сите ветувања
         </button>
+      </div>
       </div>
     </div>
   );
