@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { Share, Plus, X, Download } from "lucide-react";
 
-const DISMISS_KEY = "pp_install_dismissed_v1";
+const INSTALLED_KEY = "pp_pwa_installed"; // set permanently once installed
+const SNOOZE_KEY = "pp_pwa_snooze_until"; // timestamp: don't show until then
+const SNOOZE_DAYS = 4;
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -25,10 +27,24 @@ export default function InstallBanner() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIos, setIsIos] = useState(false);
 
-  useEffect(() => {
-    if (isStandalone()) return;
+  function markInstalled() {
     try {
-      if (localStorage.getItem(DISMISS_KEY)) return;
+      localStorage.setItem(INSTALLED_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  useEffect(() => {
+    // Already installed (opened as a PWA / added to home screen) → never remind.
+    if (isStandalone()) {
+      markInstalled();
+      return;
+    }
+    try {
+      if (localStorage.getItem(INSTALLED_KEY)) return;
+      const snooze = localStorage.getItem(SNOOZE_KEY);
+      if (snooze && Date.now() < Number(snooze)) return; // still snoozed
     } catch {
       /* ignore */
     }
@@ -44,6 +60,13 @@ export default function InstallBanner() {
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
 
+    // Fired by the browser once the app is actually installed → stop reminding.
+    const onInstalled = () => {
+      markInstalled();
+      setVisible(false);
+    };
+    window.addEventListener("appinstalled", onInstalled);
+
     // iOS never fires beforeinstallprompt — show it after a short delay so it
     // doesn't compete with first paint.
     let t: ReturnType<typeof setTimeout> | undefined;
@@ -51,14 +74,17 @@ export default function InstallBanner() {
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
       if (t) clearTimeout(t);
     };
   }, []);
 
+  // "Не сега" / ✕ — snooze a few days, then remind again (we don't know if they
+  // installed, so we ask again later rather than permanently giving up).
   function dismiss() {
     setVisible(false);
     try {
-      localStorage.setItem(DISMISS_KEY, "1");
+      localStorage.setItem(SNOOZE_KEY, String(Date.now() + SNOOZE_DAYS * 864e5));
     } catch {
       /* ignore */
     }
@@ -73,8 +99,9 @@ export default function InstallBanner() {
     await deferred.prompt();
     const { outcome } = await deferred.userChoice;
     setDeferred(null);
-    if (outcome === "accepted") dismiss();
-    else setVisible(false);
+    setVisible(false);
+    if (outcome === "accepted") markInstalled();
+    else dismiss(); // declined the native prompt → snooze, don't nag
   }
 
   if (!visible) return null;

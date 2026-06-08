@@ -64,6 +64,7 @@ export interface Profile {
   email_digest?: boolean;
   email_newsletter?: boolean;
   notif_local_issues?: boolean;
+  onboarded?: boolean;
   created_at: string;
 }
 

@@ -174,9 +174,12 @@ export default function OnboardingTour() {
   const isFinale = step === total - 1;
   const spot = !isForm && !isFinale ? SPOTLIGHT[step - 1] : null;
 
-  // Auto-start once per user, only on /account (where every target lives)
+  // Auto-start once per user, only on /account (where every target lives).
+  // Suppressed if the user finished it before — tracked in the DB (cross-device)
+  // and mirrored in localStorage (instant, offline).
   useEffect(() => {
-    if (!storageKey || pathname !== "/account") return;
+    if (!storageKey || pathname !== "/account" || !profile) return;
+    if (profile.onboarded) return;
     let seen = false;
     try {
       seen = Boolean(localStorage.getItem(storageKey));
@@ -186,7 +189,7 @@ export default function OnboardingTour() {
     if (seen) return;
     const id = setTimeout(() => setOpen(true), 600);
     return () => clearTimeout(id);
-  }, [storageKey, pathname]);
+  }, [storageKey, pathname, profile]);
 
   useEffect(() => {
     if (!open) return;
@@ -300,6 +303,10 @@ export default function OnboardingTour() {
       }
     }
     setOpen(false);
+    // Persist to the profile so it stays dismissed across devices/browsers.
+    if (user) {
+      supabase.from("profiles").update({ onboarded: true }).eq("id", user.id);
+    }
   }
 
   function goTo(href: string) {

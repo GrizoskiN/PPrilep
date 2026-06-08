@@ -65,7 +65,8 @@ export default function RegisterPage() {
       password: values.password,
       options: {
         data: { full_name: values.full_name },
-        emailRedirectTo: `${location.origin}/auth/callback`,
+        // New signups land on their profile so the onboarding tour kicks in.
+        emailRedirectTo: `${location.origin}/auth/callback?next=/account`,
       },
     });
     if (error) {
@@ -102,7 +103,7 @@ export default function RegisterPage() {
     setOauthLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${location.origin}/auth/callback` },
+      options: { redirectTo: `${location.origin}/auth/callback?next=/account` },
     });
     if (error) {
       setOauthLoading(false);
