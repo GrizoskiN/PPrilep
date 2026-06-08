@@ -216,6 +216,22 @@
   }
 }
 
+/* Issues feed: edge-to-edge (no side gutter) on mobile + tablet so cards span
+   the full width. Desktop keeps the normal gutter. */
+@media (max-width: 1023.98px) {
+  .app-content--flush {
+    padding-inline: 0;
+  }
+
+  /* Flatten the feed cards to true edge-to-edge: drop the rounded corners and
+     the side borders (top/bottom borders remain as row separators). */
+  .app-content--flush .issue-feed-card {
+    border-radius: 0;
+    border-left-width: 0;
+    border-right-width: 0;
+  }
+}
+
 .text-nav-section {
   color: var(--theme-subtle);
 }

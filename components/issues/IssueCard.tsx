@@ -399,7 +399,7 @@ export default function IssueCard({
       <article
         ref={cardRef}
         onClick={onClick}
-        className="cursor-pointer bg-white border border-zinc-200 rounded-xl overflow-hidden hover:border-zinc-300 transition-colors">
+        className="issue-feed-card cursor-pointer bg-white border border-zinc-200 rounded-xl overflow-hidden hover:border-zinc-300 transition-colors">
         {/* ── Header ─────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <Link

@@ -25,6 +25,8 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
   const threeColumn = usesThreeColumns(pathname ?? "/");
   // In the 2-column layout the main content spans the full combined width.
   const contentFull = fullWidth || !threeColumn;
+  // The issues feed goes edge-to-edge (no side gutter) on mobile + tablet.
+  const flush = (pathname ?? "/").startsWith("/issues");
 
   // The panel to render in each slot: an explicitly-injected panel wins;
   // otherwise routes that inject their own panel show a neutral skeleton (until
@@ -151,7 +153,10 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
               ref={mainRef}
               tabIndex={-1}
               className="scrollbar-hidden min-h-0 overflow-y-auto pb-16 outline-none lg:pb-0">
-              <div className={contentFull ? "app-content-wide" : "app-content"}>
+              <div
+                className={`${contentFull ? "app-content-wide" : "app-content"}${
+                  flush ? " app-content--flush" : ""
+                }`}>
                 {children}
                 {/* Mobile: right panel inline below content (hidden on desktop where it's the 3rd column) */}
                 {threeColumn && (

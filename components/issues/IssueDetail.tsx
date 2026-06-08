@@ -1858,13 +1858,18 @@ export default function IssueDetail({
     </div>
   );
 
-  const helpActionsSection = userId && !isOwner && !isAdmin && (
-    <button
-      onClick={() => setShowProposeModal(true)}
-      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3b9f95] hover:bg-[#338c84] text-white text-xs font-semibold py-2.5 transition-colors">
-      <HandHelping size={13} /> Предложи промена на статус
-    </button>
-  );
+  // Only offer a status-change proposal while the issue is still open — hide it
+  // once it's in progress or resolved.
+  const helpActionsSection = userId &&
+    !isOwner &&
+    !isAdmin &&
+    currentIssue.status === "open" && (
+      <button
+        onClick={() => setShowProposeModal(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3b9f95] hover:bg-[#338c84] text-white text-xs font-semibold py-2.5 transition-colors">
+        <HandHelping size={13} /> Предложи промена на статус
+      </button>
+    );
 
   const proposeModal = showProposeModal && (
     <div
@@ -2714,8 +2719,8 @@ export default function IssueDetail({
             </button>
           </div>
 
-          {/* Иста мака */}
-          <div className="flex items-center gap-1.5">
+          {/* Иста мака — always shown first (before Помогни) */}
+          <div className="flex items-center gap-1.5 order-first">
             <button
               onClick={() =>
                 affectedUsers.length > 0 && setShowAffectedPopup(true)
