@@ -101,6 +101,13 @@ export default function RegisterPage() {
 
   async function signUpWithGoogle() {
     setOauthLoading(true);
+    // Survives the OAuth round-trip; PostAuthRedirect sends them to /account
+    // even if Supabase drops the `next` param.
+    try {
+      localStorage.setItem("pp_signup_redirect", String(Date.now()));
+    } catch {
+      /* ignore */
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${location.origin}/auth/callback?next=/account` },
