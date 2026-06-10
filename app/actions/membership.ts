@@ -39,7 +39,7 @@ export async function submitMembershipRequest(data: {
   // ── Volunteer: auto-approve immediately ──────────────────────────────────
   if (isVolunteer) {
     if (user) {
-      await supabase.from("profiles")
+      await createAdminClient().from("profiles")
         .update({ membership_tier: "volunteer" })
         .eq("id", user.id);
     }
@@ -99,9 +99,10 @@ export async function adminApproveMembership(requestId: number) {
     .update({ status: "approved" })
     .eq("id", requestId);
 
-  // Set tier on profile if user is registered
+  // Set tier on profile if user is registered. membership_tier is a privileged
+  // column — only the service-role client may write it (see harden_profiles_rls).
   if (req.user_id) {
-    await supabase.from("profiles")
+    await createAdminClient().from("profiles")
       .update({ membership_tier: req.tier })
       .eq("id", req.user_id);
   }
@@ -143,7 +144,8 @@ export async function saveMembershipTier(tier: MembershipTier) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const { error } = await supabase
+  // Privileged column — must go through the service-role client.
+  const { error } = await createAdminClient()
     .from("profiles")
     .update({ membership_tier: tier })
     .eq("id", user.id);
@@ -165,13 +167,15 @@ export async function adminSetMembershipTier(
   const { data: isAdmin } = await supabase.rpc("is_admin");
   if (!isAdmin) return { error: "Forbidden" };
 
-  const { error, count } = await supabase
+  // membership_tier is a privileged column writable only by the service role
+  // (see harden_profiles_rls). is_admin was already verified above.
+  const { error, count } = await createAdminClient()
     .from("profiles")
     .update({ membership_tier: tier }, { count: "exact" })
     .eq("id", targetUserId);
 
   if (error) return { error: error.message };
-  if (count === 0) return { error: "Нема промена — проверете ги SQL политиките (RLS)" };
+  if (count === 0) return { error: "Нема промена — корисникот не е пронајден" };
   return { ok: true };
 }
 
