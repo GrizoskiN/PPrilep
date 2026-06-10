@@ -53,7 +53,9 @@ const CATEGORIES: Array<Category | "all"> = [
 const STATUSES: Array<IssueStatus | "all"> = [
   "all",
   "open",
+  "acknowledged",
   "progress",
+  "pending",
   "resolved",
 ];
 

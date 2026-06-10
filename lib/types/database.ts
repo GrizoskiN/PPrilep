@@ -26,7 +26,12 @@ export type Category =
   | "parking"
   | "admin"
   | "other";
-export type IssueStatus = "open" | "progress" | "resolved";
+export type IssueStatus =
+  | "open"
+  | "acknowledged"
+  | "progress"
+  | "pending"
+  | "resolved";
 export type Provider =
   | "water"
   | "garbage"
@@ -48,7 +53,13 @@ export type NotificationType =
   | "issue_help_comment"
   | "issue_help_vote"
   | "idea_upvote"
-  | "issue_in_district";
+  | "comment_like"
+  | "comment_reply"
+  | "issue_in_district"
+  | "issue_status"
+  | "issue_for_agency"
+  | "agency_post"
+  | "agency_alert";
 
 export interface Profile {
   id: string;
@@ -58,6 +69,7 @@ export interface Profile {
   points: number;
   is_admin?: boolean;
   is_company?: boolean;
+  agency_id?: string | null;
   membership_tier?: string | null;
   street_name?: string | null;
   district?: string | null;
@@ -96,6 +108,29 @@ export interface Issue {
   is_helper?: boolean;
   user_helper_note?: string | null;
   views?: number;
+}
+
+export interface AgencyPost {
+  id: number;
+  agency_id: string;
+  author_user_id: string | null;
+  title: string;
+  body: string | null;
+  audience: "street" | "district" | "all";
+  target_district: string | null;
+  target_streets: string[] | null;
+  is_red_alert: boolean;
+  created_at: string;
+}
+
+export interface IssueStatusLogEntry {
+  id: number;
+  issue_id: number;
+  status: IssueStatus;
+  note: string | null;
+  changed_by: string | null;
+  agency_id: string | null;
+  created_at: string;
 }
 
 export interface IssueAffected {

@@ -6,7 +6,12 @@ export type NotificationType =
   | "issue_help_vote"
   | "idea_upvote"
   | "comment_like"
-  | "comment_reply";
+  | "comment_reply"
+  | "issue_in_district"
+  | "issue_status"
+  | "issue_for_agency"
+  | "agency_post"
+  | "agency_alert";
 
 interface NotificationErrorLike {
   code?: string | null;

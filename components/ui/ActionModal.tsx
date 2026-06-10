@@ -13,6 +13,7 @@ import {
   ImagePlus,
   Lightbulb,
   MapPin,
+  Megaphone,
   Newspaper,
   X,
 } from "lucide-react";
@@ -95,11 +96,12 @@ interface Props {
   userId?: string;
   userEmail?: string;
   userName?: string;
+  agencyId?: string | null;
   onClose: () => void;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-export default function ActionModal({ userId, userEmail, userName, onClose }: Props) {
+export default function ActionModal({ userId, userEmail, userName, agencyId, onClose }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -381,6 +383,10 @@ export default function ActionModal({ userId, userEmail, userName, onClose }: Pr
                 {/* Horizontal rows (icon left, text right) that stretch to
                     fill the available height */}
                 <div className="flex min-h-full flex-col gap-3 p-4 sm:p-5">
+                  {/* Citizen actions — hidden for institution operator accounts,
+                      which only broadcast official posts. */}
+                  {!agencyId && (
+                    <>
                   {/* Report Problem */}
                   <button
                     type="button"
@@ -434,6 +440,31 @@ export default function ActionModal({ userId, userEmail, userName, onClose }: Pr
                       </p>
                     </div>
                   </button>
+                    </>
+                  )}
+
+                  {/* Agency alert — only for institution operator accounts */}
+                  {agencyId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        router.push(`/agency/${agencyId}`);
+                        handleClose();
+                      }}
+                      className="group flex w-full flex-1 items-center gap-4 rounded-2xl bg-primary/10 p-4 text-left transition-colors hover:bg-primary/20 active:scale-[0.99]">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                        <Megaphone size={26} className="text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-base font-bold text-zinc-900">
+                          Соопштение / Алармирање
+                        </p>
+                        <p className="mt-0.5 text-sm leading-snug text-zinc-500">
+                          Објави известување за улица, населба или сите граѓани.
+                        </p>
+                      </div>
+                    </button>
+                  )}
                 </div>
               </div>
 

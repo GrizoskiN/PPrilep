@@ -31,6 +31,12 @@ import AvatarInitials from "../ui/AvatarInitials";
 import ImageLightbox from "../ui/ImageLightbox";
 import { formatDays, cn, getIssuePath, cdnUrl } from "../../lib/utils";
 import { incrementIssueViews } from "../../lib/views";
+import { agencyHandlesCategory } from "../../lib/agencies";
+import {
+  ISSUE_STATUSES,
+  ISSUE_STATUS_LABELS,
+  ISSUE_STATUS_MENU_TEXT_CLASSES,
+} from "../../lib/status";
 import type { Issue, IssueStatus } from "../../lib/types/database";
 import { toast } from "sonner";
 import { createClient } from "../../lib/supabase/client";
@@ -249,6 +255,13 @@ export default function IssueDetail({
   const isAdmin = Boolean(authProfile?.is_admin);
   const isOwner = Boolean(userId && currentIssue.reported_by === userId);
   const canModerate = isOwner || isAdmin;
+  // Operator account whose institution handles this issue's category.
+  const canAgencyHandle = agencyHandlesCategory(
+    authProfile?.agency_id,
+    currentIssue.category,
+  );
+  // Who may advance the status (owner, admin, or the responsible institution).
+  const canManageStatus = canModerate || canAgencyHandle;
 
   // Ensure isHelperDirect is set for any authenticated user who has already
   // registered as a helper. Skip if the server-side prefetch (page.tsx) already
@@ -580,31 +593,55 @@ export default function IssueDetail({
   }
 
   const [changingStatus, setChangingStatus] = useState(false);
+  const [statusNote, setStatusNote] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<IssueStatus>(
+    currentIssue.status,
+  );
+  const autoAckRef = useRef(false);
 
-  async function changeStatus(newStatus: "open" | "progress" | "resolved") {
-    if (!canModerate || !userId || changingStatus) return;
-    if (newStatus === currentIssue.status) return;
+  // Keep the operator's pending selection in sync when the live status changes
+  // (e.g. the auto-acknowledge below, or a successful save).
+  useEffect(() => {
+    setSelectedStatus(currentIssue.status);
+  }, [currentIssue.status]);
+
+  async function changeStatus(newStatus: IssueStatus, note?: string) {
+    if (!canManageStatus || !userId || changingStatus) return;
+    if (newStatus === currentIssue.status && !note?.trim()) return;
     setChangingStatus(true);
-    const update: Record<string, unknown> = { status: newStatus };
-    // Going to resolved: do NOT auto-assign — owner picks the resolver via the
-    // dropdown. Going to open/progress: clear any previous resolver.
-    if (newStatus !== "resolved") update.resolved_by = null;
-    let q = supabase.from("issues").update(update).eq("id", currentIssue.id);
-    if (!isAdmin) q = q.eq("reported_by", userId);
-    const { error } = await q;
+    // Privileged write goes through the role-checked RPC, which also appends a
+    // status-log row and notifies the reporter.
+    const { error } = await supabase.rpc("agency_set_issue_status", {
+      p_issue_id: currentIssue.id,
+      p_status: newStatus,
+      p_note: note?.trim() || null,
+    });
     if (error) toast.error(error.message);
     else {
       setCurrentIssue((prev) => ({
         ...prev,
         status: newStatus,
-        resolved_by: newStatus === "resolved" ? userId : null,
+        // Leaving resolved clears the resolver (mirrors the RPC).
+        resolved_by:
+          newStatus === "resolved" ? prev.resolved_by : null,
       }));
       toast.success("Статусот е променет");
-      // Refetch resolver display info
+      setStatusNote("");
       if (newStatus === "resolved") loadResolverInfo();
     }
     setChangingStatus(false);
   }
+
+  // When the responsible institution opens a still-untouched ("open") issue,
+  // auto-advance it to "Видено" once — so the reporter sees it was seen.
+  useEffect(() => {
+    if (autoAckRef.current) return;
+    if (!canAgencyHandle || !userId) return;
+    if (currentIssue.status !== "open") return;
+    autoAckRef.current = true;
+    changeStatus("acknowledged");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canAgencyHandle, userId, currentIssue.status]);
 
   async function uploadAfterPhoto(file: File) {
     if (!canModerate || !userId) return;
@@ -2105,9 +2142,58 @@ export default function IssueDetail({
     </div>
   );
 
+  // Dedicated status control for institution operators (who are not the owner
+  // or a super-admin). Lets them advance the status and attach a short public
+  // note that shows up in the citizen-facing timeline.
+  const statusDirty =
+    selectedStatus !== currentIssue.status || statusNote.trim().length > 0;
+  const agencyStatusControl = canAgencyHandle && !canModerate && (
+    <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3">
+      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-sky-700">
+        <span>🏛️</span> Управување (надлежна служба)
+      </p>
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        {ISSUE_STATUSES.map((s) => {
+          const isSelected = selectedStatus === s;
+          const isCurrent = currentIssue.status === s;
+          return (
+            <button
+              key={s}
+              onClick={() => setSelectedStatus(s)}
+              disabled={changingStatus}
+              className={cn(
+                "rounded-lg border px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-60",
+                isSelected
+                  ? "border-sky-600 bg-sky-600 text-white"
+                  : "border-sky-200 bg-white text-sky-700 hover:border-sky-400",
+              )}>
+              {ISSUE_STATUS_LABELS[s]}
+              {isCurrent ? " ✓" : ""}
+            </button>
+          );
+        })}
+      </div>
+      <textarea
+        value={statusNote}
+        onChange={(e) => setStatusNote(e.target.value)}
+        rows={2}
+        placeholder="Забелешка (опционално) — се прикажува во времеплов"
+        className="w-full resize-none rounded-lg border border-sky-200 bg-white px-2.5 py-2 text-xs text-zinc-700 outline-none focus:border-sky-400"
+      />
+      <button
+        type="button"
+        onClick={() => changeStatus(selectedStatus, statusNote)}
+        disabled={changingStatus || !statusDirty}
+        className="mt-2 w-full rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-sky-700 disabled:opacity-50">
+        {changingStatus ? "Се зачувува…" : "Зачувај промена"}
+      </button>
+    </div>
+  );
+
   if (variant === "engagement") {
     return (
       <div className="space-y-3 p-3">
+        {agencyStatusControl}
         {canModerate && (
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
             <div className="flex items-center justify-between px-3 py-2.5 border-b border-zinc-100">
@@ -2146,17 +2232,8 @@ export default function IssueDetail({
                       <p className="px-4 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
                         Статус
                       </p>
-                      {(["open", "progress", "resolved"] as const).map((s) => {
-                        const labels = {
-                          open: "Отворено",
-                          progress: "Во тек",
-                          resolved: "Завршено",
-                        };
-                        const colors = {
-                          open: "text-zinc-500",
-                          progress: "text-amber-600",
-                          resolved: "text-teal-600",
-                        };
+                      {ISSUE_STATUSES.map((s) => {
+                        const color = ISSUE_STATUS_MENU_TEXT_CLASSES[s];
                         const isCurrent = currentIssue.status === s;
                         return (
                           <button
@@ -2175,17 +2252,17 @@ export default function IssueDetail({
                             <span
                               className={cn(
                                 "text-xs font-bold w-4 text-center",
-                                colors[s],
+                                color,
                               )}>
                               {isCurrent ? "●" : "○"}
                             </span>
-                            <span className={isCurrent ? colors[s] : ""}>
-                              {labels[s]}
+                            <span className={isCurrent ? color : ""}>
+                              {ISSUE_STATUS_LABELS[s]}
                             </span>
                             {isCurrent && (
                               <Check
                                 size={12}
-                                className={cn("ml-auto", colors[s])}
+                                className={cn("ml-auto", color)}
                               />
                             )}
                           </button>
@@ -2316,7 +2393,8 @@ export default function IssueDetail({
   return (
     <>
       <div className="p-4 space-y-4">
-        {/* Close button */}
+        {/* Operator status control (institution accounts) */}
+        {agencyStatusControl}
 
         {/* ── FB-style header: author + actions + close ── */}
         <div className="flex items-start justify-between gap-2">
@@ -2400,17 +2478,8 @@ export default function IssueDetail({
                       <p className="px-4 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
                         Промени статус
                       </p>
-                      {(["open", "progress", "resolved"] as const).map((s) => {
-                        const labels = {
-                          open: "Отворено",
-                          progress: "Во тек",
-                          resolved: "Завршено",
-                        };
-                        const colors = {
-                          open: "text-zinc-500",
-                          progress: "text-amber-600",
-                          resolved: "text-teal-600",
-                        };
+                      {ISSUE_STATUSES.map((s) => {
+                        const color = ISSUE_STATUS_MENU_TEXT_CLASSES[s];
                         const isCurrent = currentIssue.status === s;
                         return (
                           <button
@@ -2429,17 +2498,17 @@ export default function IssueDetail({
                             <span
                               className={cn(
                                 "text-xs font-bold w-4 text-center",
-                                colors[s],
+                                color,
                               )}>
                               {isCurrent ? "●" : "○"}
                             </span>
-                            <span className={isCurrent ? colors[s] : ""}>
-                              {labels[s]}
+                            <span className={isCurrent ? color : ""}>
+                              {ISSUE_STATUS_LABELS[s]}
                             </span>
                             {isCurrent && (
                               <Check
                                 size={13}
-                                className={cn("ml-auto", colors[s])}
+                                className={cn("ml-auto", color)}
                               />
                             )}
                           </button>

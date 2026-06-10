@@ -1,7 +1,9 @@
 import Link from "next/link";
 import DynamicGreeting from "../../components/home/DynamicGreeting";
+import HomeAgencyFeed from "../../components/agency/HomeAgencyFeed";
 import { createClient } from "../../lib/supabase/server";
 import { DISTRICT_LABELS, STATUS_LABELS, getIssuePath } from "../../lib/utils";
+import type { AgencyPost } from "../../lib/types/database";
 
 type HomeIssue = {
   id: number;
@@ -37,6 +39,7 @@ export default async function HomePage() {
     { data: issues },
     { data: campaigns },
     { data: helpers },
+    { data: agencyPosts },
   ] = await Promise.all([
     supabase.auth.getUser(),
     supabase
@@ -52,6 +55,11 @@ export default async function HomePage() {
     supabase
       .from("issue_helpers")
       .select("user_id, profiles(full_name, username)"),
+    supabase
+      .from("agency_posts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(40),
   ]);
 
   const user = authUser.user;
@@ -94,6 +102,7 @@ export default async function HomePage() {
 
   const latestIssues = (issues as HomeIssue[] | null) ?? [];
   const latestCampaigns = (campaigns as HomeCampaign[] | null) ?? [];
+  const posts = (agencyPosts as AgencyPost[] | null) ?? [];
 
   return (
     <div>
@@ -105,6 +114,8 @@ export default async function HomePage() {
           Пријави проблеми. Координирај локални акции. Држи ги лидерите
           одговорни.
         </p>
+        <HomeAgencyFeed posts={posts} />
+
         <div className="  grid gap-4  ">
           <section className="rounded-xl border border-theme bg-theme-surface p-4">
             <div className="mb-3 flex items-center justify-between">

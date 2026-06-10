@@ -57,8 +57,10 @@ export const CATEGORY_LABELS: Record<Category, string> = {
 };
 
 export const STATUS_LABELS: Record<string, string> = {
-  open: "Отворено",
-  progress: "Во тек",
+  open: "Пријавено",
+  acknowledged: "Видено",
+  progress: "Се работи",
+  pending: "На чекање",
   resolved: "Решено",
 };
 

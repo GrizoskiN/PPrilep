@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const ActionModal = dynamic(() => import("../ui/ActionModal"), { ssr: false });
 
@@ -28,6 +28,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const lastMenuOpenRef = useRef(0);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     const currentWord = ROTATING_WORDS[wordIndex];
@@ -90,6 +91,12 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
       }
       const next = `${pathname ?? "/"}`;
       window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
+      return;
+    }
+    // Institution operator accounts only broadcast official posts — skip the
+    // citizen chooser modal and take them straight to their agency form.
+    if (profile?.agency_id) {
+      router.push(`/agency/${profile.agency_id}`);
       return;
     }
     setActionOpen(true);
@@ -220,6 +227,7 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
           userId={user?.id}
           userEmail={user?.email}
           userName={profile?.full_name ?? user?.user_metadata?.full_name}
+          agencyId={profile?.agency_id ?? null}
           onClose={() => setActionOpen(false)}
         />
       )}

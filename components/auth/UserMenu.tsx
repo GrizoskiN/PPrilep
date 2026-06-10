@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
-import { LogOut, UserCircle2 } from "lucide-react";
+import { LogOut, UserCircle2, Megaphone } from "lucide-react";
 import AvatarInitials from "../ui/AvatarInitials";
 import type { Profile } from "../../lib/types/database";
 
@@ -59,6 +59,14 @@ export default function UserMenu({ profile, onSignOut }: Props) {
             className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50">
             <UserCircle2 size={13} /> Мој профил
           </Link>
+          {profile?.agency_id && (
+            <Link
+              href={`/agency/${profile.agency_id}`}
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm font-medium text-primary hover:bg-zinc-50">
+              <Megaphone size={13} /> Соопштенија (служба)
+            </Link>
+          )}
           <button
             onClick={() => {
               setOpen(false);

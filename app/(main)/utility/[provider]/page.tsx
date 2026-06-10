@@ -6,9 +6,25 @@ import WaterQuickActions from "../../../../components/utility/WaterQuickActions"
 import WaterInfoAccordion from "../../../../components/utility/WaterInfoAccordion";
 import KomunalecQuickActions from "../../../../components/utility/KomunalecQuickActions";
 import KomunalecInfoAccordion from "../../../../components/utility/KomunalecInfoAccordion";
+import AgencyPostCard from "../../../../components/agency/AgencyPostCard";
 import { formatDays } from "../../../../lib/utils";
-import type { Provider, IssueStatus } from "../../../../lib/types/database";
+import type { AgencyId } from "../../../../lib/agencies";
+import type {
+  Provider,
+  IssueStatus,
+  AgencyPost,
+} from "../../../../lib/types/database";
 import { notFound } from "next/navigation";
+
+// Which institution account owns each utility provider's announcements.
+const PROVIDER_AGENCY: Record<Provider, AgencyId> = {
+  water: "vodovod",
+  garbage: "komunalec",
+  power: "osvetluvanje",
+  transport: "transport_parking",
+  parking: "transport_parking",
+  kindergarten: "municipality",
+};
 
 const PROVIDERS: Provider[] = [
   "water",
@@ -46,11 +62,21 @@ export default async function UtilityPage({ params }: Props) {
   const p = provider as Provider;
 
   const supabase = await createClient();
-  const { data: posts } = await supabase
-    .from("utility_posts")
-    .select("*")
-    .eq("provider", p)
-    .order("posted_at", { ascending: false });
+  const [{ data: posts }, { data: agencyPosts }] = await Promise.all([
+    supabase
+      .from("utility_posts")
+      .select("*")
+      .eq("provider", p)
+      .order("posted_at", { ascending: false }),
+    supabase
+      .from("agency_posts")
+      .select("*")
+      .eq("agency_id", PROVIDER_AGENCY[p])
+      .order("created_at", { ascending: false })
+      .limit(7),
+  ]);
+
+  const agencyList = (agencyPosts as AgencyPost[] | null) ?? [];
 
   return (
       <div className="space-y-6">
@@ -86,6 +112,20 @@ export default async function UtilityPage({ params }: Props) {
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-zinc-700">Линии на градски превоз</h2>
             <BusRouteMap />
+          </div>
+        )}
+
+        {/* Official announcements from the institution operator account */}
+        {agencyList.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-700">
+              📣 Соопштенија од службата
+            </h2>
+            <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
+              {agencyList.map((post) => (
+                <AgencyPostCard key={post.id} post={post} />
+              ))}
+            </div>
           </div>
         )}
 
