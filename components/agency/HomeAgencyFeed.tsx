@@ -11,7 +11,13 @@ const MAX_VISIBLE = 3;
  * Home-page announcements feed. Filter by "latest" (all) or a single company,
  * capped at the 5 most recent so the home page stays scannable.
  */
-export default function HomeAgencyFeed({ posts }: { posts: AgencyPost[] }) {
+export default function HomeAgencyFeed({
+  posts,
+  canManage = false,
+}: {
+  posts: AgencyPost[];
+  canManage?: boolean;
+}) {
   const [filter, setFilter] = useState<"all" | AgencyId>("all");
 
   // Only offer company chips that actually have posts.
@@ -61,7 +67,12 @@ export default function HomeAgencyFeed({ posts }: { posts: AgencyPost[] }) {
       </div>
       <div className="space-y-3">
         {visible.map((post) => (
-          <AgencyPostCard key={post.id} post={post} showAgency />
+          <AgencyPostCard
+            key={post.id}
+            post={post}
+            showAgency
+            canManage={canManage}
+          />
         ))}
       </div>
     </div>

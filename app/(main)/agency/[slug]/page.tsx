@@ -54,7 +54,9 @@ export default async function AgencyPage({ params }: Props) {
 
       <div className="space-y-3">
         {list.length > 0 ? (
-          list.map((post) => <AgencyPostCard key={post.id} post={post} />)
+          list.map((post) => (
+            <AgencyPostCard key={post.id} post={post} canManage={canPost} />
+          ))
         ) : (
           <p className="text-xs text-theme-subtle">Нема соопштенија.</p>
         )}

@@ -62,21 +62,35 @@ export default async function UtilityPage({ params }: Props) {
   const p = provider as Provider;
 
   const supabase = await createClient();
-  const [{ data: posts }, { data: agencyPosts }] = await Promise.all([
-    supabase
-      .from("utility_posts")
-      .select("*")
-      .eq("provider", p)
-      .order("posted_at", { ascending: false }),
-    supabase
-      .from("agency_posts")
-      .select("*")
-      .eq("agency_id", PROVIDER_AGENCY[p])
-      .order("created_at", { ascending: false })
-      .limit(7),
-  ]);
+  const [{ data: authUser }, { data: posts }, { data: agencyPosts }] =
+    await Promise.all([
+      supabase.auth.getUser(),
+      supabase
+        .from("utility_posts")
+        .select("*")
+        .eq("provider", p)
+        .order("posted_at", { ascending: false }),
+      supabase
+        .from("agency_posts")
+        .select("*")
+        .eq("agency_id", PROVIDER_AGENCY[p])
+        .order("created_at", { ascending: false })
+        .limit(7),
+    ]);
 
   const agencyList = (agencyPosts as AgencyPost[] | null) ?? [];
+
+  // Admin or this provider's own operator may manage the announcements here.
+  let canManage = false;
+  if (authUser.user) {
+    const { data: viewer } = await supabase
+      .from("profiles")
+      .select("is_admin, agency_id")
+      .eq("id", authUser.user.id)
+      .maybeSingle();
+    canManage =
+      viewer?.is_admin === true || viewer?.agency_id === PROVIDER_AGENCY[p];
+  }
 
   return (
       <div className="space-y-6">
@@ -123,7 +137,7 @@ export default async function UtilityPage({ params }: Props) {
             </h2>
             <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
               {agencyList.map((post) => (
-                <AgencyPostCard key={post.id} post={post} />
+                <AgencyPostCard key={post.id} post={post} canManage={canManage} />
               ))}
             </div>
           </div>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   MapPin,
@@ -10,8 +11,12 @@ import {
   Lightbulb,
   Bus,
   Building2,
+  Pencil,
+  X,
   type LucideIcon,
 } from "lucide-react";
+import { toast } from "sonner";
+import { createClient } from "../../lib/supabase/client";
 import { formatDays, DISTRICT_LABELS } from "../../lib/utils";
 import { AGENCIES, type AgencyId } from "../../lib/agencies";
 import type { AgencyPost } from "../../lib/types/database";
@@ -59,11 +64,20 @@ function audienceLabel(post: AgencyPost): string {
 export default function AgencyPostCard({
   post,
   showAgency = false,
+  canManage = false,
 }: {
   post: AgencyPost;
   showAgency?: boolean;
+  /** Show edit/delete controls (the owning operator or an admin). */
+  canManage?: boolean;
 }) {
+  const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(post.title);
+  const [editBody, setEditBody] = useState(post.body ?? "");
+  const [busy, setBusy] = useState(false);
   const red = post.is_red_alert;
   const agencyName =
     AGENCIES[post.agency_id as AgencyId]?.name ?? post.agency_id;
@@ -72,7 +86,82 @@ export default function AgencyPostCard({
 
   const body = post.body ?? "";
   const isLong = body.length > CLAMP_THRESHOLD;
-  const clickable = isLong;
+  const clickable = isLong && !editing;
+
+  async function saveEdit() {
+    if (!editTitle.trim()) {
+      toast.error("Внеси наслов");
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase.rpc("update_agency_post", {
+      p_id: post.id,
+      p_title: editTitle.trim(),
+      p_body: editBody.trim() || null,
+    });
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Соопштението е изменето");
+    setEditing(false);
+    router.refresh();
+  }
+
+  async function remove() {
+    if (!confirm("Да се избрише ова соопштение?")) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("delete_agency_post", {
+      p_id: post.id,
+    });
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Соопштението е избришано");
+    router.refresh();
+  }
+
+  if (editing) {
+    return (
+      <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <input
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+          placeholder="Наслов"
+          className="mb-2 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-primary"
+        />
+        <textarea
+          value={editBody}
+          onChange={(e) => setEditBody(e.target.value)}
+          rows={3}
+          placeholder="Детали (опционално)"
+          className="mb-3 w-full resize-none rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-primary"
+        />
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setEditTitle(post.title);
+              setEditBody(post.body ?? "");
+              setEditing(false);
+            }}
+            className="rounded-lg px-3 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-100">
+            Откажи
+          </button>
+          <button
+            type="button"
+            onClick={saveEdit}
+            disabled={busy}
+            className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary/90 disabled:opacity-60">
+            {busy ? "Се зачувува…" : "Зачувај"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -97,9 +186,36 @@ export default function AgencyPostCard({
         ) : (
           <span />
         )}
-        <span className="shrink-0 text-[11px] text-theme-subtle">
-          {formatDays(post.created_at)}
-        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className="text-[11px] text-theme-subtle">
+            {formatDays(post.created_at)}
+          </span>
+          {canManage && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditing(true);
+                }}
+                aria-label="Измени"
+                className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700">
+                <Pencil size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  remove();
+                }}
+                disabled={busy}
+                aria-label="Избриши"
+                className="rounded-md p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50">
+                <X size={14} />
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* 2. Title */}

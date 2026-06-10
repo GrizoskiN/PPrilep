@@ -64,13 +64,16 @@ export default async function HomePage() {
 
   const user = authUser.user;
   let greetingName = "Прилеп";
+  let isAdmin = false;
 
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name, username")
+      .select("full_name, username, is_admin")
       .eq("id", user.id)
       .maybeSingle();
+
+    isAdmin = profile?.is_admin === true;
 
     const rawName =
       profile?.full_name ??
@@ -114,7 +117,7 @@ export default async function HomePage() {
           Пријави проблеми. Координирај локални акции. Држи ги лидерите
           одговорни.
         </p>
-        <HomeAgencyFeed posts={posts} />
+        <HomeAgencyFeed posts={posts} canManage={isAdmin} />
 
         <div className="  grid gap-4  ">
           <section className="rounded-xl border border-theme bg-theme-surface p-4">
