@@ -122,6 +122,36 @@ Format: brief title → context (one line) → rule. Add to the top when new.
   `reject_change_request`, `get_pending_change_requests`,
   `find_similar_issues`.
 
+### SECURITY DEFINER auth checks: two recurring fail-open traps
+Found in the Jun 2026 pre-launch review — `agency_set_issue_status` let
+ANY anonymous user change any issue's status. Both traps below applied:
+- **NULL comparison fails open.** `if not (is_admin() or reported_by =
+  auth.uid() or …)`. For an anon caller `auth.uid()` is NULL, so
+  `reported_by = NULL` → NULL, the whole OR → NULL, and `not NULL` → NULL,
+  which is NOT true → the `raise exception` is SKIPPED. The guard passes.
+  - ✅ Guard `auth.uid()` first: `if auth.uid() is null then raise …`.
+    Wrap every equality in `coalesce(a = b, false)`. Never let a NULL reach
+    a boolean guard.
+- **Default PUBLIC execute grant.** New Postgres functions are
+  `EXECUTE`-able by PUBLIC (incl. `anon`) by default. `grant execute … to
+  authenticated` only ADDS — it does not remove PUBLIC. So `anon` can call
+  every RPC unless you explicitly `revoke execute … from public`.
+  - ✅ For every privileged RPC: `revoke execute … from public;` then grant
+    only the role that needs it. Verify by calling it with the anon key.
+- This is the SAME class as the `membership_tier` self-assign hole — assume
+  any new privileged surface is exploitable until proven otherwise with an
+  anon-key probe (see `harden_security_prelaunch.sql`).
+
+### Column-level SELECT for PII (not just UPDATE)
+- `harden_profiles_rls.sql` revoked UPDATE on privileged columns, but
+  `profiles.street_name`/`district` (home location) stayed world-readable
+  via the REST API because RLS is row-level, not column-level, and SELECT
+  was never restricted.
+- ✅ `revoke select (col, …) on public.profiles from anon;` for PII columns.
+  Keep `authenticated` if the owner's own page reads them. Residual: a
+  logged-in user can still read other users' values — fix with a view or
+  SECURITY DEFINER accessor if that matters.
+
 ### PostgREST schema cache
 - After `CREATE FUNCTION` or `CREATE TABLE`, PostgREST may not see the
   new symbol immediately. Tail every migration with:

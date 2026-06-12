@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../../lib/hooks/useAuth";
 import { createClient } from "../../../lib/supabase/client";
+import { useTurnstile } from "../../../lib/hooks/useTurnstile";
 import {
   DISTRICT_LABELS,
   STATUS_LABELS,
@@ -89,6 +90,9 @@ function SecuritySection({
   const [savingPw, setSavingPw] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
+  // Re-auth below uses signInWithPassword, which Supabase gates behind CAPTCHA
+  // when armed. Only needed on the `hasPassword` path.
+  const captcha = useTurnstile();
 
   function resetPwForm() {
     setCurrentPassword("");
@@ -111,8 +115,10 @@ function SecuritySection({
       const { error: reauthError } = await supabase.auth.signInWithPassword({
         email: userEmail,
         password: currentPassword,
+        options: { captchaToken: captcha.token ?? undefined },
       });
       if (reauthError) {
+        captcha.reset(); // token is single-use — refresh for the next attempt
         toast.error("Тековната лозинка е неточна");
         setSavingPw(false);
         return;
@@ -184,6 +190,7 @@ function SecuritySection({
               className="w-full rounded-lg border border-[#dce6e2] px-2.5 py-2 text-xs outline-none focus:border-primary"
             />
           )}
+          {hasPassword && captcha.widget}
           <input
             type="password"
             value={newPassword}
@@ -211,7 +218,7 @@ function SecuritySection({
             <button
               type="button"
               onClick={changePassword}
-              disabled={savingPw}
+              disabled={savingPw || (hasPassword && !captcha.ready)}
               className="flex-1 rounded-lg bg-primary py-1.5 text-xs font-semibold text-white hover:bg-primary/90 disabled:opacity-60">
               {savingPw ? "Се зачувува…" : hasPassword ? "Зачувај" : "Постави"}
             </button>

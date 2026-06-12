@@ -9,6 +9,7 @@ import { createClient } from "../../../lib/supabase/client";
 import GoogleIcon from "../../../components/auth/GoogleIcon";
 import { toast } from "sonner";
 import { useMemo, useState } from "react";
+import { useTurnstile } from "../../../lib/hooks/useTurnstile";
 
 const schema = z.object({
   full_name: z.string().min(2, "Внесете го вашето целосно име"),
@@ -50,6 +51,11 @@ export default function RegisterPage() {
   const [sendingLink, setSendingLink] = useState(false);
   const [linkSentTo, setLinkSentTo] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  // One widget for the main signup form, one for the "email exists" recovery
+  // screen — they live in separate render branches and each makes its own
+  // captcha-gated auth call.
+  const captcha = useTurnstile();
+  const recoveryCaptcha = useTurnstile();
 
   const {
     register,
@@ -67,9 +73,11 @@ export default function RegisterPage() {
         data: { full_name: values.full_name },
         // New signups land on their profile so the onboarding tour kicks in.
         emailRedirectTo: `${location.origin}/auth/callback?next=/account`,
+        captchaToken: captcha.token ?? undefined,
       },
     });
     if (error) {
+      captcha.reset(); // token is single-use — refresh for the next attempt
       toast.error(error.message);
       return;
     }
@@ -89,10 +97,14 @@ export default function RegisterPage() {
     setSendingLink(true);
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${location.origin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${location.origin}/auth/callback`,
+        captchaToken: recoveryCaptcha.token ?? undefined,
+      },
     });
     setSendingLink(false);
     if (error) {
+      recoveryCaptcha.reset();
       toast.error(error.message);
       return;
     }
@@ -187,10 +199,11 @@ export default function RegisterPage() {
             </div>
           </div>
           <div className="space-y-2">
+            {recoveryCaptcha.widget}
             <button
               type="button"
               className={primaryBtn}
-              disabled={sendingLink}
+              disabled={sendingLink || !recoveryCaptcha.ready}
               onClick={() => sendMagicLink(existingEmail)}>
               {sendingLink ? "Се испраќа…" : "Испрати ми линк за најава"}
             </button>
@@ -297,7 +310,12 @@ export default function RegisterPage() {
           )}
         </div>
 
-        <button type="submit" disabled={isSubmitting} className={primaryBtn}>
+        {captcha.widget}
+
+        <button
+          type="submit"
+          disabled={isSubmitting || !captcha.ready}
+          className={primaryBtn}>
           {isSubmitting ? "Се создава…" : "Создај сметка"}
         </button>
 

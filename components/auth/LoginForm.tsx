@@ -9,6 +9,7 @@ import { createClient } from "../../lib/supabase/client";
 import GoogleIcon from "./GoogleIcon";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTurnstile } from "../../lib/hooks/useTurnstile";
 
 const schema = z.object({
   email: z.string().email("Внесете валидна е-пошта"),
@@ -33,6 +34,7 @@ export default function LoginForm() {
   const [magicLoading, setMagicLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const captcha = useTurnstile();
 
   function getAuthRedirectOrigin() {
     const envOrigin = process.env.NEXT_PUBLIC_AUTH_REDIRECT_ORIGIN?.trim();
@@ -53,8 +55,12 @@ export default function LoginForm() {
   });
 
   async function onSubmit(values: Fields) {
-    const { error } = await supabase.auth.signInWithPassword(values);
+    const { error } = await supabase.auth.signInWithPassword({
+      ...values,
+      options: { captchaToken: captcha.token ?? undefined },
+    });
     if (error) {
+      captcha.reset(); // token is single-use — refresh for the next attempt
       toast.error(error.message);
       return;
     }
@@ -72,10 +78,14 @@ export default function LoginForm() {
     const authOrigin = getAuthRedirectOrigin();
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${authOrigin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${authOrigin}/auth/callback`,
+        captchaToken: captcha.token ?? undefined,
+      },
     });
     setMagicLoading(false);
     if (error) {
+      captcha.reset();
       toast.error(error.message);
       return;
     }
@@ -176,7 +186,12 @@ export default function LoginForm() {
         )}
       </div>
 
-      <button type="submit" disabled={isSubmitting} className={primaryBtn}>
+      {captcha.widget}
+
+      <button
+        type="submit"
+        disabled={isSubmitting || !captcha.ready}
+        className={primaryBtn}>
         {isSubmitting ? "Се најавувате…" : "Најава"}
       </button>
 
@@ -195,7 +210,7 @@ export default function LoginForm() {
         type="button"
         className={outlineBtn}
         onClick={sendMagicLink}
-        disabled={magicLoading}>
+        disabled={magicLoading || !captcha.ready}>
         <Mail size={16} className="text-zinc-500" />
         {magicLoading ? "Се испраќа…" : "Најави се без лозинка"}
       </button>

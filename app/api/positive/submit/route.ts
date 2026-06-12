@@ -34,16 +34,23 @@ const MAX_FIELD     = 200;
 const MAX_IMAGES    = 5;
 const MAX_IMG_BYTES = 8 * 1024 * 1024; // 8 MB per image
 
+// Durable per-user cap: how many of this user's submissions may sit unreviewed
+// (still drafts) at once. Unlike the in-memory IP rate limit — which resets per
+// serverless instance — this is enforced against Sanity itself, so it can't be
+// bypassed by instance churn. Bounds both review-queue flooding and the Sanity
+// asset storage an attacker can burn through image uploads.
+const MAX_PENDING_DRAFTS = 5;
+
 // Best-effort in-memory rate limit (per server instance).
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX       = 3;
 const hits = new Map<string, number[]>();
 
-function rateLimited(ip: string): boolean {
+function rateLimited(key: string): boolean {
   const now    = Date.now();
-  const recent = (hits.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  const recent = (hits.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
   recent.push(now);
-  hits.set(ip, recent);
+  hits.set(key, recent);
   return recent.length > RATE_MAX;
 }
 
@@ -66,12 +73,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── Rate limit per client IP ──────────────────────────────────────────────
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      req.headers.get("x-real-ip") ||
-      "unknown";
-    if (rateLimited(ip)) {
+    // ── Rate limit per authenticated user (best-effort, in-memory) ────────────
+    if (rateLimited(user.id)) {
       return NextResponse.json(
         { error: "Премногу пораки. Почекај една минута и обиди се повторно." },
         { status: 429 },
@@ -79,6 +82,27 @@ export async function POST(req: Request) {
     }
 
     const sanity = getSanityClient();
+
+    // ── Durable cap: too many of this user's stories still awaiting review? ───
+    try {
+      const pending: number = await sanity.fetch(
+        `count(*[_type == "post" && submittedBy.userId == $uid && _id in path("drafts.**")])`,
+        { uid: user.id },
+      );
+      if (typeof pending === "number" && pending >= MAX_PENDING_DRAFTS) {
+        return NextResponse.json(
+          {
+            error:
+              "Имаш премногу приказни кои чекаат преглед. Почекај да бидат одобрени пред да испратиш нова.",
+          },
+          { status: 429 },
+        );
+      }
+    } catch {
+      // If the count query fails, don't block a legitimate submission — the
+      // per-user rate limit above still applies.
+    }
+
     const form   = await req.formData();
 
     // Honeypot — real users never fill this. Bots do. Silently succeed.
