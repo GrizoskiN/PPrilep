@@ -125,7 +125,13 @@ export default function ImageLightbox({
 
         {hasToggle && mode === "slider" ? (
           // Wrap the slider so dragging the handle never bubbles to the backdrop.
-          <div onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
+          // w-full is required: the slider is `w-full`, so without an explicit
+          // width on this flex child it collapses to zero (its images are
+          // absolutely positioned) and the drag surface vanishes — which is why
+          // the slider appeared "broken" in the lightbox / on mobile.
+          <div
+            className="w-full"
+            onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
             <BeforeAfterSlider
               beforeSrc={beforeSrc!}
               afterSrc={afterSrc!}

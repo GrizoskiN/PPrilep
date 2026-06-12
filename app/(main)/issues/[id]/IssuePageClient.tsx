@@ -6,6 +6,7 @@ import IssueDetail from "../../../../components/issues/IssueDetail";
 import DateOffersPanel from "../../../../components/issues/DateOffersPanel";
 import BeforeAfterSlider from "../../../../components/ui/BeforeAfterSlider";
 import type { Issue } from "../../../../lib/types/database";
+import { cdnUrl } from "../../../../lib/utils";
 
 interface Props {
   issue: Issue;
@@ -51,7 +52,7 @@ export default function IssuePageClient({ issue, userId }: Props) {
           ) : issue.photo_url || issue.after_photo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={(issue.photo_url ?? issue.after_photo_url)!}
+              src={cdnUrl((issue.photo_url ?? issue.after_photo_url)!)}
               alt={issue.title}
               className="max-w-full object-contain rounded-xl"
               style={{ maxHeight: "82vh" }}

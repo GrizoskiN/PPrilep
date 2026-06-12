@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   ShieldCheck,
   RefreshCw,
@@ -32,6 +33,7 @@ const TIER_OPTIONS: {
   { value: "volunteer", label: "Волонтер", color: "#2aa99d" },
   { value: "monthly", label: "Месечна", color: "#ca8a04" },
   { value: "yearly", label: "Годишна", color: "#b45309" },
+  { value: "mega_donor", label: "МегаГига Донатор", color: "#92610a" },
   { value: "company_basic", label: "Партнер Basic", color: "#4f46e5" },
   { value: "company_preferred", label: "Партнер+", color: "#7c3aed" },
   { value: "company_premium", label: "Премиум", color: "#be185d" },
@@ -124,6 +126,7 @@ const TIER_LABELS: Record<string, string> = {
   volunteer: "Волонтер",
   monthly: "Месечна",
   yearly: "Годишна",
+  mega_donor: "МегаГига Донатор",
   company_basic: "Партнер Basic",
   company_preferred: "Партнер+",
   company_premium: "Премиум",
@@ -239,9 +242,17 @@ export default function MembershipAdminPanel() {
                 className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-zinc-900">
-                      {req.full_name}
-                    </p>
+                    {req.user_id ? (
+                      <Link
+                        href={`/${req.user_id}`}
+                        className="truncate text-sm font-semibold text-zinc-900 hover:underline">
+                        {req.full_name}
+                      </Link>
+                    ) : (
+                      <p className="truncate text-sm font-semibold text-zinc-900">
+                        {req.full_name}
+                      </p>
+                    )}
                     <p className="truncate text-xs text-zinc-500">
                       {req.email}
                       {req.phone ? ` · ${req.phone}` : ""}
@@ -352,30 +363,34 @@ export default function MembershipAdminPanel() {
                   <div
                     key={p.id}
                     className="flex items-center gap-3 rounded-xl border border-zinc-100 bg-zinc-50/50 px-3 py-2.5 hover:bg-zinc-50 transition-colors">
-                    {/* Avatar + name */}
-                    <AvatarInitials
-                      name={p.full_name}
-                      avatarUrl={p.avatar_url}
-                      size="sm"
-                      membershipTier={p.membership_tier as MembershipTier}
-                      points={p.points}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold text-zinc-800">
-                        {p.full_name ?? "—"}
-                      </p>
-                      <div className="flex items-center gap-1.5">
-                        {p.username && (
-                          <p className="text-[10px] text-zinc-400">
-                            @{p.username}
-                          </p>
-                        )}
-                        <span className="text-[10px] text-zinc-300">·</span>
-                        <p className="text-[10px] text-zinc-400">
-                          {p.points} аплаузи
+                    {/* Avatar + name → links to the user's profile */}
+                    <Link
+                      href={`/${p.username ?? p.id}`}
+                      className="flex min-w-0 flex-1 items-center gap-3">
+                      <AvatarInitials
+                        name={p.full_name}
+                        avatarUrl={p.avatar_url}
+                        size="sm"
+                        membershipTier={p.membership_tier as MembershipTier}
+                        points={p.points}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-semibold text-zinc-800 hover:underline">
+                          {p.full_name ?? "—"}
                         </p>
+                        <div className="flex items-center gap-1.5">
+                          {p.username && (
+                            <p className="text-[10px] text-zinc-400">
+                              @{p.username}
+                            </p>
+                          )}
+                          <span className="text-[10px] text-zinc-300">·</span>
+                          <p className="text-[10px] text-zinc-400">
+                            {p.points} аплаузи
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    </Link>
                     {/* Tier select — constrained width */}
                     <div className="w-28 shrink-0 sm:w-36">
                       <TierSelect profile={p} />

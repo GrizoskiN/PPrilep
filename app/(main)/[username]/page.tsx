@@ -1,6 +1,6 @@
 import { createClient } from "../../../lib/supabase/server";
 import { notFound } from "next/navigation";
-import { TIER_CONFIG } from "../../../components/ui/AvatarInitials";
+import { TIER_CONFIG } from "../../../lib/tiers";
 import ProfileActivityTabs, {
   type ProfileIssue,
   type ProfileActivity,

@@ -18,6 +18,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { useAuth } from "../../lib/hooks/useAuth";
+import { cdnUrl } from "../../lib/utils";
 import { createClient } from "../../lib/supabase/client";
 
 const STORAGE_PREFIX = "pp_onboarding_v3_";
@@ -378,7 +379,7 @@ export default function OnboardingTour() {
     <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-theme-ink text-2xl font-bold text-white ring-4 ring-white/60">
       {avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+        <img src={cdnUrl(avatarUrl)} alt="" className="h-full w-full object-cover" />
       ) : (
         initial
       )}
@@ -484,7 +485,7 @@ export default function OnboardingTour() {
                     <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-theme-ink text-lg font-bold text-white">
                       {avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                        <img src={cdnUrl(avatarUrl)} alt="" className="h-full w-full object-cover" />
                       ) : (
                         initial
                       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { Lightbulb, Trophy, Building2, Users, HandHeart } from "lucide-react";
 import { createClient } from "../../../lib/supabase/client";
 import AvatarInitials, { type MembershipTier } from "../../../components/ui/AvatarInitials";
@@ -21,6 +22,7 @@ const TIER_SHORT: Record<string, string> = {
   volunteer:         "Волонтер",
   monthly:           "Месечен",
   yearly:            "Годишен",
+  mega_donor:        "МегаГига",
   company_basic:     "Партнер",
   company_preferred: "Партнер+",
   company_premium:   "Премиум",
@@ -128,7 +130,10 @@ export default function SponsorsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {people.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4">
+              <Link
+                key={m.id}
+                href={`/${m.username ?? m.id}`}
+                className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300 hover:bg-zinc-50">
                 <AvatarInitials
                   name={m.full_name}
                   avatarUrl={m.avatar_url}
@@ -145,7 +150,7 @@ export default function SponsorsPage() {
                     {TIER_SHORT[m.membership_tier] ?? m.membership_tier}
                   </span>
                 )}
-              </div>
+              </Link>
             ))}
           </div>
         )}
@@ -170,7 +175,10 @@ export default function SponsorsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {companies.map((c) => (
-              <div key={c.id} className="flex items-center gap-4 rounded-2xl border border-zinc-200 bg-white p-5">
+              <Link
+                key={c.id}
+                href={`/${c.username ?? c.id}`}
+                className="flex items-center gap-4 rounded-2xl border border-zinc-200 bg-white p-5 transition-colors hover:border-zinc-300 hover:bg-zinc-50">
                 <AvatarInitials
                   name={c.full_name}
                   avatarUrl={c.avatar_url}
@@ -186,7 +194,7 @@ export default function SponsorsPage() {
                     </span>
                   )}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

@@ -3,16 +3,11 @@
 import { useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { cn, cdnUrl } from "../../lib/utils";
+import { TIER_CONFIG, type MembershipTier } from "../../lib/tiers";
 
-export type MembershipTier =
-  | "volunteer"
-  | "monthly"
-  | "yearly"
-  | "company_basic"
-  | "company_preferred"
-  | "company_premium"
-  | null
-  | undefined;
+// Re-exported for the many components that import these from here.
+export { TIER_CONFIG };
+export type { MembershipTier };
 
 interface Props {
   name?: string | null;
@@ -22,20 +17,6 @@ interface Props {
   membershipTier?: MembershipTier;
   points?: number | null;
 }
-
-// ── Badge config ──────────────────────────────────────────────────────────────
-
-export const TIER_CONFIG: Record<
-  NonNullable<Exclude<MembershipTier, null | undefined>>,
-  { emoji: string; label: string; bg: string; color: string }
-> = {
-  volunteer:         { emoji: "✓",  label: "Член — Волонтер",           bg: "#d8f4ef", color: "#2aa99d" },
-  monthly:           { emoji: "★",  label: "Член — Месечна членарина",   bg: "#fef9c3", color: "#ca8a04" },
-  yearly:            { emoji: "★",  label: "Член — Годишна членарина",   bg: "#fef08a", color: "#b45309" },
-  company_basic:     { emoji: "🏢", label: "Партнер — Основно",          bg: "#e0e7ff", color: "#4f46e5" },
-  company_preferred: { emoji: "🏢", label: "Партнер — Преферирано",      bg: "#ede9fe", color: "#7c3aed" },
-  company_premium:   { emoji: "👑", label: "Партнер — Премиум",          bg: "#fce7f3", color: "#be185d" },
-};
 
 // ── Tooltip portal ────────────────────────────────────────────────────────────
 

@@ -21,7 +21,7 @@ import {
   STAGE_LABEL,
   daysRemaining,
 } from "../../lib/initiatives";
-import { cn, DISTRICT_LABELS, formatDays } from "../../lib/utils";
+import { cn, DISTRICT_LABELS, formatDays, cdnUrl } from "../../lib/utils";
 import Image from "next/image";
 import AvatarInitials from "../ui/AvatarInitials";
 import SegmentedProgressBar from "./SegmentedProgressBar";
@@ -182,7 +182,7 @@ export default function InitiativeDetailModal({
           {initiative.cover_image_url && (
             <div className="relative w-full h-52 sm:h-64 rounded-xl overflow-hidden bg-zinc-100">
               <Image
-                src={initiative.cover_image_url}
+                src={cdnUrl(initiative.cover_image_url)}
                 alt={initiative.title}
                 fill
                 sizes="(max-width: 640px) 100vw, 640px"

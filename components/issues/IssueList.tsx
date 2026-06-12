@@ -15,6 +15,7 @@ import {
   DISTRICT_LABELS,
   CATEGORY_LABELS,
   STATUS_LABELS,
+  cdnUrl,
 } from "../../lib/utils";
 import type {
   District,
@@ -353,7 +354,7 @@ export default function IssueList({
               ) : modalIssue.photo_url || modalIssue.after_photo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={(modalIssue.photo_url ?? modalIssue.after_photo_url)!}
+                  src={cdnUrl((modalIssue.photo_url ?? modalIssue.after_photo_url)!)}
                   alt="Фотографија"
                   className="max-w-full object-contain rounded-xl cursor-zoom-in"
                   style={{ maxHeight: "82vh" }}

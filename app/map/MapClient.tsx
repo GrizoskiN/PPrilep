@@ -5,7 +5,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Link from "next/link";
 import { X } from "lucide-react";
-import { CATEGORY_LABELS, getIssuePath } from "../../lib/utils";
+import { CATEGORY_LABELS, getIssuePath, cdnUrl } from "../../lib/utils";
 import type { Category, District, IssueStatus } from "../../lib/types/database";
 import StatusPill from "../../components/ui/StatusPill";
 import StatusTimelinePopup from "../../components/ui/StatusTimelinePopup";
@@ -213,7 +213,7 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
             {selected.photo_url && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={selected.photo_url}
+                src={cdnUrl(selected.photo_url)}
                 alt={selected.title}
                 className="w-full h-36 object-cover"
               />

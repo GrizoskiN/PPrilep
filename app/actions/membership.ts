@@ -14,9 +14,25 @@ export type MembershipTier =
   | "volunteer"
   | "monthly"
   | "yearly"
+  | "mega_donor"
   | "company_basic"
   | "company_preferred"
   | "company_premium";
+
+// Monthly membership lasts one month from the moment it's granted; after that a
+// scheduled job (see supabase/add_membership_expiry.sql) downgrades the member
+// back to volunteer. Returns the profile patch to apply when writing a tier so
+// `membership_expires_at` stays in sync with the tier.
+function tierPatch(tier: MembershipTier | null) {
+  const patch: { membership_tier: MembershipTier | null; membership_expires_at: string | null } =
+    { membership_tier: tier, membership_expires_at: null };
+  if (tier === "monthly") {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    patch.membership_expires_at = d.toISOString();
+  }
+  return patch;
+}
 
 // ── Submit a membership request ───────────────────────────────────────────────
 
@@ -40,7 +56,7 @@ export async function submitMembershipRequest(data: {
   if (isVolunteer) {
     if (user) {
       await createAdminClient().from("profiles")
-        .update({ membership_tier: "volunteer" })
+        .update(tierPatch("volunteer"))
         .eq("id", user.id);
     }
     await sendVolunteerWelcome(data.email, displayName).catch(console.error);
@@ -103,7 +119,7 @@ export async function adminApproveMembership(requestId: number) {
   // column — only the service-role client may write it (see harden_profiles_rls).
   if (req.user_id) {
     await createAdminClient().from("profiles")
-      .update({ membership_tier: req.tier })
+      .update(tierPatch(req.tier))
       .eq("id", req.user_id);
   }
 
@@ -147,7 +163,7 @@ export async function saveMembershipTier(tier: MembershipTier) {
   // Privileged column — must go through the service-role client.
   const { error } = await createAdminClient()
     .from("profiles")
-    .update({ membership_tier: tier })
+    .update(tierPatch(tier))
     .eq("id", user.id);
 
   if (error) return { error: error.message };
@@ -171,7 +187,7 @@ export async function adminSetMembershipTier(
   // (see harden_profiles_rls). is_admin was already verified above.
   const { error, count } = await createAdminClient()
     .from("profiles")
-    .update({ membership_tier: tier }, { count: "exact" })
+    .update(tierPatch(tier), { count: "exact" })
     .eq("id", targetUserId);
 
   if (error) return { error: error.message };
