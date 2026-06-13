@@ -16,13 +16,20 @@ interface Props {
   /** Fires when the user picks a suggestion (vs. free-text typing). Lets
    *  the parent auto-fill related fields like district. */
   onSelect?: (street: Street) => void;
+  /** Override the input's classes (e.g. to match a form's field height).
+   *  Must keep left padding for the search icon. */
+  inputClassName?: string;
 }
+
+const DEFAULT_INPUT_CLASS =
+  "w-full border border-zinc-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:border-teal-500 transition-colors";
 
 export default function StreetAutocomplete({
   value,
   onChange,
   placeholder,
   onSelect,
+  inputClassName = DEFAULT_INPUT_CLASS,
 }: Props) {
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
@@ -134,7 +141,7 @@ export default function StreetAutocomplete({
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder ?? "пр. ул. Партизанска"}
-          className="w-full border border-zinc-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:border-teal-500 transition-colors"
+          className={inputClassName}
           autoComplete="off"
           spellCheck={false}
         />

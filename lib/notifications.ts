@@ -11,7 +11,8 @@ export type NotificationType =
   | "issue_status"
   | "issue_for_agency"
   | "agency_post"
-  | "agency_alert";
+  | "agency_alert"
+  | "issue_resolved_by_citizen";
 
 interface NotificationErrorLike {
   code?: string | null;

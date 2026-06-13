@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
+import { getIssuePath } from "../../lib/utils";
 import Button from "./Button";
 import StreetAutocomplete from "../issues/StreetAutocomplete";
 import DuplicateAlert, { type SimilarIssue } from "../issues/DuplicateAlert";
@@ -114,14 +115,21 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
   const dragHandleRef = useRef<HTMLDivElement>(null);
 
   // ── Report state ──────────────────────────────────────────────────────────────
+  // Mode: "problem" = report something to be fixed (default); "solved" = a civic
+  // action the citizen has ALREADY done (issue is born resolved, before+after).
+  const [reportMode, setReportMode] = useState<"problem" | "solved">("problem");
   const [reportFile, setReportFile] = useState<File | null>(null);
   const [reportPreview, setReportPreview] = useState<string | null>(null);
+  // "After" photo — only used in solved mode (the result of the action).
+  const [reportAfterFile, setReportAfterFile] = useState<File | null>(null);
+  const [reportAfterPreview, setReportAfterPreview] = useState<string | null>(null);
   const [reportStreetNum, setReportStreetNum] = useState("");
   const [reportPinLat, setReportPinLat] = useState<number | null>(null);
   const [reportPinLng, setReportPinLng] = useState<number | null>(null);
   const [similar, setSimilar] = useState<SimilarIssue[]>([]);
   const [dupDismissed, setDupDismissed] = useState(false);
   const reportFileRef = useRef<HTMLInputElement>(null);
+  const reportAfterFileRef = useRef<HTMLInputElement>(null);
 
   // ── Location picker (report only) ───────────────────────────────────────────────
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -242,6 +250,17 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
     return () => clearTimeout(id);
   }, [watchedCategory, watchedStreet, reportPinLat, reportPinLng, supabase]);
 
+  // Upload one file to issue-photos and return its public URL (or null on error).
+  async function uploadIssuePhoto(file: File): Promise<string | null> {
+    const ext = file.name.split(".").pop();
+    const path = `${crypto.randomUUID()}.${ext}`;
+    const { data, error } = await supabase.storage
+      .from("issue-photos")
+      .upload(path, file, { contentType: file.type });
+    if (error) return null;
+    return supabase.storage.from("issue-photos").getPublicUrl(data.path).data.publicUrl;
+  }
+
   // ── Report submit ─────────────────────────────────────────────────────────────
   async function onReportSubmit(values: ReportFields) {
     if (!userId) {
@@ -249,38 +268,65 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
       window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
       return;
     }
+
+    const solved = reportMode === "solved";
+
+    // A civic action needs both photos — the before and the result — to be
+    // believable and to render the before/after view.
+    if (solved && (!reportFile || !reportAfterFile)) {
+      toast.error("Додај фотографија пред и потоа за да ја објавиш акцијата");
+      return;
+    }
+
+    // Upload photos. Problem mode: single optional photo. Solved mode: the first
+    // file is the "before" (photo_url), the second is the "after" (after_photo_url).
     let photoUrl: string | null = null;
+    let afterPhotoUrl: string | null = null;
     if (reportFile) {
-      const ext = reportFile.name.split(".").pop();
-      const path = `${crypto.randomUUID()}.${ext}`;
-      const { data, error } = await supabase.storage
-        .from("issue-photos")
-        .upload(path, reportFile, { contentType: reportFile.type });
-      if (error) {
+      photoUrl = await uploadIssuePhoto(reportFile);
+      if (!photoUrl) {
         toast.error("Грешка при прикачување на фотографијата");
         return;
       }
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("issue-photos").getPublicUrl(data.path);
-      photoUrl = publicUrl;
     }
+    if (solved && reportAfterFile) {
+      afterPhotoUrl = await uploadIssuePhoto(reportAfterFile);
+      if (!afterPhotoUrl) {
+        toast.error("Грешка при прикачување на фотографијата „потоа“");
+        return;
+      }
+    }
+
     const base = values.street_name?.trim() || null;
     const num = reportStreetNum.trim();
-    const { error } = await supabase.from("issues").insert({
-      ...values,
-      street_name: base && num ? `${base} ${num}` : base,
-      reported_by: userId,
-      photo_url: photoUrl,
-      lat: reportPinLat,
-      lng: reportPinLng,
-    });
-    if (error) {
-      toast.error(error.message);
+    const { data: created, error } = await supabase
+      .from("issues")
+      .insert({
+        ...values,
+        street_name: base && num ? `${base} ${num}` : base,
+        reported_by: userId,
+        photo_url: photoUrl,
+        lat: reportPinLat,
+        lng: reportPinLng,
+        // Solved mode is born resolved and credits the citizen as the resolver,
+        // which triggers the gentle agency/neighbour notifications (see
+        // add_citizen_resolved_action.sql).
+        ...(solved && {
+          status: "resolved",
+          resolved_by: userId,
+          after_photo_url: afterPhotoUrl,
+        }),
+      })
+      .select("id, title")
+      .single();
+    if (error || !created) {
+      toast.error(error?.message ?? "Не успеа да се зачува. Обиди се повторно.");
       return;
     }
-    toast.success("Проблемот е пријавен!");
+    toast.success(solved ? "Акцијата е објавена! 👏" : "Проблемот е пријавен!");
     handleClose();
+    // Take the user straight to their new post so they see it right away.
+    router.push(getIssuePath(created.id, created.title));
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────────
@@ -474,14 +520,49 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
                 <div className={step === "report" ? "block" : "hidden"}>
                   <form
                     onSubmit={rSubmit(onReportSubmit)}
-                    className="space-y-4 p-4 sm:p-5">
+                    className="space-y-2 p-4 sm:p-5">
+                    {/* Mode toggle: report a problem vs. share an action you've
+                        already done yourself. */}
+                    <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setReportMode("problem")}
+                        className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                          reportMode === "problem"
+                            ? "bg-white text-teal-700 shadow-sm"
+                            : "text-zinc-500 hover:text-zinc-700"
+                        }`}>
+                        Пријавувам проблем
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReportMode("solved")}
+                        className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                          reportMode === "solved"
+                            ? "bg-white text-teal-700 shadow-sm"
+                            : "text-zinc-500 hover:text-zinc-700"
+                        }`}>
+                        Јас веќе го решив 👏
+                      </button>
+                    </div>
+                    {reportMode === "solved" && (
+                      <p className="-mt-1 text-[11px] leading-snug text-zinc-500">
+                        Сподели нешто што ти самиот го реши за твоето маало. Ќе се
+                        објави како решено и ќе ја извести надлежната служба.
+                      </p>
+                    )}
+
                     <div>
                       <label className="text-sm font-medium text-zinc-700">
                         Наслов *
                       </label>
                       <input
                         {...rReg("title")}
-                        placeholder="Кратко опишете го проблемот"
+                        placeholder={
+                          reportMode === "solved"
+                            ? "пр. Искосив трева во паркот"
+                            : "Кратко опишете го проблемот"
+                        }
                         className="mt-1.5 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-teal-500"
                       />
                       {rErr.title && (
@@ -517,6 +598,7 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
                                 value={field.value ?? ""}
                                 onChange={field.onChange}
                                 placeholder="пр. Партизанска"
+                                inputClassName="w-full rounded-xl border border-zinc-200 pl-10 pr-4 py-3 text-sm outline-none transition-colors focus:border-teal-500"
                                 onSelect={(s) => {
                                   if (s.district)
                                     rSet("district", s.district, {
@@ -595,10 +677,19 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
                       </div>
                     </div>
 
+                    <div className={reportMode === "solved" ? "grid gap-3 lg:grid-cols-2" : ""}>
                     <div>
                       <label className="text-sm font-medium text-zinc-700">
-                        Фотографија{" "}
-                        <span className="text-zinc-400">(незадолжително)</span>
+                        {reportMode === "solved" ? (
+                          <>
+                            Слика пред <span className="text-red-500">*</span>
+                          </>
+                        ) : (
+                          <>
+                            Фотографија{" "}
+                            <span className="text-zinc-400">(незадолжително)</span>
+                          </>
+                        )}
                       </label>
                       <input
                         ref={reportFileRef}
@@ -615,25 +706,74 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
                       <button
                         type="button"
                         onClick={() => reportFileRef.current?.click()}
-                        className="mt-1.5 flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 px-4 py-6 text-sm text-zinc-500 transition-colors hover:border-teal-400 hover:bg-teal-50/40 hover:text-teal-600">
-                        <ImagePlus size={28} className="text-zinc-400" />
-                        <span>
-                          {reportFile
-                            ? reportFile.name
-                            : "Кликнете за да додадете фотографија"}
-                        </span>
+                        className="relative mt-1.5 flex h-44 w-full cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 px-4 text-sm text-zinc-500 transition-colors hover:border-teal-400 hover:bg-teal-50/40 hover:text-teal-600">
+                        {reportPreview ? (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={reportPreview}
+                              alt="Преглед"
+                              className="absolute inset-0 h-full w-full object-cover"
+                            />
+                            <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-2 py-1 text-left text-[11px] text-white">
+                              {reportFile?.name}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <ImagePlus size={28} className="text-zinc-400" />
+                            <span>Кликнете за да додадете фотографија</span>
+                          </>
+                        )}
                       </button>
-                      {reportPreview && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={reportPreview}
-                          alt="Преглед"
-                          className="mt-2 max-h-52 w-full rounded-xl border border-zinc-200 object-cover"
-                        />
-                      )}
                     </div>
 
-                    {!dupDismissed && similar.length > 0 && (
+                    {/* "After" photo — solved mode only */}
+                    {reportMode === "solved" && (
+                      <div>
+                        <label className="text-sm font-medium text-zinc-700">
+                          Слика потоа <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          ref={reportAfterFileRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            setReportAfterFile(f);
+                            setReportAfterPreview(URL.createObjectURL(f));
+                          }}
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => reportAfterFileRef.current?.click()}
+                          className="relative mt-1.5 flex h-44 w-full cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 px-4 text-sm text-zinc-500 transition-colors hover:border-teal-400 hover:bg-teal-50/40 hover:text-teal-600">
+                          {reportAfterPreview ? (
+                            <>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={reportAfterPreview}
+                                alt="Преглед"
+                                className="absolute inset-0 h-full w-full object-cover"
+                              />
+                              <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-2 py-1 text-left text-[11px] text-white">
+                                {reportAfterFile?.name}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <ImagePlus size={28} className="text-zinc-400" />
+                              <span>Кликнете за да додадете фотографија</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                    </div>
+
+                    {reportMode !== "solved" && !dupDismissed && similar.length > 0 && (
                       <DuplicateAlert
                         similar={similar}
                         onDismiss={() => setDupDismissed(true)}
@@ -653,7 +793,11 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
                         variant="teal"
                         disabled={rBusy}
                         className="px-8 py-3 text-base">
-                        {rBusy ? "Се испраќа…" : "Пријави"}
+                        {rBusy
+                          ? "Се испраќа…"
+                          : reportMode === "solved"
+                            ? "Објави акција"
+                            : "Пријави"}
                       </Button>
                     </div>
                   </form>
