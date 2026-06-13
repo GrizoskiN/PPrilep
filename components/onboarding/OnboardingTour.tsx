@@ -468,12 +468,15 @@ export default function OnboardingTour() {
                     onClick={finish}
                     aria-label="Затвори"
                     className="absolute right-3 top-3 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100">
-                    <X size={18} />
+                    <X size={22} />
                   </button>
-                  <h2 className="text-xl font-bold tracking-tight text-theme-heading">
-                    Добредојде! Ајде да те запознаеме 👋
+                  <span className="mb-2 block text-3xl leading-none">👋</span>
+                  <h2 className="text-xl font-bold leading-snug tracking-tight text-theme-heading">
+                    Добредојде!
+                    <br />
+                    Ајде да те запознаеме
                   </h2>
-                  <p className="mt-1.5 text-sm leading-relaxed text-theme-muted">
+                  <p className="mt-1.5 text-sm leading-snug text-theme-muted">
                     Кажи ни каде живееш за да ти праќаме само известувања што се важни за тебе —
                     проблеми и итни вести од твоето маало.
                   </p>
@@ -482,7 +485,7 @@ export default function OnboardingTour() {
                 <div className="space-y-4 px-6 py-5">
                   {/* Avatar (mobile shows small inline) */}
                   <div className="flex items-center gap-3 lg:hidden">
-                    <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-theme-ink text-lg font-bold text-white">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-theme-ink text-2xl font-bold text-white">
                       {avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={cdnUrl(avatarUrl)} alt="" className="h-full w-full object-cover" />

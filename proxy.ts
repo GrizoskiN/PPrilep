@@ -25,7 +25,25 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
+
+  // A stale/expired session leaves a dead refresh token in the cookies, which the
+  // browser keeps resending — so getUser() returns refresh_token_not_found on
+  // EVERY request until the cookie is cleared. Drop the auth cookies once so the
+  // session self-heals (user is simply treated as logged out) instead of the
+  // error repeating in the logs forever.
+  if (
+    error &&
+    (error.code === 'refresh_token_not_found' ||
+      error.code === 'refresh_token_already_used' ||
+      error.message?.includes('Refresh Token'))
+  ) {
+    for (const cookie of request.cookies.getAll()) {
+      if (cookie.name.startsWith('sb-') && cookie.name.includes('auth-token')) {
+        supabaseResponse.cookies.set(cookie.name, '', { maxAge: 0, path: '/' })
+      }
+    }
+  }
 
   const isProtected = PROTECTED_ROUTES.some(route =>
     request.nextUrl.pathname.startsWith(route)
