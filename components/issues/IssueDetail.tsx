@@ -29,7 +29,13 @@ import SendIcon from "../ui/SendIcon";
 
 import AvatarInitials from "../ui/AvatarInitials";
 import ImageLightbox from "../ui/ImageLightbox";
-import { formatDays, cn, getIssuePath, cdnUrl } from "../../lib/utils";
+import {
+  formatDays,
+  cn,
+  getIssuePath,
+  cdnUrl,
+  bucketObjectPath,
+} from "../../lib/utils";
 import { incrementIssueViews } from "../../lib/views";
 import { agencyHandlesCategory } from "../../lib/agencies";
 import {
@@ -763,6 +769,34 @@ export default function IssueDetail({
     toast.success("Пријавата е ажурирана");
   }
 
+  // Remove an issue's photos from the `issue-photos` bucket: the before/after
+  // shots on the post itself, plus every comment image under comments/<id>/
+  // (comments cascade-delete with the issue, orphaning their files). Best-effort
+  // — swallows errors so it can never block the deletion that already happened.
+  async function cleanupIssuePhotos(
+    issueId: number,
+    issuePhotoUrls: (string | null | undefined)[],
+  ) {
+    try {
+      const paths = new Set<string>();
+      for (const url of issuePhotoUrls) {
+        const p = bucketObjectPath(url, "issue-photos");
+        if (p) paths.add(p);
+      }
+      // Comment images live in a per-issue folder — list and add them all.
+      const { data: files } = await supabase.storage
+        .from("issue-photos")
+        .list(`comments/${issueId}`, { limit: 1000 });
+      for (const f of files ?? []) paths.add(`comments/${issueId}/${f.name}`);
+
+      if (paths.size > 0) {
+        await supabase.storage.from("issue-photos").remove([...paths]);
+      }
+    } catch {
+      // Orphaned files are harmless (and still captured by backups); ignore.
+    }
+  }
+
   async function deleteIssue() {
     if (!canModerate || !userId || deletingIssue) return;
 
@@ -782,6 +816,14 @@ export default function IssueDetail({
       setDeletingIssue(false);
       return;
     }
+
+    // Storage has no DB cascade, so the row delete above leaves the photos
+    // orphaned in the bucket. Clean them up best-effort — never block or undo
+    // the (already done) deletion if a storage call fails.
+    await cleanupIssuePhotos(currentIssue.id, [
+      currentIssue.photo_url,
+      currentIssue.after_photo_url,
+    ]);
 
     toast.success("Пријавата е избришана");
     onClose?.();

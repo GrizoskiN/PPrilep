@@ -217,3 +217,33 @@ export function cdnUrl(url: string | null | undefined): string {
   if (!CDN_HOST) return url;
   return url.replace(SUPABASE_STORAGE_RE, `https://${CDN_HOST}$1`);
 }
+
+/**
+ * Extracts the object path *inside* a Supabase Storage bucket from a stored
+ * public/sign URL — e.g.
+ *   https://x.supabase.co/storage/v1/object/public/issue-photos/comments/42/a.jpg
+ *   → "comments/42/a.jpg"
+ * Returns null if the URL doesn't point at the given bucket. Used to remove the
+ * underlying file when its row is deleted (Storage has no DB cascade).
+ */
+export function bucketObjectPath(
+  url: string | null | undefined,
+  bucket: string,
+): string | null {
+  if (!url) return null;
+  const marker = `/object/public/${bucket}/`;
+  const signed = `/object/sign/${bucket}/`;
+  const idx =
+    url.indexOf(marker) >= 0
+      ? url.indexOf(marker) + marker.length
+      : url.indexOf(signed) >= 0
+        ? url.indexOf(signed) + signed.length
+        : -1;
+  if (idx < 0) return null;
+  const path = url.slice(idx).split(/[?#]/)[0];
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
