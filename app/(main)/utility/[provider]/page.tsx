@@ -16,7 +16,6 @@ import type {
   Provider,
   IssueStatus,
   AgencyPost,
-  District,
 } from "../../../../lib/types/database";
 import { notFound } from "next/navigation";
 
@@ -137,7 +136,6 @@ export default async function UtilityPage({ params }: Props) {
               <KomunalecContactForm
                 loggedIn={!!authUser.user}
                 defaultName={viewer?.full_name ?? undefined}
-                defaultDistrict={(viewer?.district as District) ?? undefined}
                 defaultStreet={viewer?.street_name ?? undefined}
               />
               {canManage && <KomunalecRequestQueue />}

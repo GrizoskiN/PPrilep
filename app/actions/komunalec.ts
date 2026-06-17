@@ -4,6 +4,7 @@ import { createClient } from "../../lib/supabase/server";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { createNotification } from "../../lib/notifications";
 import { sendKomunalecRequest } from "../../lib/email";
+import { AGENCY_EMAIL } from "../../lib/agencies";
 import type {
   KomunalecRequestType,
   KomunalecRequestStatus,
@@ -27,21 +28,14 @@ export interface KomunalecRequestInput {
   scheduled_at?: string | null;
 }
 
-// ── Resolve the Комуналец operator(s): profile ids + emails ───────────────────
-async function komunalecOperators() {
+// ── Resolve the Комуналец operator profile id(s) for in-app notifications ─────
+async function komunalecOperatorIds(): Promise<string[]> {
   const admin = createAdminClient();
   const { data: profiles } = await admin
     .from("profiles")
     .select("id")
     .eq("agency_id", "komunalec");
-
-  const ids = (profiles ?? []).map((p) => p.id as string);
-  const emails: string[] = [];
-  for (const id of ids) {
-    const { data } = await admin.auth.admin.getUserById(id);
-    if (data.user?.email) emails.push(data.user.email);
-  }
-  return { ids, emails };
+  return (profiles ?? []).map((p) => p.id as string);
 }
 
 // ── Submit a Комуналец request (logged-in users only) ─────────────────────────
@@ -57,6 +51,31 @@ export async function submitKomunalecRequest(input: KomunalecRequestInput) {
   }
 
   const admin = createAdminClient();
+
+  // ── Anti-spam ──────────────────────────────────────────────────────────────
+  // Logged-in-only already blocks anonymous flooding; on top of that, throttle
+  // each user to one request / 30s and cap them at 10 open requests per day.
+  const since30s = new Date(Date.now() - 30_000).toISOString();
+  const since24h = new Date(Date.now() - 86_400_000).toISOString();
+  const [{ count: recent }, { count: daily }] = await Promise.all([
+    admin
+      .from("komunalec_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", since30s),
+    admin
+      .from("komunalec_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", since24h),
+  ]);
+  if ((recent ?? 0) > 0) {
+    return { error: "Почекајте малку пред да испратите ново барање." };
+  }
+  if ((daily ?? 0) >= 10) {
+    return { error: "Достигнавте дневен лимит на барања. Обидете се утре." };
+  }
+
   const { error } = await admin.from("komunalec_requests").insert({
     user_id: user.id,
     request_type: input.request_type,
@@ -74,8 +93,10 @@ export async function submitKomunalecRequest(input: KomunalecRequestInput) {
 
   if (error) return { error: error.message };
 
-  // Notify the operator(s): free in-app notification + one email each.
-  const { ids, emails } = await komunalecOperators();
+  // Notify the operator(s) in-app (free); email goes to the agency inbox
+  // (currently the shared mojpprilep@gmail.com via AGENCY_EMAIL) until each
+  // institution's real address is set.
+  const ids = await komunalecOperatorIds();
   const typeLabel = REQUEST_TYPE_LABELS[input.request_type];
 
   await Promise.all([
@@ -89,21 +110,19 @@ export async function submitKomunalecRequest(input: KomunalecRequestInput) {
         link: "/agency/komunalec",
       }),
     ),
-    emails.length
-      ? sendKomunalecRequest(emails, {
-          requestType: input.request_type,
-          category: input.request_type === "complaint" ? input.category ?? null : null,
-          fullName: input.full_name.trim(),
-          phone: input.phone.trim(),
-          address: input.address?.trim() || null,
-          district: input.district || null,
-          message: input.message?.trim() || null,
-          scheduledAt:
-            input.request_type === "complaint"
-              ? null
-              : input.scheduled_at || null,
-        }).catch(console.error)
-      : Promise.resolve(),
+    sendKomunalecRequest(AGENCY_EMAIL.komunalec, {
+      requestType: input.request_type,
+      category: input.request_type === "complaint" ? input.category ?? null : null,
+      fullName: input.full_name.trim(),
+      phone: input.phone.trim(),
+      address: input.address?.trim() || null,
+      district: input.district || null,
+      message: input.message?.trim() || null,
+      scheduledAt:
+        input.request_type === "complaint"
+          ? null
+          : input.scheduled_at || null,
+    }).catch(console.error),
   ]);
 
   return { ok: true };

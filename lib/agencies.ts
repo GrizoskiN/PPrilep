@@ -49,6 +49,19 @@ export const AGENCY_BY_CATEGORY: Record<Category, AgencyId> = {
 };
 
 /**
+ * Notification inbox per agency. ⚠️ TEMPORARY — every agency currently routes to
+ * the shared mojpprilep@gmail.com inbox until each institution gives us its real
+ * address; replace per-agency below as they come in.
+ */
+export const AGENCY_EMAIL: Record<AgencyId, string> = {
+  vodovod: "mojpprilep@gmail.com",
+  komunalec: "mojpprilep@gmail.com",
+  osvetluvanje: "mojpprilep@gmail.com",
+  transport_parking: "mojpprilep@gmail.com",
+  municipality: "mojpprilep@gmail.com",
+};
+
+/**
  * Viber / WhatsApp click-to-chat numbers per agency. Numbers are in plain
  * international form WITHOUT the leading "+" or spaces (e.g. "38970123456");
  * the UI builds `wa.me/<n>` and `viber://chat?number=%2B<n>` from them.

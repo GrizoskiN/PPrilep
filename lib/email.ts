@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { AGENCY_EMAIL } from "./agencies";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -142,6 +143,13 @@ export async function sendKomunalecRequest(
     scheduledAt?: string | null;
   },
 ) {
+  // Fall back to the Комуналец inbox if no operator is bound yet — so requests
+  // never silently vanish (and so it's testable before launch).
+  const recipients = Array.isArray(to) ? to : [to];
+  const finalTo = recipients.filter(Boolean).length
+    ? recipients
+    : AGENCY_EMAIL.komunalec;
+
   const typeLabel = KOMUNALEC_REQUEST_LABELS[data.requestType] ?? data.requestType;
   const catLabel = data.category
     ? KOMUNALEC_CATEGORY_LABELS[data.category] ?? data.category
@@ -153,7 +161,7 @@ export async function sendKomunalecRequest(
       })
     : null;
   return resend.emails.send({
-    from: FROM, to,
+    from: FROM, to: finalTo,
     subject: `🗑️ Ново барање — Комуналец: ${typeLabel}`,
     html: base(`
       <p>Ново барање преку <strong>Мој Прилеп</strong> за <strong>Комуналец</strong>:</p>

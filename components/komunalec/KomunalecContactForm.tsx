@@ -1,29 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send, Trash2, ImagePlus, Loader2 } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { createClient } from "../../lib/supabase/client";
-import { DISTRICT_LABELS } from "../../lib/utils";
 import StreetAutocomplete from "../issues/StreetAutocomplete";
 import { submitKomunalecRequest } from "../../app/actions/komunalec";
-import type {
-  District,
-  KomunalecRequestType,
-} from "../../lib/types/database";
-
-const DISTRICTS: District[] = [
-  "Center",
-  "Varoš",
-  "Trizla",
-  "Točila",
-  "Rid",
-  "Tipski",
-  "Boncejca",
-  "KorzoMaalo",
-];
+import type { KomunalecRequestType } from "../../lib/types/database";
 
 const REQUEST_TYPES: [KomunalecRequestType, string][] = [
   ["complaint", "Поплака"],
@@ -31,64 +15,74 @@ const REQUEST_TYPES: [KomunalecRequestType, string][] = [
   ["tractor", "Нарачај трактор"],
 ];
 
-/** Tomorrow at 09:00, in the `datetime-local` value format (local time). */
-function nextDayDefault(): string {
+const DEFAULT_TIME = "09:00";
+
+/** Keep only phone-ish chars and cap the digit count at 9 (MK format, e.g.
+ *  075 000 000). Separators (space, -, /, +, parens) are preserved. */
+function formatPhone(raw: string): string {
+  const cleaned = raw.replace(/[^\d+()\s\-/]/g, "");
+  let digits = 0;
+  let out = "";
+  for (const ch of cleaned) {
+    if (/\d/.test(ch)) {
+      if (digits >= 9) continue;
+      digits++;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+/** Tomorrow as a `date` input value (YYYY-MM-DD, local time). */
+function tomorrowDate(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  d.setHours(9, 0, 0, 0);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours(),
-  )}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Today as a `date` input value — used as the min selectable date. */
+function todayDate(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 interface Props {
   loggedIn: boolean;
   defaultName?: string;
-  defaultDistrict?: District;
   defaultStreet?: string;
 }
 
 /**
- * Lets a logged-in resident send Комуналец a complaint or order a container /
- * tractor. Mirrors the AgencyAlertComposer form pattern. Not-logged-in visitors
- * see a prompt to sign in (the chat buttons remain available above this).
+ * Lets a resident send Комуналец a complaint or order a container / tractor.
+ * The form is visible to everyone, but submitting requires sign-in. Anti-spam
+ * throttling is enforced server-side in submitKomunalecRequest.
  */
 export default function KomunalecContactForm({
   loggedIn,
   defaultName,
-  defaultDistrict,
   defaultStreet,
 }: Props) {
-  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
   const [type, setType] = useState<KomunalecRequestType>("complaint");
-  const [scheduledAt, setScheduledAt] = useState(nextDayDefault);
+  const [date, setDate] = useState(tomorrowDate);
+  const [time, setTime] = useState(DEFAULT_TIME);
   const [name, setName] = useState(defaultName ?? "");
   const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState(defaultStreet ?? "");
-  const [district, setDistrict] = useState<District>(
-    defaultDistrict ?? "Center",
-  );
+  const [street, setStreet] = useState(defaultStreet ?? "");
+  const [streetNum, setStreetNum] = useState("");
   const [message, setMessage] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0] ?? null;
-    setFile(f);
-    setPreview(f ? URL.createObjectURL(f) : null);
-  }
 
   function reset() {
     setType("complaint");
-    setScheduledAt(nextDayDefault());
+    setDate(tomorrowDate());
+    setTime(DEFAULT_TIME);
     setPhone("");
+    setStreetNum("");
     setMessage("");
-    setFile(null);
-    setPreview(null);
   }
 
   async function submit() {
@@ -97,48 +91,33 @@ export default function KomunalecContactForm({
       router.push("/login");
       return;
     }
-    if (!name.trim() || !phone.trim()) {
-      toast.error("Внесете име и телефон");
+    if (!name.trim()) {
+      toast.error("Внесете име");
+      return;
+    }
+    if (phone.replace(/\D/g, "").length !== 9) {
+      toast.error("Внесете валиден телефон (9 цифри, пр. 075 000 000)");
       return;
     }
     setSubmitting(true);
 
-    // Optional photo → issue-photos/komunalec/<userId>/...
-    let photoUrl: string | null = null;
-    if (file) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        const ext = file.name.split(".").pop() || "jpg";
-        const path = `komunalec/${user.id}/${Date.now()}.${ext}`;
-        const { data, error } = await supabase.storage
-          .from("issue-photos")
-          .upload(path, file, { contentType: file.type });
-        if (error) {
-          setSubmitting(false);
-          toast.error(`Грешка при прикачување слика: ${error.message}`);
-          return;
-        }
-        photoUrl = supabase.storage
-          .from("issue-photos")
-          .getPublicUrl(data.path).data.publicUrl;
-      }
-    }
+    const address =
+      [street.trim(), streetNum.trim()].filter(Boolean).join(" ") || null;
+    const scheduled_at =
+      type !== "complaint" && date && time
+        ? new Date(`${date}T${time}`).toISOString()
+        : null;
 
     const res = await submitKomunalecRequest({
       request_type: type,
       category: null,
       full_name: name,
       phone,
-      address: address || null,
-      district,
+      address,
+      district: null,
       message: message || null,
-      photo_url: photoUrl,
-      scheduled_at:
-        type !== "complaint" && scheduledAt
-          ? new Date(scheduledAt).toISOString()
-          : null,
+      photo_url: null,
+      scheduled_at,
     });
     setSubmitting(false);
 
@@ -148,7 +127,9 @@ export default function KomunalecContactForm({
     }
     toast.success("Барањето е испратено до Комуналец");
     reset();
-    router.refresh();
+    // Full reload so the operator's "Барања" counter/queue (a client-side
+    // fetch that router.refresh() wouldn't re-run) reflects the new request.
+    setTimeout(() => window.location.reload(), 800);
   }
 
   return (
@@ -174,13 +155,13 @@ export default function KomunalecContactForm({
           </option>
         ))}
       </select>
-      <div className="mb-3 hidden flex-wrap gap-1.5 sm:flex">
+      <div className="mb-3 hidden grid-cols-3 gap-1.5 sm:grid">
         {REQUEST_TYPES.map(([val, label]) => (
           <button
             key={val}
             type="button"
             onClick={() => setType(val)}
-            className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`flex items-center justify-center rounded-lg border px-2 py-2.5 text-center text-xs font-semibold leading-tight transition-colors ${
               type === val
                 ? "border-primary bg-primary text-white"
                 : "border-zinc-200 bg-white text-zinc-600 hover:border-primary/50"
@@ -190,19 +171,33 @@ export default function KomunalecContactForm({
         ))}
       </div>
 
-      {/* Preferred date/time — only for container/tractor orders */}
+      {/* Preferred date + time — only for container/tractor orders */}
       {type !== "complaint" && (
-        <label className="mb-3 block">
-          <span className="mb-1 block text-xs font-medium text-theme-muted">
-            Сакан термин (датум и време)
-          </span>
-          <input
-            type="datetime-local"
-            value={scheduledAt}
-            onChange={(e) => setScheduledAt(e.target.value)}
-            className="box-border block w-full min-w-0 max-w-full appearance-none rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-primary"
-          />
-        </label>
+        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-theme-muted">
+              Датум
+            </span>
+            <input
+              type="date"
+              value={date}
+              min={todayDate()}
+              onChange={(e) => setDate(e.target.value)}
+              className="box-border block w-full min-w-0 max-w-full appearance-none rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-primary"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-theme-muted">
+              Време
+            </span>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="box-border block w-full min-w-0 max-w-full appearance-none rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-primary"
+            />
+          </label>
+        </div>
       )}
 
       <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -214,29 +209,31 @@ export default function KomunalecContactForm({
         />
         <input
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => setPhone(formatPhone(e.target.value))}
           inputMode="tel"
-          placeholder="Телефон за контакт"
+          type="tel"
+          placeholder="Телефон (075 000 000)"
           className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-primary"
         />
       </div>
 
-      <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <StreetAutocomplete
-          value={address}
-          onChange={setAddress}
-          placeholder="Адреса / улица"
+      {/* Street + house number (mirrors the issue report form) */}
+      <div className="mb-3 flex items-stretch gap-2">
+        <div className="min-w-0 flex-1">
+          <StreetAutocomplete
+            value={street}
+            onChange={setStreet}
+            placeholder="Адреса / улица"
+            inputClassName="w-full rounded-xl border border-zinc-200 pl-9 pr-4 py-3 text-sm outline-none transition-colors focus:border-primary"
+          />
+        </div>
+        <input
+          value={streetNum}
+          onChange={(e) => setStreetNum(e.target.value.replace(/[^\d\w/]/g, ""))}
+          placeholder="Бр."
+          maxLength={8}
+          className="w-14 shrink-0 rounded-xl border border-zinc-200 px-2 text-center text-sm outline-none transition-colors focus:border-primary"
         />
-        <select
-          value={district}
-          onChange={(e) => setDistrict(e.target.value as District)}
-          className="w-full min-w-0 rounded-xl border border-zinc-200 px-3 py-3 text-sm outline-none focus:border-primary">
-          {DISTRICTS.map((d) => (
-            <option key={d} value={d}>
-              {DISTRICT_LABELS[d] ?? d}
-            </option>
-          ))}
-        </select>
       </div>
 
       <textarea
@@ -250,39 +247,6 @@ export default function KomunalecContactForm({
         }
         className="mb-3 w-full resize-none rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-primary"
       />
-
-      {/* Optional photo */}
-      <div className="mb-3">
-        {preview ? (
-          <div className="relative inline-block">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={preview}
-              alt="Преглед"
-              className="h-24 w-24 rounded-lg object-cover"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setFile(null);
-                setPreview(null);
-              }}
-              className="absolute -right-2 -top-2 rounded-full bg-white p-1 text-red-500 shadow">
-              <Trash2 size={14} />
-            </button>
-          </div>
-        ) : (
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-500 hover:border-primary/50">
-            <ImagePlus size={14} /> Додај слика (опционално)
-            <input
-              type="file"
-              accept="image/*"
-              onChange={pickFile}
-              className="hidden"
-            />
-          </label>
-        )}
-      </div>
 
       <button
         onClick={submit}
