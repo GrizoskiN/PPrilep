@@ -113,6 +113,65 @@ export async function sendApprovalConfirmation(to: string, name: string, tier: s
   });
 }
 
+// ── Email: new Комуналец request (operator only) ──────────────────────────────
+// One email per submission to the Комуналец operator(s). No citizen-facing
+// confirmation email — the citizen gets a free in-app notification + a toast,
+// which keeps Resend usage to a single message per request.
+
+const KOMUNALEC_REQUEST_LABELS: Record<string, string> = {
+  complaint: "Поплака",
+  container: "Нарачка на контејнер",
+  tractor:   "Нарачка на трактор (собирање ѓубре)",
+};
+
+const KOMUNALEC_CATEGORY_LABELS: Record<string, string> = {
+  garbage: "Ѓубре",
+  park:    "Парк / зеленило",
+};
+
+export async function sendKomunalecRequest(
+  to: string | string[],
+  data: {
+    requestType: string;
+    category: string | null;
+    fullName: string;
+    phone: string;
+    address: string | null;
+    district: string | null;
+    message: string | null;
+    scheduledAt?: string | null;
+  },
+) {
+  const typeLabel = KOMUNALEC_REQUEST_LABELS[data.requestType] ?? data.requestType;
+  const catLabel = data.category
+    ? KOMUNALEC_CATEGORY_LABELS[data.category] ?? data.category
+    : null;
+  const scheduledLabel = data.scheduledAt
+    ? new Date(data.scheduledAt).toLocaleString("mk-MK", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : null;
+  return resend.emails.send({
+    from: FROM, to,
+    subject: `🗑️ Ново барање — Комуналец: ${typeLabel}`,
+    html: base(`
+      <p>Ново барање преку <strong>Мој Прилеп</strong> за <strong>Комуналец</strong>:</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px">
+        <tr><td style="padding:6px 0;color:#64748b;width:120px">Тип</td><td><strong>${typeLabel}</strong></td></tr>
+        ${catLabel ? `<tr><td style="padding:6px 0;color:#64748b">Категорија</td><td>${catLabel}</td></tr>` : ""}
+        <tr><td style="padding:6px 0;color:#64748b">Име</td><td><strong>${data.fullName}</strong></td></tr>
+        <tr><td style="padding:6px 0;color:#64748b">Телефон</td><td>${data.phone}</td></tr>
+        ${data.address ? `<tr><td style="padding:6px 0;color:#64748b">Адреса</td><td>${data.address}</td></tr>` : ""}
+        ${data.district ? `<tr><td style="padding:6px 0;color:#64748b">Населба</td><td>${data.district}</td></tr>` : ""}
+        ${scheduledLabel ? `<tr><td style="padding:6px 0;color:#64748b">Термин</td><td><strong>${scheduledLabel}</strong></td></tr>` : ""}
+        ${data.message ? `<tr><td style="padding:6px 0;color:#64748b">Порака</td><td>${data.message}</td></tr>` : ""}
+      </table>
+      ${btn("https://mojprilep.mk/agency/komunalec", "Отвори ги барањата →")}
+    `),
+  });
+}
+
 // ── Email: rejection ──────────────────────────────────────────────────────────
 
 export async function sendRejectionNotice(to: string, name: string) {

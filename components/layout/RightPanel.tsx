@@ -10,7 +10,7 @@ import PublicSponsorPanel from "../ui/PublicSponsorPanel";
  */
 export default function RightPanel() {
   return (
-    <aside className="flex h-auto flex-col gap-3 overflow-y-auto bg-transparent lg:gap-0 lg:text-sm xl:text-base">
+    <aside className="flex h-auto flex-col gap-3 overflow-y-auto bg-transparent text-sm lg:gap-0 xl:text-base">
       <PromiseTracker />
       <PublicSponsorPanel />
     </aside>

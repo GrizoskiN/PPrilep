@@ -15,7 +15,8 @@ export default function KomunalecQuickActions() {
         href={PAYMENT_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="group flex items-center gap-4 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 p-4 shadow-sm hover:from-emerald-700 hover:to-emerald-800 transition-all active:scale-[0.99]">
+        style={{ backgroundColor: "#008976" }}
+        className="group flex items-center gap-4 rounded-2xl p-4 shadow-sm transition-all hover:brightness-95 active:scale-[0.99]">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 group-hover:bg-white/30 transition-colors">
           <CreditCard size={22} className="text-white" />
         </div>

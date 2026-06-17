@@ -230,12 +230,12 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
 
           {threeColumn && (
             <section>
-              <div className="px-4 pb-2 pt-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+              <div className="px-3 pb-2 pt-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                   Инфо панел
                 </p>
               </div>
-              <div className="pb-6 px-0">{panelContent}</div>
+              <div className="px-3 pb-6">{panelContent}</div>
             </section>
           )}
         </div>

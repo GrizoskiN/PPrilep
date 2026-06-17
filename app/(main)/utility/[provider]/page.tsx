@@ -6,6 +6,9 @@ import WaterQuickActions from "../../../../components/utility/WaterQuickActions"
 import WaterInfoAccordion from "../../../../components/utility/WaterInfoAccordion";
 import KomunalecQuickActions from "../../../../components/utility/KomunalecQuickActions";
 import KomunalecInfoAccordion from "../../../../components/utility/KomunalecInfoAccordion";
+import AgencyChatButtons from "../../../../components/agency/AgencyChatButtons";
+import KomunalecContactForm from "../../../../components/komunalec/KomunalecContactForm";
+import KomunalecRequestQueue from "../../../../components/komunalec/KomunalecRequestQueue";
 import AgencyPostCard from "../../../../components/agency/AgencyPostCard";
 import { formatDays } from "../../../../lib/utils";
 import type { AgencyId } from "../../../../lib/agencies";
@@ -13,6 +16,7 @@ import type {
   Provider,
   IssueStatus,
   AgencyPost,
+  District,
 } from "../../../../lib/types/database";
 import { notFound } from "next/navigation";
 
@@ -50,7 +54,6 @@ const PROVIDER_ICONS: Record<Provider, string> = {
   kindergarten: "🌸",
 };
 
-const FB_PAGE_URL = "https://www.facebook.com/JKP.VIK.PP/";
 
 interface Props {
   params: Promise<{ provider: string }>;
@@ -82,12 +85,20 @@ export default async function UtilityPage({ params }: Props) {
 
   // Admin or this provider's own operator may manage the announcements here.
   let canManage = false;
+  let viewer: {
+    is_admin?: boolean;
+    agency_id?: string | null;
+    full_name?: string | null;
+    district?: string | null;
+    street_name?: string | null;
+  } | null = null;
   if (authUser.user) {
-    const { data: viewer } = await supabase
+    const { data } = await supabase
       .from("profiles")
-      .select("is_admin, agency_id")
+      .select("is_admin, agency_id, full_name, district, street_name")
       .eq("id", authUser.user.id)
       .maybeSingle();
+    viewer = data;
     canManage =
       viewer?.is_admin === true || viewer?.agency_id === PROVIDER_AGENCY[p];
   }
@@ -118,6 +129,19 @@ export default async function UtilityPage({ params }: Props) {
           <>
             <KomunalecQuickActions />
             <KomunalecInfoAccordion />
+            <div className="space-y-3">
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-700">
+                💬 Контакт и барања
+              </h2>
+              <AgencyChatButtons agencyId="komunalec" />
+              <KomunalecContactForm
+                loggedIn={!!authUser.user}
+                defaultName={viewer?.full_name ?? undefined}
+                defaultDistrict={(viewer?.district as District) ?? undefined}
+                defaultStreet={viewer?.street_name ?? undefined}
+              />
+              {canManage && <KomunalecRequestQueue />}
+            </div>
           </>
         )}
 
@@ -135,7 +159,7 @@ export default async function UtilityPage({ params }: Props) {
             <h2 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-700">
               📣 Соопштенија од службата
             </h2>
-            <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
+            <div className="max-h-112 space-y-3 overflow-y-auto pr-1">
               {agencyList.map((post) => (
                 <AgencyPostCard key={post.id} post={post} canManage={canManage} />
               ))}

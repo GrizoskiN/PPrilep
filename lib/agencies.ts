@@ -48,6 +48,27 @@ export const AGENCY_BY_CATEGORY: Record<Category, AgencyId> = {
   other: "municipality",
 };
 
+/**
+ * Viber / WhatsApp click-to-chat numbers per agency. Numbers are in plain
+ * international form WITHOUT the leading "+" or spaces (e.g. "38970123456");
+ * the UI builds `wa.me/<n>` and `viber://chat?number=%2B<n>` from them.
+ *
+ * ⚠️ PLACEHOLDER — replace the Комуналец number(s) with the real one before
+ * launch. Leave a channel empty/undefined to hide that button.
+ */
+export interface AgencyContact {
+  viber?: string;
+  whatsapp?: string;
+}
+
+export const AGENCY_CONTACT: Partial<Record<AgencyId, AgencyContact>> = {
+  komunalec: {
+    // Комуналец mobile line (076/207-113), also used for stray-dog reports.
+    viber: "38976207113",
+    whatsapp: "38976207113",
+  },
+};
+
 /** Display name of the institution responsible for a category. */
 export function companyForCategory(category: Category): string {
   return AGENCIES[AGENCY_BY_CATEGORY[category]].name;

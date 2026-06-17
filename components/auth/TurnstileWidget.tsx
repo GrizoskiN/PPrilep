@@ -22,7 +22,13 @@ import {
 
 const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
-/** True only when a site key is configured. Use to gate submit buttons. */
+/** True only when a site key is configured. Use to gate submit buttons.
+ *
+ * Note: CAPTCHA cannot be disabled per-environment, because Supabase's "Enable
+ * Captcha protection" rejects every tokenless auth request project-wide. To work
+ * on localhost, add `localhost`/`127.0.0.1` to this widget's allowed hostnames
+ * in the Cloudflare Turnstile dashboard so the widget can solve and produce a
+ * valid token. */
 export const turnstileEnabled = !!SITE_KEY;
 
 export interface TurnstileHandle {

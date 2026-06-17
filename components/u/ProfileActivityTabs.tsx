@@ -71,7 +71,7 @@ export default function ProfileActivityTabs({
       </div>
 
       {/* Scrollable list — visible scrollbar once content grows past the cap */}
-      <div className="max-h-[28rem] space-y-2 overflow-y-auto pr-1.5">
+      <div className="max-h-112 space-y-2 overflow-y-auto pr-1.5">
         {tab === "reports" ? (
           issues.length === 0 ? (
             <p className="text-sm text-slate-500">Нема поднесени пријави.</p>

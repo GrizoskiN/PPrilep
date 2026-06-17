@@ -124,6 +124,29 @@ export interface AgencyPost {
   created_at: string;
 }
 
+export type KomunalecRequestType = "complaint" | "container" | "tractor";
+export type KomunalecRequestStatus =
+  | "new"
+  | "in_progress"
+  | "done"
+  | "rejected";
+
+export interface KomunalecRequest {
+  id: number;
+  user_id: string;
+  request_type: KomunalecRequestType;
+  category: string | null;
+  full_name: string;
+  phone: string;
+  address: string | null;
+  district: string | null;
+  message: string | null;
+  photo_url: string | null;
+  scheduled_at: string | null;
+  status: KomunalecRequestStatus;
+  created_at: string;
+}
+
 export interface IssueStatusLogEntry {
   id: number;
   issue_id: number;

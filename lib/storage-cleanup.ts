@@ -25,6 +25,7 @@ const REF_TABLES = [
   "issue_change_requests",
   "profiles",
   "agency_posts",
+  "komunalec_requests",
 ];
 
 export interface SweepResult {

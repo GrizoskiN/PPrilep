@@ -55,7 +55,7 @@ const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE
 const BUCKET = "issue-photos";
 // Every table that could store an issue-photos URL (a superset is safe — extra
 // tables only ever PROTECT files from deletion, never endanger them).
-const REF_TABLES = ["issues", "issue_comments", "issue_change_requests", "profiles", "agency_posts"];
+const REF_TABLES = ["issues", "issue_comments", "issue_change_requests", "profiles", "agency_posts", "komunalec_requests"];
 const PATH_RE = new RegExp(`/${BUCKET}/([^"'?#\\\\\\s]+)`, "g");
 
 console.log(`\n  Bucket          : ${BUCKET}`);

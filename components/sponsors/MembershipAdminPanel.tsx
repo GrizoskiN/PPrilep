@@ -78,7 +78,7 @@ function TierSelect({ profile }: { profile: Profile }) {
     TIER_OPTIONS.find((o) => o.value === current) ?? TIER_OPTIONS[0];
 
   return (
-    <div className="relative inline-flex w-full items-center gap-1.5">
+    <div className="relative inline-flex w-full min-w-0 items-center gap-1.5">
       {pending && (
         <RefreshCw
           size={12}
@@ -90,7 +90,7 @@ function TierSelect({ profile }: { profile: Profile }) {
         onChange={handleChange}
         disabled={pending}
         className={cn(
-          "w-full appearance-none rounded-lg border py-1.5 pl-3 pr-7 text-xs font-semibold",
+          "w-full min-w-0 appearance-none rounded-lg border py-1.5 pl-3 pr-7 text-xs font-semibold",
           "bg-white outline-none cursor-pointer transition-colors",
           "focus:ring-2 focus:ring-primary/30",
           pending && "pl-7 opacity-50 pointer-events-none",
