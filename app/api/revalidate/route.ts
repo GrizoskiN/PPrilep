@@ -34,17 +34,17 @@ export async function POST(req: Request) {
     // AND the tagged Sanity fetch must be purged — the list fetchers cache data
     // by tag, so revalidatePath alone would re-render with stale data.
     if (!docType || docType === "post") {
-      revalidateTag("positive");
+      revalidateTag("positive", "max");
       revalidatePath("/positive", "page");
       revalidatePath("/positive/[slug]", "page");
     }
     if (!docType || docType === "project") {
-      revalidateTag("projects");
+      revalidateTag("projects", "max");
       revalidatePath("/projects", "page");
       revalidatePath("/projects/[slug]", "page");
     }
     if (!docType || docType === "cityEvent") {
-      revalidateTag("events");
+      revalidateTag("events", "max");
       revalidatePath("/events", "page");
     }
 
