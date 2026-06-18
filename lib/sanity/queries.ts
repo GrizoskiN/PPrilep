@@ -144,9 +144,14 @@ export type SanityProject = {
   publishedAt: string;
 };
 
+type SanityImg = { asset: { _ref: string } };
+
 export type SanityProjectFull = SanityProject & {
   body: unknown[] | null;
   gallery: { asset: { _ref: string }; alt: string | null; caption: string | null }[] | null;
+  beforeAfter:
+    | { before: SanityImg; after: SanityImg; label: string | null }[]
+    | null;
 };
 
 const PROJECTS_QUERY = `
@@ -184,7 +189,8 @@ const PROJECT_BY_SLUG_QUERY = `
     featured,
     publishedAt,
     body,
-    gallery[]{ asset, alt, caption }
+    gallery[]{ asset, alt, caption },
+    beforeAfter[]{ before, after, label }
   }
 `;
 

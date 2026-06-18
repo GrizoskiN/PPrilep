@@ -128,6 +128,47 @@ export default defineType({
       ],
     }),
     defineField({
+      name: "beforeAfter",
+      title: "Пред / Потоа (лизгач)",
+      description:
+        "Секоја споредба прикажува лизгач за откривање — повлечи за да видиш пред и потоа.",
+      type: "array",
+      of: [
+        {
+          type: "object",
+          name: "comparison",
+          title: "Споредба",
+          fields: [
+            defineField({
+              name: "before",
+              title: "Пред (слика)",
+              type: "image",
+              options: { hotspot: true },
+              validation: (r) => r.required(),
+            }),
+            defineField({
+              name: "after",
+              title: "Потоа (слика)",
+              type: "image",
+              options: { hotspot: true },
+              validation: (r) => r.required(),
+            }),
+            defineField({
+              name: "label",
+              title: "Опис (опционално)",
+              type: "string",
+            }),
+          ],
+          preview: {
+            select: { media: "after", title: "label" },
+            prepare({ media, title }) {
+              return { media, title: title || "Пред / Потоа" };
+            },
+          },
+        },
+      ],
+    }),
+    defineField({
       name: "volunteersCount",
       title: "Број на волонтери",
       type: "number",
