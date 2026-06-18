@@ -5,6 +5,7 @@ import { PortableText, type PortableTextComponents } from "@portabletext/react";
 import { fetchProject } from "../../../../lib/sanity/queries";
 import { urlForImage } from "../../../../lib/sanity/image";
 import BeforeAfterSlider from "../../../../components/projects/BeforeAfterSlider";
+import ShareRow from "../../../../components/ui/ShareRow";
 
 const STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
   completed: { label: "Завршен", classes: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -190,7 +191,7 @@ export default async function ProjectDetailPage({ params }: Props) {
       )}
 
       {/* Gallery */}
-      {project.gallery && project.gallery.length > 0 && (
+      {project.gallery && project.gallery.length > 1 && (
         <section className="my-6 space-y-3">
           <h2 className="text-lg font-semibold text-zinc-900">Галерија</h2>
           <div className="grid grid-cols-2 gap-2">
@@ -215,6 +216,11 @@ export default async function ProjectDetailPage({ params }: Props) {
           </div>
         </section>
       )}
+
+      <ShareRow
+        url={`https://www.mojprilep.mk/projects/${project.slug}`}
+        title={project.title}
+      />
     </article>
   );
 }

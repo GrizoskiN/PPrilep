@@ -32,7 +32,7 @@ function ProjectCard({ project }: { project: SanityProject }) {
       href={`/projects/${project.slug}`}
       className="group block overflow-hidden rounded-2xl border border-[#e4ece8] bg-white transition-all hover:border-[#cfe0da] hover:shadow-md">
       {/* Cover image */}
-      <div className="relative h-60 w-full bg-slate-100 sm:h-64">
+      <div className="relative h-80 w-full bg-slate-100">
         {coverUrl ? (
           <Image
             src={coverUrl}

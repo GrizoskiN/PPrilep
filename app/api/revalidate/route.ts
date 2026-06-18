@@ -14,7 +14,7 @@
  *       HTTP method: POST
  */
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 const SECRET = process.env.SANITY_REVALIDATE_SECRET;
@@ -30,16 +30,21 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const docType = body?._type as string | undefined;
 
-    // Revalidate based on which document type changed
+    // Revalidate based on which document type changed. Both the rendered path
+    // AND the tagged Sanity fetch must be purged — the list fetchers cache data
+    // by tag, so revalidatePath alone would re-render with stale data.
     if (!docType || docType === "post") {
+      revalidateTag("positive");
       revalidatePath("/positive", "page");
       revalidatePath("/positive/[slug]", "page");
     }
     if (!docType || docType === "project") {
+      revalidateTag("projects");
       revalidatePath("/projects", "page");
       revalidatePath("/projects/[slug]", "page");
     }
     if (!docType || docType === "cityEvent") {
+      revalidateTag("events");
       revalidatePath("/events", "page");
     }
 
