@@ -18,6 +18,20 @@ export interface BusRoute {
   path: [number, number][];
 }
 
+// ─── Live vehicles ──────────────────────────────────────────────────────────
+// Physical GPS trackers streaming to Flespi. `deviceId` is the Flespi device id
+// (gw/devices/<id>), `routeId` is the line it currently runs (matches a
+// BusRoute.id below). To reassign a bus to another line, change its routeId.
+export interface LiveBus {
+  deviceId: number;
+  label: string;
+  routeId: string;
+}
+
+export const LIVE_BUSES: LiveBus[] = [
+  { deviceId: 8414769, label: "Автобус 1", routeId: "line1" },
+];
+
 // ─── Stops ────────────────────────────────────────────────────────────────────
 
 export const BUS_STOPS: BusStop[] = [

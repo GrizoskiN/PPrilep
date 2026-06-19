@@ -11,15 +11,54 @@ const PRILEP_BOUNDS: [[number, number], [number, number]] = [
   [21.67, 41.42],
 ];
 
+// ── Live buses ────────────────────────────────────────────────────────────────
+type LiveBus = {
+  id: number;
+  label: string;
+  routeId: string;
+  lat: number;
+  lng: number;
+  speed: number | null;
+  course: number | null;
+  lastSeen: string | null;
+};
+
+const POLL_MS = 15_000; // device reports every ~30s, so 15s loses nothing
+const STALE_MS = 5 * 60_000; // no fix in 5 min → treat as offline (greyed out)
+
+function busTimeAgo(iso: string | null): string {
+  if (!iso) return "—";
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (min < 1) return "пред момент";
+  if (min < 60) return `пред ${min} мин`;
+  return `пред ${Math.round(min / 60)} ч`;
+}
+
+function busBadgeEl(color: string, short: string, stale: boolean): HTMLDivElement {
+  const el = document.createElement("div");
+  el.style.cssText = `
+    display:flex;align-items:center;gap:3px;cursor:pointer;
+    padding:3px 7px 3px 5px;border-radius:999px;
+    background:${stale ? "#94a3b8" : color};color:#fff;
+    font:700 12px/1 system-ui,sans-serif;white-space:nowrap;
+    border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,0.35);
+    opacity:${stale ? 0.75 : 1};
+  `;
+  el.innerHTML = `<span style="font-size:13px">🚌</span>${short ? `<span>${short}</span>` : ""}`;
+  return el;
+}
+
 export default function BusRouteMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const busMarkersRef = useRef<Map<number, maplibregl.Marker>>(new Map());
   const [activeRoutes, setActiveRoutes] = useState<Set<string>>(
     () => new Set(BUS_ROUTES.map((r) => r.id)),
   );
   const [mapReady, setMapReady] = useState(false);
+  const [liveBuses, setLiveBuses] = useState<LiveBus[]>([]);
 
   // ── Init map ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -161,9 +200,11 @@ export default function BusRouteMap() {
     });
 
     mapRef.current = map;
+    const busMarkers = busMarkersRef.current;
     return () => {
       map.remove();
       mapRef.current = null;
+      busMarkers.clear();
     };
   }, []);
 
@@ -196,6 +237,114 @@ export default function BusRouteMap() {
       map.setFilter("stops-dot", filter);
     }
   }, [activeRoutes, mapReady]);
+
+  // ── Poll live bus positions (only while the tab is visible) ─────────────────
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    async function load() {
+      try {
+        const res = await fetch("/api/buses/positions", { cache: "no-store" });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) setLiveBuses((json.buses ?? []) as LiveBus[]);
+      } catch {
+        /* keep last known positions on a transient error */
+      }
+    }
+    function start() {
+      if (timer) return;
+      load();
+      timer = setInterval(load, POLL_MS);
+    }
+    function stop() {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    }
+    function onVisibility() {
+      if (document.hidden) stop();
+      else start();
+    }
+
+    if (!document.hidden) start();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  // ── Sync live bus markers ───────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const markers = busMarkersRef.current;
+    const live = new Set<number>();
+
+    for (const bus of liveBuses) {
+      // Hide a bus when its line is toggled off (consistent with route lines).
+      if (!activeRoutes.has(bus.routeId)) continue;
+      live.add(bus.id);
+
+      const route = BUS_ROUTES.find((r) => r.id === bus.routeId);
+      const color = route?.color ?? "#52525b";
+      const short = route?.name.replace(/[^0-9]/g, "") ?? "";
+      const stale = bus.lastSeen
+        ? Date.now() - new Date(bus.lastSeen).getTime() > STALE_MS
+        : true;
+
+      // Assigning onclick (not addEventListener) replaces any prior handler,
+      // so updated markers carry fresh position/speed in their popup.
+      const onClick = (e: MouseEvent) => {
+        e.stopPropagation();
+        popupRef.current?.remove();
+        popupRef.current = new maplibregl.Popup({
+          closeButton: false,
+          offset: 14,
+          maxWidth: "240px",
+        })
+          .setLngLat([bus.lng, bus.lat])
+          .setHTML(
+            `<div style="padding:8px 10px;font-family:inherit;">
+              <p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#18181b;">${bus.label}</p>
+              <p style="margin:0 0 6px;font-size:12px;color:${color};font-weight:600;">${route?.name ?? ""}</p>
+              <div style="display:flex;gap:10px;font-size:12px;color:#52525b;">
+                <span>🚀 ${Math.round(bus.speed ?? 0)} км/ч</span>
+                <span>🕒 ${busTimeAgo(bus.lastSeen)}</span>
+              </div>
+            </div>`,
+          )
+          .addTo(map);
+      };
+
+      const badge = busBadgeEl(color, short, stale);
+      const existing = markers.get(bus.id);
+      if (existing) {
+        existing.setLngLat([bus.lng, bus.lat]);
+        const markerEl = existing.getElement();
+        markerEl.replaceChildren(...badge.childNodes);
+        markerEl.onclick = onClick;
+      } else {
+        badge.onclick = onClick;
+        markers.set(
+          bus.id,
+          new maplibregl.Marker({ element: badge }).setLngLat([bus.lng, bus.lat]).addTo(map),
+        );
+      }
+    }
+
+    // Drop markers for buses no longer live or whose line is hidden.
+    for (const [id, marker] of markers) {
+      if (!live.has(id)) {
+        marker.remove();
+        markers.delete(id);
+      }
+    }
+  }, [liveBuses, activeRoutes, mapReady]);
 
   // Close the line dropdown when clicking anywhere outside it.
   useEffect(() => {
