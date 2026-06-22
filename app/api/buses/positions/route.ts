@@ -14,12 +14,12 @@
  * The `s-maxage` header lets Vercel's edge (and Cloudflare in front) serve one
  * cached response to all viewers — near-zero egress no matter how many watch.
  *
- * Setup: add FLESPI_TOKEN (a read-only Flespi token) to the env. Which devices
- * map to which line lives in lib/data/busRoutes.ts (LIVE_BUSES).
+ * Setup: add FLESPI_TOKEN (a read-only Flespi token) to the env. Which device
+ * runs which line lives in the `buses` table (operator-editable at runtime).
  */
 
 import { NextResponse } from "next/server";
-import { LIVE_BUSES } from "../../../../lib/data/busRoutes";
+import { createAdminClient } from "../../../../lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -77,28 +77,47 @@ async function lastFix(deviceId: number): Promise<Msg | null> {
   }
 }
 
+type FleetRow = {
+  id: number;
+  label: string;
+  flespi_device_id: number;
+  active_line_id: string | null;
+};
+
 export async function GET() {
-  if (!TOKEN || LIVE_BUSES.length === 0) {
-    return NextResponse.json(
-      { buses: [], updatedAt: new Date().toISOString() },
-      { headers: CACHE_HEADERS },
-    );
+  const empty = NextResponse.json(
+    { buses: [], updatedAt: new Date().toISOString() },
+    { headers: CACHE_HEADERS },
+  );
+  if (!TOKEN) return empty;
+
+  // In-service buses with a line assigned (operator-editable in the buses table).
+  const admin = createAdminClient();
+  const { data: fleet, error } = await admin
+    .from("buses")
+    .select("id,label,flespi_device_id,active_line_id")
+    .eq("is_active", true)
+    .not("active_line_id", "is", null);
+  if (error) {
+    console.error("[buses/positions] fleet", error.message);
+    return empty;
   }
+  if (!fleet || fleet.length === 0) return empty;
 
   const nowS = Date.now() / 1000;
   const fixes = await Promise.all(
-    LIVE_BUSES.map(async (cfg) => ({ cfg, fix: await lastFix(cfg.deviceId) })),
+    (fleet as FleetRow[]).map(async (b) => ({ b, fix: await lastFix(b.flespi_device_id) })),
   );
 
-  const buses = fixes.flatMap(({ cfg, fix }) => {
+  const buses = fixes.flatMap(({ b, fix }) => {
     if (!fix) return [];
     const ts = num(fix["server.timestamp"]);
     if (ts === null || nowS - ts > MAX_AGE_S) return []; // stale / out of service
     return [
       {
-        id: cfg.deviceId,
-        label: cfg.label,
-        routeId: cfg.routeId,
+        id: b.id,
+        label: b.label,
+        routeId: b.active_line_id,
         lat: num(fix["position.latitude"])!,
         lng: num(fix["position.longitude"])!,
         speed: num(fix["position.speed"]),

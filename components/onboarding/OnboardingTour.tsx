@@ -188,9 +188,19 @@ export default function OnboardingTour() {
       /* ignore */
     }
     if (seen) return;
-    const id = setTimeout(() => setOpen(true), 600);
+    const id = setTimeout(() => {
+      // Mark seen the instant it opens — so leaving /account mid-tour (without
+      // reaching the finale) never makes it reappear on the next profile visit.
+      try {
+        localStorage.setItem(storageKey, "1");
+      } catch {
+        /* ignore */
+      }
+      if (user) supabase.from("profiles").update({ onboarded: true }).eq("id", user.id);
+      setOpen(true);
+    }, 600);
     return () => clearTimeout(id);
-  }, [storageKey, pathname, profile]);
+  }, [storageKey, pathname, profile, user, supabase]);
 
   useEffect(() => {
     if (!open) return;

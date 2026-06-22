@@ -5,6 +5,15 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Bus, ChevronDown, Check } from "lucide-react";
 import { BUS_ROUTES, BUS_STOPS } from "../../lib/data/busRoutes";
+import {
+  buildGeom,
+  snapToLine,
+  pointAt,
+  bearingAt,
+  angleDiff,
+  type RouteGeom,
+  type LngLat,
+} from "../../lib/geo/lineFollow";
 
 const PRILEP_BOUNDS: [[number, number], [number, number]] = [
   [21.44, 41.28],
@@ -23,8 +32,51 @@ type LiveBus = {
   lastSeen: string | null;
 };
 
-const POLL_MS = 15_000; // device reports every ~30s, so 15s loses nothing
-const STALE_MS = 5 * 60_000; // no fix in 5 min → treat as offline (greyed out)
+// Line geometry, precomputed once, for snapping + smooth following.
+const ROUTE_GEOM: Record<string, RouteGeom> = Object.fromEntries(
+  BUS_ROUTES.map((r) => [r.id, buildGeom(r.path as LngLat[])]),
+);
+
+const POLL_MS = 15_000; // smoothness is animated client-side, so 15s loses nothing
+const STALE_MS = 5 * 60_000; // no fix in 5 min → grey out
+const SNAP_MAX_M = 45; // snap to the line only within this gap, else show raw point
+const MIN_TWEEN_MS = 1_500; // floor so a fix never teleports
+const MAX_TWEEN_MS = 40_000; // ceiling so a long gap doesn't crawl forever
+const GREY = "#94a3b8";
+
+// Per-bus animation state — lives in a ref, mutated by the rAF loop (not React).
+type BusAnim = {
+  routeId: string;
+  label: string;
+  color: string;
+  onRoute: boolean;
+  // line-referenced tween (when onRoute)
+  fromAlong: number;
+  toAlong: number;
+  forward: boolean;
+  // raw-coordinate tween (when off route)
+  fromLngLat: LngLat;
+  toLngLat: LngLat;
+  // animation clock
+  startT: number;
+  durationMs: number;
+  renderAlong: number;
+  renderLngLat: LngLat;
+  bearing: number;
+  // meta
+  speed: number | null;
+  lastSeen: string | null;
+  fixKey: string; // dedupe identical fixes between polls
+};
+
+type BusEls = {
+  marker: maplibregl.Marker;
+  root: HTMLDivElement;
+  noseWrap: HTMLDivElement;
+  nose: HTMLDivElement;
+  badge: HTMLDivElement;
+  label: HTMLSpanElement;
+};
 
 function busTimeAgo(iso: string | null): string {
   if (!iso) return "—";
@@ -34,18 +86,42 @@ function busTimeAgo(iso: string | null): string {
   return `пред ${Math.round(min / 60)} ч`;
 }
 
-function busBadgeEl(color: string, short: string, stale: boolean): HTMLDivElement {
-  const el = document.createElement("div");
-  el.style.cssText = `
-    display:flex;align-items:center;gap:3px;cursor:pointer;
-    padding:3px 7px 3px 5px;border-radius:999px;
-    background:${stale ? "#94a3b8" : color};color:#fff;
-    font:700 12px/1 system-ui,sans-serif;white-space:nowrap;
-    border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,0.35);
-    opacity:${stale ? 0.75 : 1};
-  `;
-  el.innerHTML = `<span style="font-size:13px">🚌</span>${short ? `<span>${short}</span>` : ""}`;
-  return el;
+// A pill with the bus icon + line number, plus a rotating "nose" triangle
+// showing heading.
+function makeBusEl(short: string): BusEls {
+  const root = document.createElement("div");
+  root.style.cssText = "position:relative;width:52px;height:52px;cursor:pointer;";
+
+  const noseWrap = document.createElement("div");
+  noseWrap.style.cssText =
+    "position:absolute;inset:0;transform-origin:center;transition:transform 0.25s linear;";
+  const nose = document.createElement("div");
+  nose.style.cssText =
+    "position:absolute;left:50%;top:0;transform:translateX(-50%);width:0;height:0;" +
+    "border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:11px solid #000;";
+  noseWrap.appendChild(nose);
+
+  const badge = document.createElement("div");
+  badge.style.cssText =
+    "position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);" +
+    "display:flex;align-items:center;gap:3px;padding:4px 9px 4px 7px;" +
+    "border-radius:999px;background:#000;color:#fff;font:700 14px/1 system-ui,sans-serif;" +
+    "white-space:nowrap;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,0.35);";
+
+  const icon = document.createElement("span");
+  icon.style.cssText = "font-size:18px;line-height:1;";
+  icon.textContent = "🚌";
+
+  const label = document.createElement("span");
+  label.textContent = short;
+  if (!short) label.style.display = "none";
+
+  badge.appendChild(icon);
+  badge.appendChild(label);
+
+  root.appendChild(noseWrap);
+  root.appendChild(badge);
+  return { marker: null as unknown as maplibregl.Marker, root, noseWrap, nose, badge, label };
 }
 
 export default function BusRouteMap() {
@@ -53,7 +129,8 @@ export default function BusRouteMap() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const detailsRef = useRef<HTMLDetailsElement>(null);
-  const busMarkersRef = useRef<Map<number, maplibregl.Marker>>(new Map());
+  const busStateRef = useRef<Map<number, BusAnim>>(new Map());
+  const busElsRef = useRef<Map<number, BusEls>>(new Map());
   const [activeRoutes, setActiveRoutes] = useState<Set<string>>(
     () => new Set(BUS_ROUTES.map((r) => r.id)),
   );
@@ -200,11 +277,13 @@ export default function BusRouteMap() {
     });
 
     mapRef.current = map;
-    const busMarkers = busMarkersRef.current;
+    const els = busElsRef.current;
+    const states = busStateRef.current;
     return () => {
       map.remove();
       mapRef.current = null;
-      busMarkers.clear();
+      els.clear();
+      states.clear();
     };
   }, []);
 
@@ -278,12 +357,14 @@ export default function BusRouteMap() {
     };
   }, []);
 
-  // ── Sync live bus markers ───────────────────────────────────────────────────
+  // ── Reconcile live buses → markers + animation state ────────────────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
-    const markers = busMarkersRef.current;
+    const els = busElsRef.current;
+    const states = busStateRef.current;
     const live = new Set<number>();
+    const now = Date.now();
 
     for (const bus of liveBuses) {
       // Hide a bus when its line is toggled off (consistent with route lines).
@@ -291,27 +372,48 @@ export default function BusRouteMap() {
       live.add(bus.id);
 
       const route = BUS_ROUTES.find((r) => r.id === bus.routeId);
-      const color = route?.color ?? "#52525b";
+      const baseColor = route?.color ?? "#52525b";
       const short = route?.name.replace(/[^0-9]/g, "") ?? "";
       const stale = bus.lastSeen
-        ? Date.now() - new Date(bus.lastSeen).getTime() > STALE_MS
+        ? now - new Date(bus.lastSeen).getTime() > STALE_MS
         : true;
+      const color = stale ? GREY : baseColor;
 
-      // Assigning onclick (not addEventListener) replaces any prior handler,
-      // so updated markers carry fresh position/speed in their popup.
-      const onClick = (e: MouseEvent) => {
-        e.stopPropagation();
+      const geom = ROUTE_GEOM[bus.routeId];
+      const snap = geom ? snapToLine(geom, bus.lng, bus.lat) : null;
+      const onRoute = !!snap && snap.gap <= SNAP_MAX_M;
+
+      // Ensure a marker exists.
+      let e = els.get(bus.id);
+      if (!e) {
+        e = makeBusEl(short);
+        e.marker = new maplibregl.Marker({ element: e.root, anchor: "center" })
+          .setLngLat([bus.lng, bus.lat])
+          .addTo(map);
+        els.set(bus.id, e);
+      }
+      // Styling can change (stale → grey, or the bus reassigned to another line).
+      e.badge.style.background = color;
+      e.nose.style.borderBottomColor = color;
+      e.label.textContent = short;
+      e.label.style.display = short ? "" : "none";
+
+      // Click → details popup (reassigned each reconcile to carry fresh data).
+      e.root.onclick = (ev) => {
+        ev.stopPropagation();
+        const st = states.get(bus.id);
+        const pos: LngLat = st ? st.renderLngLat : [bus.lng, bus.lat];
         popupRef.current?.remove();
         popupRef.current = new maplibregl.Popup({
           closeButton: false,
-          offset: 14,
+          offset: 18,
           maxWidth: "240px",
         })
-          .setLngLat([bus.lng, bus.lat])
+          .setLngLat(pos)
           .setHTML(
             `<div style="padding:8px 10px;font-family:inherit;">
               <p style="margin:0 0 3px;font-size:13px;font-weight:600;color:#18181b;">${bus.label}</p>
-              <p style="margin:0 0 6px;font-size:12px;color:${color};font-weight:600;">${route?.name ?? ""}</p>
+              <p style="margin:0 0 6px;font-size:12px;color:${baseColor};font-weight:600;">${route?.name ?? ""}</p>
               <div style="display:flex;gap:10px;font-size:12px;color:#52525b;">
                 <span>🚀 ${Math.round(bus.speed ?? 0)} км/ч</span>
                 <span>🕒 ${busTimeAgo(bus.lastSeen)}</span>
@@ -321,30 +423,120 @@ export default function BusRouteMap() {
           .addTo(map);
       };
 
-      const badge = busBadgeEl(color, short, stale);
-      const existing = markers.get(bus.id);
-      if (existing) {
-        existing.setLngLat([bus.lng, bus.lat]);
-        const markerEl = existing.getElement();
-        markerEl.replaceChildren(...badge.childNodes);
-        markerEl.onclick = onClick;
+      // Update animation state.
+      const fixKey = bus.lastSeen ?? `${bus.lat},${bus.lng}`;
+      const prev = states.get(bus.id);
+
+      if (!prev) {
+        // First sighting: place instantly (no tween).
+        const along = onRoute ? snap!.along : 0;
+        const lngLat: LngLat = onRoute ? [snap!.lng, snap!.lat] : [bus.lng, bus.lat];
+        let forward = true;
+        if (onRoute && geom && bus.course != null) {
+          forward = angleDiff(bearingAt(geom, along, true), bus.course) <= 90;
+        }
+        const brg =
+          onRoute && geom ? bearingAt(geom, along, forward) : bus.course ?? 0;
+        states.set(bus.id, {
+          routeId: bus.routeId, label: bus.label, color, onRoute,
+          fromAlong: along, toAlong: along, forward,
+          fromLngLat: lngLat, toLngLat: lngLat,
+          startT: now, durationMs: 0,
+          renderAlong: along, renderLngLat: lngLat, bearing: brg,
+          speed: bus.speed, lastSeen: bus.lastSeen, fixKey,
+        });
+      } else if (prev.fixKey !== fixKey) {
+        // New fix: tween from the current rendered position to the new target,
+        // over the real time that elapsed between the two fixes.
+        const deltaMs =
+          prev.lastSeen && bus.lastSeen
+            ? new Date(bus.lastSeen).getTime() - new Date(prev.lastSeen).getTime()
+            : MIN_TWEEN_MS;
+        const durationMs = Math.max(MIN_TWEEN_MS, Math.min(MAX_TWEEN_MS, deltaMs));
+
+        if (onRoute && geom) {
+          const from = prev.onRoute ? prev.renderAlong : snap!.along;
+          let toAlong = snap!.along;
+          // Loop wrap: take the short way around a closed line.
+          if (geom.length > 0 && Math.abs(toAlong - from) > geom.length / 2) {
+            toAlong += toAlong < from ? geom.length : -geom.length;
+          }
+          prev.forward =
+            Math.abs(toAlong - from) > 1
+              ? toAlong >= from
+              : bus.course != null
+                ? angleDiff(bearingAt(geom, snap!.along, true), bus.course) <= 90
+                : prev.forward;
+          prev.onRoute = true;
+          prev.fromAlong = from;
+          prev.toAlong = toAlong;
+        } else {
+          prev.onRoute = false;
+          prev.fromLngLat = prev.renderLngLat;
+          prev.toLngLat = [bus.lng, bus.lat];
+          if (bus.course != null) prev.bearing = bus.course;
+        }
+        prev.routeId = bus.routeId;
+        prev.label = bus.label;
+        prev.color = color;
+        prev.startT = now;
+        prev.durationMs = durationMs;
+        prev.speed = bus.speed;
+        prev.lastSeen = bus.lastSeen;
+        prev.fixKey = fixKey;
       } else {
-        badge.onclick = onClick;
-        markers.set(
-          bus.id,
-          new maplibregl.Marker({ element: badge }).setLngLat([bus.lng, bus.lat]).addTo(map),
-        );
+        // Same fix between polls: just keep meta / colour fresh.
+        prev.routeId = bus.routeId;
+        prev.label = bus.label;
+        prev.color = color;
       }
     }
 
-    // Drop markers for buses no longer live or whose line is hidden.
-    for (const [id, marker] of markers) {
+    // Drop markers + state for buses no longer present or whose line is hidden.
+    for (const [id, e] of els) {
       if (!live.has(id)) {
-        marker.remove();
-        markers.delete(id);
+        e.marker.remove();
+        els.delete(id);
+        states.delete(id);
       }
     }
   }, [liveBuses, activeRoutes, mapReady]);
+
+  // ── Animate markers along their line every frame ────────────────────────────
+  useEffect(() => {
+    if (!mapReady) return;
+    let raf = 0;
+    const tick = () => {
+      const now = Date.now();
+      for (const [id, st] of busStateRef.current) {
+        const e = busElsRef.current.get(id);
+        if (!e) continue;
+        const p = st.durationMs <= 0 ? 1 : Math.min(1, (now - st.startT) / st.durationMs);
+
+        let lngLat: LngLat;
+        if (st.onRoute) {
+          const geom = ROUTE_GEOM[st.routeId];
+          const along = st.fromAlong + (st.toAlong - st.fromAlong) * p;
+          lngLat = geom ? pointAt(geom, along) : st.renderLngLat;
+          st.renderAlong = along;
+          if (geom && Math.abs(st.toAlong - st.fromAlong) > 1) {
+            st.bearing = bearingAt(geom, along, st.forward);
+          }
+        } else {
+          lngLat = [
+            st.fromLngLat[0] + (st.toLngLat[0] - st.fromLngLat[0]) * p,
+            st.fromLngLat[1] + (st.toLngLat[1] - st.fromLngLat[1]) * p,
+          ];
+        }
+        st.renderLngLat = lngLat;
+        e.marker.setLngLat(lngLat);
+        e.noseWrap.style.transform = `rotate(${st.bearing}deg)`;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [mapReady]);
 
   // Close the line dropdown when clicking anywhere outside it.
   useEffect(() => {

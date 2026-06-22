@@ -2,6 +2,7 @@ import { createClient } from "../../../../lib/supabase/server";
 import Link from "next/link";
 import StatusPill from "../../../../components/ui/StatusPill";
 import BusRouteMap from "../../../../components/ui/BusRouteMap";
+import BusLineManager from "../../../../components/transport/BusLineManager";
 import WaterQuickActions from "../../../../components/utility/WaterQuickActions";
 import WaterInfoAccordion from "../../../../components/utility/WaterInfoAccordion";
 import KomunalecQuickActions from "../../../../components/utility/KomunalecQuickActions";
@@ -148,6 +149,7 @@ export default async function UtilityPage({ params }: Props) {
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-zinc-700">Линии на градски превоз</h2>
             <BusRouteMap />
+            {canManage && <BusLineManager />}
           </div>
         )}
 
