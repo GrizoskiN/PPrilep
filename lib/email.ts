@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { AGENCY_EMAIL } from "./agencies";
+import { paymentBlockHtml } from "./payment";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -65,7 +66,8 @@ export async function sendRequestReceived(to: string, name: string, tier: string
     html: base(`
       <p>Здраво <strong>${name}</strong>,</p>
       <p>Ја примивме вашата апликација за <strong>${TIER_LABELS[tier] ?? tier}</strong>.</p>
-      <p>Наш тим ќе ве контактира наскоро со детали за уплата и потврда на членарината.</p>
+      <p>Можете да ја извршите уплатата на следнава сметка. По евидентирана уплата, вашата членарина ќе биде активирана.</p>
+      ${paymentBlockHtml(`${TIER_LABELS[tier] ?? tier} — Мој Прилеп`)}
       <p style="color:#64748b;font-size:13px">Ако имате прашања, одговорете на оваа порака или пишете на <a href="mailto:${ADMIN}" style="color:#2aa99d">${ADMIN}</a>.</p>
     `),
   });

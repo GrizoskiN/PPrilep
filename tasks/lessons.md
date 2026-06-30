@@ -183,6 +183,27 @@ ANY anonymous user change any issue's status. Both traps below applied:
   `lib/data/streets.ts` to normalize to the local canonical entry.
   Falls back to empty if no confident match — never pollutes the form.
 
+### A new single-segment pretty URL must be added to `RESERVED_USERNAMES`
+- Added a `/prevoz` rewrite → `/utility/transport`. The page then rendered with
+  3 columns + a perpetual right-panel skeleton, only on the pretty URL. Cause:
+  the shell picks columns from `pathname`, and `isProfileRoute()` treats ANY
+  single-segment path that isn't a reserved username as a `/<username>` profile
+  (→ 3-col + sponsor panel). `/prevoz` wasn't reserved → mistaken for a profile.
+- ✅ Whenever you add a top-level route segment (especially a rewrite alias),
+  add it to `RESERVED_USERNAMES` in `lib/utils.ts`. Then `usesThreeColumns`
+  falls through to `THREE_COLUMN_ROUTES` (add it there too if you want 3-col).
+  Bonus: also stops anyone registering that word as a username.
+
+### Diagnose layout bugs from the SHELL, not the feature inside it
+- "Layout is wrong + GPS wrong" on `/prevoz` looked like a map bug; I wrongly
+  blamed the route `line-offset` and removed it. The real cause was the shell
+  treating the new single-segment URL as a profile route (see the
+  RESERVED_USERNAMES lesson above). The offset is intended and lives fine in
+  prod.
+- ✅ When a whole page "looks wrong," check column/shell logic
+  (`lib/layout.ts`, `Shell.tsx`) FIRST. Don't rip out a feature on a hunch —
+  confirm against production (`git show HEAD:<file>`) before reverting.
+
 ### Pin reverse-geocoding is best-effort, not authoritative
 - If `matchStreet()` returns null, leave the street field empty.
   Don't auto-fill garbage just to put something there.

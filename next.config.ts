@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.1.119", "localhost"],
+  // Pretty, search-friendly URL for the live bus map. /prevoz transparently
+  // serves the transport utility page (URL stays /prevoz). The page sets its
+  // canonical to /prevoz so the old /utility/transport path isn't indexed twice.
+  async rewrites() {
+    return [{ source: "/prevoz", destination: "/utility/transport" }];
+  },
   images: {
     remotePatterns: [
       {

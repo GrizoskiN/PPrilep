@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  ArrowLeft, X, User, Building2, Mail, Phone, MessageSquare, Send, Check,
+  ArrowLeft, X, User, Building2, Mail, Phone, MessageSquare, Send, Check, HandHeart,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { cn } from "../../lib/utils";
 import { toast } from "sonner";
 import { submitMembershipRequest } from "../../app/actions/membership";
+import PaymentDetails from "./PaymentDetails";
 
-type Step = "choose" | "member" | "company";
+type Step = "choose" | "member" | "company" | "donate";
 type MembershipTier = "volunteer" | "monthly" | "yearly";
 type CompanyTier = "basic" | "preferred" | "premium";
 
@@ -102,7 +104,11 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
     setDone(true);
   }
 
-  const stepTitle = step === "member" ? "Станете член" : step === "company" ? "Партнер" : null;
+  const stepTitle =
+    step === "member" ? "Станете член"
+    : step === "company" ? "Партнер"
+    : step === "donate" ? "Донација"
+    : null;
 
   const modal = (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true">
@@ -141,6 +147,24 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
               <p className="text-sm text-zinc-500 pb-1">Изберете начин на поддршка:</p>
               <ChoiceCard icon={<User size={22} />} title="Станете член" desc="Поединци кои сакаат да придонесат со своето време, знаење или членарина." onClick={() => setStep("member")} />
               <ChoiceCard icon={<Building2 size={22} />} title="Компанија партнер" desc="Бизниси кои сакаат да вложат во заедницата и да добијат видливост." onClick={() => setStep("company")} />
+              <ChoiceCard icon={<HandHeart size={22} />} title="Донација" desc="Еднократна донација на сметката на здружението — секој денар е важен." onClick={() => setStep("donate")} />
+            </div>
+          )}
+
+          {/* Donate — show bank accounts directly */}
+          {step === "donate" && (
+            <div className="px-5 py-6 space-y-4">
+              <p className="text-sm leading-relaxed text-zinc-600">
+                Ви благодариме што сакате да го поддржите Прилеп! 💚 Уплатете слободен износ
+                на сметката подолу — средствата одат во конкретни акции во градот.
+              </p>
+              <PaymentDetails />
+              <button
+                onClick={onClose}
+                className="w-full rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-colors"
+                style={{ background: "#2aa99d" }}>
+                Затвори
+              </button>
             </div>
           )}
 
@@ -155,15 +179,15 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
                 </p>
               </div>
               <div className="flex w-full max-w-xs flex-col gap-2">
-                <a href="/auth/login?next=/sponsors"
+                <Link href="/auth/login?next=/sponsors"
                    className="flex items-center justify-center rounded-xl py-3 text-sm font-semibold text-white transition-colors"
                    style={{ background: "#2aa99d" }}>
                   Најава
-                </a>
-                <a href="/auth/register?next=/sponsors"
+                </Link>
+                <Link href="/auth/register?next=/sponsors"
                    className="flex items-center justify-center rounded-xl border border-zinc-200 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors">
                   Создадете сметка
-                </a>
+                </Link>
               </div>
             </div>
           )}
@@ -199,9 +223,16 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
                   })}
                 </div>
                 {(memberForm.membership === "monthly" || memberForm.membership === "yearly") && (
-                  <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 leading-relaxed">
-                    Уплатница и детали за плаќање ќе добиете на вашата е-пошта по потврдата.
-                  </p>
+                  <div className="space-y-2">
+                    <PaymentDetails
+                      purpose={`${
+                        memberForm.membership === "monthly" ? "Месечна" : "Годишна"
+                      } членарина — Мој Прилеп`}
+                    />
+                    <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 leading-relaxed">
+                      Деталите за уплата ќе ги добиете и на е-пошта. Членарината се активира по евидентирана уплата.
+                    </p>
+                  </div>
                 )}
               </div>
 
@@ -251,13 +282,14 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
                     </button>
                   ))}
                 </div>
+                <PaymentDetails purpose="Партнерство — Мој Прилеп" />
                 <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 leading-relaxed">
-                  Фактура и уплатница ќе добиете на е-пошта по потврдата.
+                  Фактура ќе добиете на е-пошта по потврдата.
                 </p>
                 {!userId && (
                   <p className="text-xs text-zinc-500 px-1">
                     Имате сметка?{" "}
-                    <a href="/auth/login?next=/sponsors" className="font-semibold underline text-zinc-700">Најавете се</a>
+                    <Link href="/auth/login?next=/sponsors" className="font-semibold underline text-zinc-700">Најавете се</Link>
                     {" "}за да го следите статусот на вашата апликација.
                   </p>
                 )}
@@ -276,7 +308,7 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
 
           {/* Success */}
           {done && (
-            <div className="flex flex-col items-center justify-center gap-4 px-5 py-14 text-center">
+            <div className="flex flex-col items-center gap-4 px-5 py-10 text-center">
               <span className="flex h-16 w-16 items-center justify-center rounded-full text-3xl" style={{ background: "#d8f4ef" }}>
                 {autoApproved ? "🎉" : "📬"}
               </span>
@@ -285,9 +317,14 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
                 <p className="mt-1 text-sm text-zinc-500 leading-relaxed max-w-xs">
                   {autoApproved
                     ? "Вашиот волонтерски статус е активен. Проверете ја е-поштата за потврда."
-                    : "Вашата апликација е примена. Ќе ве контактираме наскоро со детали за уплата."}
+                    : "Вашата апликација е примена. Извршете ја уплатата на сметката подолу — деталите ви ги испративме и на е-пошта."}
                 </p>
               </div>
+              {!autoApproved && (
+                <div className="w-full max-w-sm text-left">
+                  <PaymentDetails />
+                </div>
+              )}
               <button onClick={onClose} className="mt-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-colors" style={{ background: "#2aa99d" }}>
                 Затвори
               </button>

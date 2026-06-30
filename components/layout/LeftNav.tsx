@@ -340,7 +340,7 @@ export default function LeftNav() {
             iconTone="amber"
           />
           <LeftNavItem
-            href="/utility/transport"
+            href="/prevoz"
             label="Градски превоз"
             iconNode={<FontAwesomeIcon icon={faBus} className="h-4 w-4" />}
             iconTone="violet"

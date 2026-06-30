@@ -40,7 +40,7 @@ const AGENCY_META: Record<
   transport_parking: {
     icon: Bus,
     color: "text-indigo-600",
-    href: "/utility/transport",
+    href: "/prevoz",
   },
   municipality: {
     icon: Building2,

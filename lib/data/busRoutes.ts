@@ -62,7 +62,7 @@ export const BUS_STOPS: BusStop[] = [
   // ── Line 2 only — center section (GPS-precise) ────────────────────────────
   { id: "l2-av",          name: "Автобуска Станица",           coordinates: [21.5402440, 41.3444772], routeIds: ["line2"] },
   { id: "zadsudot",       name: "Зад Судот",                   coordinates: [21.5499881, 41.3444018], routeIds: ["line2"] },
-  { id: "l2-ft",          name: "Футур Маркет",                coordinates: [21.5469199, 41.3435364], routeIds: ["line2"] },
+  { id: "l2-ft",          name: "Футура Маркет",                coordinates: [21.5469199, 41.3435364], routeIds: ["line2"] },
 
   // ── Line 2 only — southeast section (GPS-precise) ─────────────────────────
   { id: "bolnica",        name: "Болница",                     coordinates: [21.5640745, 41.3423410], routeIds: ["line2"] },
@@ -83,7 +83,7 @@ export const BUS_STOPS: BusStop[] = [
   { id: "hotelsonce",     name: "Хотел Сонце",                 coordinates: [21.5461671, 41.3371827], routeIds: ["line3"] },
   { id: "simpo",          name: "Симпо",                       coordinates: [21.5501403, 41.3405239], routeIds: ["line3"] },
   { id: "l3-s10",         name: "Медицинска",                  coordinates: [21.5485254, 41.3427349], routeIds: ["line3"] },
-  { id: "futurmarket",    name: "Футур Маркет",                coordinates: [21.5499472, 41.3444179], routeIds: ["line3"] },
+  { id: "futurmarket",    name: "Футура Маркет",                coordinates: [21.5499472, 41.3444179], routeIds: ["line3"] },
   { id: "l3-5pazar",      name: "5та Прилепска Пазарче",       coordinates: [21.5670098, 41.3441109], routeIds: ["line3"] },
   { id: "5taprilep",      name: "5та Прилепска Згради",        coordinates: [21.5684932, 41.3478832], routeIds: ["line3"] },
   { id: "amsm",           name: "АМСМ",                        coordinates: [21.5705393, 41.3477620], routeIds: ["line3"] },

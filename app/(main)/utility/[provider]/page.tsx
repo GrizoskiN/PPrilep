@@ -59,6 +59,25 @@ interface Props {
   params: Promise<{ provider: string }>;
 }
 
+export async function generateMetadata({
+  params,
+}: Props): Promise<import("next").Metadata> {
+  const { provider } = await params;
+  if (!PROVIDERS.includes(provider as Provider)) return {};
+  const p = provider as Provider;
+  // Transport is served at the pretty /prevoz URL — point the canonical there so
+  // the rewrite source (/utility/transport) isn't indexed as a duplicate.
+  const canonical = p === "transport" ? "/prevoz" : `/utility/${p}`;
+  return {
+    title: `${PROVIDER_LABELS[p]} — Мој Прилеп`,
+    description:
+      p === "transport"
+        ? "Автобусите во градскиот превоз во Прилеп во живо на мапа — линии, стојки и тековни соопштенија."
+        : `Официјални соопштенија и информации од ${PROVIDER_LABELS[p]} во Прилеп.`,
+    alternates: { canonical },
+  };
+}
+
 export default async function UtilityPage({ params }: Props) {
   const { provider } = await params;
   if (!PROVIDERS.includes(provider as Provider)) notFound();
@@ -105,16 +124,19 @@ export default async function UtilityPage({ params }: Props) {
 
   return (
       <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-base font-semibold">
-              {PROVIDER_ICONS[p]} {PROVIDER_LABELS[p]}
-            </h1>
-            <p className="text-xs text-zinc-500">
-              Официјални соопштенија од комуналното претпријатие
-            </p>
+        {/* Transport (the live bus map) speaks for itself — no heading needed. */}
+        {p !== "transport" && (
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-base font-semibold">
+                {PROVIDER_ICONS[p]} {PROVIDER_LABELS[p]}
+              </h1>
+              <p className="text-xs text-zinc-500">
+                Официјални соопштенија од комуналното претпријатие
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Water quick actions — pay bill + emergency contacts */}
         {p === "water" && (

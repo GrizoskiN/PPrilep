@@ -179,8 +179,8 @@ export function parseIssueIdFromSegment(segment: string): number | null {
 export const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
   // app/(main) routes
   "about", "account", "communities", "events", "fund", "heroes", "ideas",
-  "info", "initiatives", "issues", "kindergarten", "positive", "privacy",
-  "projects", "sponsors", "utility",
+  "info", "initiatives", "issues", "kindergarten", "positive", "prevoz",
+  "privacy", "projects", "sponsors", "utility",
   // top-level app routes / system
   "admin", "api", "auth", "gradinka", "map", "studio", "u",
   // common reserved words to keep free for the future

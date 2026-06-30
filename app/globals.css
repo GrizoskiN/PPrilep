@@ -415,6 +415,55 @@ label[for] {
   cursor: pointer;
 }
 
+/* Bus detail panel entrance — left dock (lg+) slides in, mobile drawer rises */
+@keyframes pp-panel-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes pp-panel-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.pp-panel-left {
+  animation: pp-panel-in-left 0.28s ease;
+}
+.pp-panel-up {
+  animation: pp-panel-in-up 0.3s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-panel-left,
+  .pp-panel-up {
+    animation: none;
+  }
+}
+
+/* Map info popups (stops) — slim, rounded, glassy card */
+.pp-map-popup .maplibregl-popup-content {
+  border-radius: 18px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+}
+.pp-map-popup .maplibregl-popup-tip {
+  border-top-color: rgba(255, 255, 255, 0.72);
+  border-bottom-color: rgba(255, 255, 255, 0.72);
+}
+
 /* MapLibre attribution — keep the © button but hide the expanded text */
 .maplibregl-ctrl-attrib-inner {
   display: none !important;

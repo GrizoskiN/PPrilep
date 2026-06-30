@@ -20,68 +20,16 @@
 
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import { lastFix, num, type FleetRow } from "../../../../lib/buses/flespi";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const TOKEN = process.env.FLESPI_TOKEN;
-const FIELDS =
-  "server.timestamp,position.latitude,position.longitude,position.speed,position.direction,position.valid";
 const MAX_AGE_S = 30 * 60; // hide a bus with no valid fix in 30 min (out of service)
 
 const CACHE_HEADERS = {
   "Cache-Control": "public, s-maxage=8, stale-while-revalidate=20",
-};
-
-type Msg = {
-  "server.timestamp"?: number;
-  "position.latitude"?: number;
-  "position.longitude"?: number;
-  "position.speed"?: number;
-  "position.direction"?: number;
-  "position.valid"?: boolean;
-};
-
-function num(v: unknown): number | null {
-  return typeof v === "number" && Number.isFinite(v) ? v : null;
-}
-
-/** Newest valid fix for a device, by Flespi receive time. Null on error/no fix. */
-async function lastFix(deviceId: number): Promise<Msg | null> {
-  const data = encodeURIComponent(
-    JSON.stringify({ reverse: true, count: 100, fields: FIELDS }),
-  );
-  try {
-    const res = await fetch(
-      `https://flespi.io/gw/devices/${deviceId}/messages?data=${data}`,
-      { headers: { Authorization: `FlespiToken ${TOKEN}` }, cache: "no-store" },
-    );
-    if (!res.ok) throw new Error(`flespi ${res.status}`);
-    const json = (await res.json()) as { result?: Msg[] };
-
-    let best: Msg | null = null;
-    let bestTs = -Infinity;
-    for (const m of json.result ?? []) {
-      if (m["position.valid"] === false) continue; // skip pre-lock junk
-      if (num(m["position.latitude"]) === null) continue;
-      if (num(m["position.longitude"]) === null) continue;
-      const ts = num(m["server.timestamp"]);
-      if (ts === null || ts <= bestTs) continue;
-      bestTs = ts;
-      best = m;
-    }
-    return best;
-  } catch (e) {
-    console.error("[buses/positions]", deviceId, e);
-    return null;
-  }
-}
-
-type FleetRow = {
-  id: number;
-  label: string;
-  flespi_device_id: number;
-  active_line_id: string | null;
 };
 
 export async function GET() {
@@ -106,7 +54,7 @@ export async function GET() {
 
   const nowS = Date.now() / 1000;
   const fixes = await Promise.all(
-    (fleet as FleetRow[]).map(async (b) => ({ b, fix: await lastFix(b.flespi_device_id) })),
+    (fleet as FleetRow[]).map(async (b) => ({ b, fix: await lastFix(b.flespi_device_id, TOKEN!) })),
   );
 
   const buses = fixes.flatMap(({ b, fix }) => {
