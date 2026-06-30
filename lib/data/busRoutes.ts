@@ -14,7 +14,6 @@ export interface BusRoute {
   name: string;
   description: string;
   color: string;
-  stopIds: string[];
   path: [number, number][];
 }
 
@@ -31,20 +30,24 @@ export const BUS_STOPS: BusStop[] = [
   { id: "varos-brasnara", name: "Варош Брашнара",              coordinates: [21.5313211, 41.3559289], routeIds: ["line1"] },
   { id: "varos-meanite",  name: "Варош Кај Меаните",           coordinates: [21.5371692, 41.3554870], routeIds: ["line1"] },
   { id: "pedano",         name: "Педано",                      coordinates: [21.5566092, 41.3507848], routeIds: ["line1"] },
-  { id: "stadion",        name: "Градски Стадион",             coordinates: [21.5631992, 41.3454199], routeIds: ["line1", "line3"] },
-  { id: "rampolevkata",   name: "ООУ Рампо Левката",           coordinates: [21.5572817, 41.3422259], routeIds: ["line1"] },
+  { id: "ana marija",         name: "Ана Марија",                      coordinates: [  21.5538113, 41.3500992], routeIds: ["line1"] },
+  { id: "bonita",        name: "Бонита",             coordinates: [21.5631992, 41.3454199], routeIds: ["line1", "line3"] },
+  { id: "gradski stadion",   name: "Градски Стадион",           coordinates: [21.5608582, 41.3437752], routeIds: ["line1"] },
+  { id: "teatar",   name: "Театар",           coordinates: [21.5572817, 41.3422259], routeIds: ["line1"] },
   { id: "hotelsalida",    name: "Хотел Салида",                coordinates: [21.5556239, 41.3326856], routeIds: ["line1"] },
-  { id: "terminal",       name: "Терминал",                    coordinates: [21.5548495, 41.3378030], routeIds: ["line1"] },
+  { id: "maticno",       name: "Матично",                    coordinates: [21.553944, 41.339260], routeIds: ["line1"] },
+  { id: "rampo levkata",       name: "ООУ Рампо Левката",                    coordinates: [21.554812, 41.337905], routeIds: ["line1"] },
 
   // ── Line 1 center spine (GPS-precise) ─────────────────────────────────────
-  { id: "avtobusna",      name: "Автобуска Станица",           coordinates: [21.5504140, 41.3489952], routeIds: ["line1"] },
-  { id: "palmasop",       name: "Палма Шоп",                   coordinates: [21.5536115, 41.3490956], routeIds: ["line1"] },
-  { id: "lastrada",       name: "Ла Страда",                   coordinates: [21.5563634, 41.3481554], routeIds: ["line1"] },
+  { id: "ured",      name: "Уред",           coordinates: [21.5504140, 41.3489952], routeIds: ["line1"] },
+  { id: "ambulanta tutunski",      name: "Амбуланта Тутунски",           coordinates: [21.5457408,41.352087], routeIds: ["line1"] },
+
+  { id: "13-katnica",       name: "13 Катница",                   coordinates: [21.5563634, 41.3481554], routeIds: ["line1"] },
 
   // ── Shared Line 1 + 2 (GPS-precise on both) ───────────────────────────────
   { id: "ekonomski",      name: "Економски Факултет",          coordinates: [21.5418388, 41.3541164], routeIds: ["line1", "line2"] },
   { id: "blakoneski",     name: "ООУ Блаже Конески",           coordinates: [21.5435715, 41.3525864], routeIds: ["line1", "line2"] },
-  { id: "teatar",         name: "Театар",                      coordinates: [21.5632836, 41.3448273], routeIds: ["line1", "line2"] },
+  { id: "Brza pomos",         name: "Брза Помош",                      coordinates: [21.5632836, 41.3448273], routeIds: ["line1", "line2"] },
 
   // ── Shared Lines 1 + 2 + 3 (GPS-precise) ─────────────────────────────────
   { id: "furnapletve",    name: "Фурна Плетварец",             coordinates: [21.5586805, 41.3475819], routeIds: ["line1", "line2", "line3"] },
@@ -52,7 +55,7 @@ export const BUS_STOPS: BusStop[] = [
 
   // ── Shared Lines 2 + 3 (GPS-precise) ─────────────────────────────────────
   { id: "zavodzdrav",     name: "Завод за Здравство",          coordinates: [21.5644247, 41.3447533], routeIds: ["line2", "line3"] },
-  { id: "l2-ps",          name: "Палма Шоп",                   coordinates: [21.5550169, 41.3469059], routeIds: ["line2", "line3"] },
+  { id: "l2-ps",          name: "Ла Страда",                   coordinates: [21.5550169, 41.3469059], routeIds: ["line2", "line3"] },
 
   // ── Line 2 only — northwest section (GPS-precise) ─────────────────────────
   { id: "internat",       name: "Интернат",                    coordinates: [21.5417384, 41.3511023], routeIds: ["line2"] },
@@ -61,7 +64,7 @@ export const BUS_STOPS: BusStop[] = [
 
   // ── Line 2 only — center section (GPS-precise) ────────────────────────────
   { id: "l2-av",          name: "Автобуска Станица",           coordinates: [21.5402440, 41.3444772], routeIds: ["line2"] },
-  { id: "zadsudot",       name: "Зад Судот",                   coordinates: [21.5499881, 41.3444018], routeIds: ["line2"] },
+  { id: "Palmashop",       name: "Палма Шоп",                   coordinates: [21.5489025, 41.3439115], routeIds: ["line2"] },
   { id: "l2-ft",          name: "Футура Маркет",                coordinates: [21.5469199, 41.3435364], routeIds: ["line2"] },
 
   // ── Line 2 only — southeast section (GPS-precise) ─────────────────────────
@@ -75,19 +78,20 @@ export const BUS_STOPS: BusStop[] = [
   // ── Line 3 only (GPS-precise) ─────────────────────────────────────────────
   { id: "amfora",         name: "Амфора Ресторан",             coordinates: [21.5221594, 41.3430948], routeIds: ["line3"] },
   { id: "zabinomaalo",    name: "Жабино Маало",                coordinates: [21.5286504, 41.3433945], routeIds: ["line3"] },
-  { id: "centropromet",   name: "Центропромет Магацини",       coordinates: [21.5362695, 41.3438081], routeIds: ["line3"] },
-  { id: "l3-donia",       name: "Дониа",                       coordinates: [21.5408754, 41.3410428], routeIds: ["line3"] },
+  { id: "vasidora",   name: "Васидора",       coordinates: [21.5362695, 41.3438081], routeIds: ["line3"] },
+  { id: "centropromet magacin",       name: "Центропромет Магацини",                       coordinates: [21.5408754, 41.3410428], routeIds: ["line3"] },
+  { id: "donia",       name: "Дониа",                       coordinates: [21.5406812,41.3389155], routeIds: ["line3"] },
   { id: "l3-terminal",    name: "Терминал",                    coordinates: [21.5403820, 41.3370358], routeIds: ["line3"] },
-  { id: "fabrika",        name: "Ф-ка 11ти Октомври",          coordinates: [21.5422201, 41.3347970], routeIds: ["line3"] },
-  { id: "l3-s7",          name: "Рид Приод",                   coordinates: [21.5434734, 41.3356716], routeIds: ["line3"] },
+  { id: "ford servis",        name: "Форд Сервис",          coordinates: [21.5422201, 41.3347970], routeIds: ["line3"] },
+  { id: "fabrika",          name: "Ф-ка 11ти Октомври",                   coordinates: [21.5434734, 41.3356716], routeIds: ["line3"] },
   { id: "hotelsonce",     name: "Хотел Сонце",                 coordinates: [21.5461671, 41.3371827], routeIds: ["line3"] },
   { id: "simpo",          name: "Симпо",                       coordinates: [21.5501403, 41.3405239], routeIds: ["line3"] },
-  { id: "l3-s10",         name: "Медицинска",                  coordinates: [21.5485254, 41.3427349], routeIds: ["line3"] },
-  { id: "futurmarket",    name: "Футура Маркет",                coordinates: [21.5499472, 41.3444179], routeIds: ["line3"] },
+  { id: "hotel lipa",         name: "Хотел Липа",                  coordinates: [21.5485254, 41.3427349], routeIds: ["line3"] },
+  { id: "palmashop",    name: "Палма Шоп",                coordinates: [21.5493448, 41.3440159], routeIds: ["line3"] },
   { id: "l3-5pazar",      name: "5та Прилепска Пазарче",       coordinates: [21.5670098, 41.3441109], routeIds: ["line3"] },
-  { id: "5taprilep",      name: "5та Прилепска Згради",        coordinates: [21.5684932, 41.3478832], routeIds: ["line3"] },
-  { id: "amsm",           name: "АМСМ",                        coordinates: [21.5705393, 41.3477620], routeIds: ["line3"] },
-  { id: "l3-s20",         name: "АМСМ Приод",                  coordinates: [21.5715162, 41.3506873], routeIds: ["line3"] },
+  { id: "5taprilep",           name: "5та Прилепска Згради",                        coordinates: [21.5705393, 41.3477620], routeIds: ["line3"] },
+  { id: "amsm",           name: "АМСМ",                        coordinates: [ 21.571122, 41.350059], routeIds: ["line3"] },
+  { id: "ivan elektricar",      name: "Иван Електричар",        coordinates: [21.5684932, 41.3478832], routeIds: ["line3"] },
   { id: "lukoil",         name: "Лук Оил",                     coordinates: [21.5792654, 41.3558421], routeIds: ["line3"] },
 ];
 
@@ -99,13 +103,6 @@ export const BUS_ROUTES: BusRoute[] = [
     name: "Линија 1",
     description: "Нови Гробишта — Хотел Салида",
     color: "#16a34a",
-    stopIds: [
-      "grobista", "varos-trloto", "varos-brasnara", "varos-meanite",
-      "ekonomski", "blakoneski",
-      "avtobusna", "palmasop", "pedano", "lastrada",
-      "furnapletve", "belazgrada", "stadion", "teatar",
-      "rampolevkata", "hotelsonce", "terminal", "hotelsalida",
-    ],
     path: [
       [21.5062268, 41.3713847], [21.5082940, 41.3699429], [21.5113362, 41.3676668],
       [21.5143149, 41.3657516], [21.5151742, 41.3652142], [21.5194131, 41.3631398],
@@ -135,12 +132,6 @@ export const BUS_ROUTES: BusRoute[] = [
     name: "Линија 2",
     description: "Економски Факултет — Тумбе Механичар",
     color: "#2563eb",
-    stopIds: [
-      "ekonomski", "blakoneski", "internat", "belston", "crkvapetka",
-      "l2-av", "l2-ft", "zadsudot", "l2-ps",
-      "furnapletve", "belazgrada", "zavodzdrav",
-      "bolnica", "centropromrul", "przelinacas", "ridridteks", "rid", "tumbemeh",
-    ],
     path: [
       [21.5417837, 41.3541560], [21.5437828, 41.3531183], [21.5435702, 41.3525915],
       [21.5431023, 41.3517773], [21.5417199, 41.3511068], [21.5406778, 41.3506119],
@@ -161,13 +152,6 @@ export const BUS_ROUTES: BusRoute[] = [
     name: "Линија 3",
     description: "Амфора — Лук Оил",
     color: "#ea580c",
-    stopIds: [
-      "amfora", "zabinomaalo", "centropromet", "l3-donia", "l3-terminal",
-      "fabrika", "l3-s7", "hotelsonce", "simpo", "l3-s10",
-      "futurmarket", "l2-ps",
-      "furnapletve", "belazgrada", "stadion", "zavodzdrav",
-      "l3-5pazar", "5taprilep", "amsm", "l3-s20", "lukoil",
-    ],
     path: [
       [21.5221442, 41.3431045], [21.5256509, 41.3431476], [21.5286217, 41.3433943],
       [21.5355367, 41.3439258], [21.5362699, 41.3438309], [21.5403911, 41.3431571],

@@ -11,7 +11,12 @@ export default function SponsorsLayout({ children }: { children: React.ReactNode
   const { user, profile } = useAuth();
   const { setOverridePanel } = useRightPanel();
 
-  const [modalOpen, setModalOpen] = useState(false);
+  // Start open when arriving via a "?join=1" link (e.g. the "Стани член" CTA on
+  // the About page). Lazy initialiser reads the query once on the client —
+  // avoids useSearchParams (no Suspense boundary needed) and an effect.
+  const [modalOpen, setModalOpen] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("join"),
+  );
 
   const openModal = useCallback(() => setModalOpen(true), []);
 

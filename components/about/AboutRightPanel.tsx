@@ -127,14 +127,14 @@ export default function AboutRightPanel() {
 
         {user ? (
           <Link
-            href="/account"
+            href="/sponsors?join=1"
             className="flex items-center justify-center gap-2 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 transition-colors">
             <Heart size={14} />
             Стани член
           </Link>
         ) : (
           <Link
-            href="/auth/login?next=/account"
+            href="/auth/login?next=%2Fsponsors%3Fjoin%3D1"
             className="flex items-center justify-center gap-2 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 transition-colors">
             <Heart size={14} />
             Придружете се

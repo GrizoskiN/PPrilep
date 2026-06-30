@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Bus, ChevronDown, Check, Gauge, Clock, X, Sun, Moon } from "lucide-react";
@@ -86,13 +86,15 @@ const ROUTE_GEOM: Record<string, RouteGeom> = Object.fromEntries(
 
 // Each route's stops, projected onto the line and sorted by distance along it,
 // so we can tell which stop a bus just passed and which it's heading to.
+// Derive each route's stops from the SAME source the map dots use — every stop
+// whose `routeIds` includes this route — so the panel's prev/next can never
+// disagree with what's drawn. Order in the data is irrelevant: we sort by
+// distance along the line.
 const ROUTE_STOPS: Record<string, { name: string; along: number }[]> =
   Object.fromEntries(
     BUS_ROUTES.map((r) => {
       const g = ROUTE_GEOM[r.id];
-      const stops = r.stopIds
-        .map((sid) => BUS_STOPS.find((s) => s.id === sid))
-        .filter((s): s is (typeof BUS_STOPS)[number] => !!s)
+      const stops = BUS_STOPS.filter((s) => s.routeIds.includes(r.id))
         .map((s) => ({
           name: s.name,
           along: g ? snapToLine(g, s.coordinates[0], s.coordinates[1]).along : 0,
@@ -166,15 +168,93 @@ type BusEls = {
 // Marker size as a function of zoom: tiny when zoomed out, growing as you zoom
 // in, but capped well below the old fixed size. Applied as a CSS scale on the
 // pill (the wrapper keeps MapLibre's position transform untouched).
+// The marker is built at its largest (zoomed-in) size and scaled DOWN when
+// zoomed out. Downscaling a transform stays crisp; upscaling past the
+// element's native size is what blurs the whole pill.
 const markerScale = (zoom: number) => {
   const t = (zoom - 12) / (17 - 12); // 0 at z12 (≈fitted) … 1 at z17
-  return 1.0 + Math.max(0, Math.min(1, t)) * 1.0; // 1.0 … 2.0
+  return 0.5 + Math.max(0, Math.min(1, t)) * 0.5; // 0.5 … 1.0
 };
+
+// Mix a #rrggbb colour toward white. t=0 → the colour, t=1 → white. Used to make
+// the "lighter" end of each line's animated rail from the line's own colour.
+function tint(hex: string, t: number): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const mix = (c: number) => Math.round(c + (255 - c) * t);
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
+// Each line gets its own "lane": a constant screen-pixel offset perpendicular to
+// the route so overlapping lines render side-by-side (transit-map style) instead
+// of stacking. Spread symmetrically around centre by route index.
+const LANE_GAP = 4; // px between adjacent lanes
+const laneOffset = (routeId: string): number => {
+  const i = BUS_ROUTES.findIndex((r) => r.id === routeId);
+  if (i < 0) return 0;
+  return (i - (BUS_ROUTES.length - 1) / 2) * LANE_GAP;
+};
+
+// Stop pins are coloured by their line. A stop on several lines uses its first
+// line's colour (filtering hides it when no serving line is active anyway).
+const stopPinColor = (stop: (typeof BUS_STOPS)[number]): string =>
+  BUS_ROUTES.find((r) => r.id === stop.routeIds[0])?.color ?? "#27272a";
+// One pin image per distinct line colour, keyed by colour.
+const STOP_PIN_COLORS = Array.from(new Set(BUS_ROUTES.map((r) => r.color)));
+const stopImageName = (color: string) => `bus-stop-${color}`;
+
+// The stop icon's inner markup (public/bus-stop.svg, viewBox 0 0 24 24), inlined
+// so the popup can render it in the line's colour without a second request.
+// Children inherit `fill` from the parent <svg>, so colouring is one attribute.
+const STOP_ICON_VIEWBOX = "0 0 24 24";
+const STOP_ICON_INNER =
+  '<path d="m15.5 7h-7a.50034.50034 0 0 0 -.5.5v3.091a22.81158 22.81158 0 0 0 4 .409 22.81158 22.81158 0 0 0 4-.409v-3.091a.50034.50034 0 0 0 -.5-.5z"/>' +
+  '<circle cx="14" cy="14" r="1"/><circle cx="10" cy="14" r="1"/>' +
+  '<path d="m12 0a12 12 0 1 0 12 12 12.01375 12.01375 0 0 0 -12-12zm6 10.5a.5.5 0 0 1 -1 0v5a1.49758 1.49758 0 0 1 -1 1.4079v.5921a.49971.49971 0 0 1 -.5.5h-1a.49971.49971 0 0 1 -.5-.5v-.5h-4v.5a.49971.49971 0 0 1 -.5.5h-1a.49971.49971 0 0 1 -.5-.5v-.5921a1.49758 1.49758 0 0 1 -1-1.4079v-5a.5.5 0 0 1 -1 0v-1a.49971.49971 0 0 1 .5-.5h.5v-1.5a1.50164 1.50164 0 0 1 1.5-1.5h7a1.50164 1.50164 0 0 1 1.5 1.5v1.5h.5a.49971.49971 0 0 1 .5.5z"/>';
+
+// Rasterise the (monochrome) pin image recoloured to `color`, for map.addImage.
+// Drawn at 2x for crispness (paired with pixelRatio: 2). A solid white disc is
+// painted behind it so the icon's transparent cut-outs (the bus "windows") read
+// as white instead of showing the basemap through — clean, not see-through.
+function recolorIcon(img: HTMLImageElement, color: string, px: number): ImageData {
+  // Recolour the icon on its own canvas (source-in keeps the alpha shape).
+  const tmp = document.createElement("canvas");
+  tmp.width = px;
+  tmp.height = px;
+  const tctx = tmp.getContext("2d")!;
+  tctx.drawImage(img, 0, 0, px, px);
+  tctx.globalCompositeOperation = "source-in";
+  tctx.fillStyle = color;
+  tctx.fillRect(0, 0, px, px);
+
+  // Composite: white disc background, then the recoloured icon on top.
+  const canvas = document.createElement("canvas");
+  canvas.width = px;
+  canvas.height = px;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(px / 2, px / 2, px / 2 - 2, 0, Math.PI * 2); // inset 2px to avoid a white rim
+  ctx.fill();
+  ctx.drawImage(tmp, 0, 0);
+  return ctx.getImageData(0, 0, px, px);
+}
+const STOP_ICON_PX = 96; // source raster size (→ 48 logical px at pixelRatio 2)
+
+// (Re)register one recoloured pin image per line colour. setStyle wipes images,
+// so this runs again on every basemap swap.
+function registerStopImages(map: maplibregl.Map, img: HTMLImageElement) {
+  for (const color of STOP_PIN_COLORS) {
+    const name = stopImageName(color);
+    if (map.hasImage(name)) map.removeImage(name);
+    map.addImage(name, recolorIcon(img, color, STOP_ICON_PX), { pixelRatio: 2 });
+  }
+}
 
 function busTimeAgo(iso: string | null): string {
   if (!iso) return "—";
   const min = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
-  if (min < 1) return "пред момент";
+  if (min < 1) return "~15 секунди доцни сигналот од автобусот";
   if (min < 60) return `пред ${min} мин`;
   return `пред ${Math.round(min / 60)} ч`;
 }
@@ -186,15 +266,17 @@ function makeBusEl(short: string, color: string): BusEls {
   root.style.cssText = "cursor:pointer;";
 
   const pill = document.createElement("div");
+  // Built at the largest (zoomed-in) size; markerScale() only ever shrinks it,
+  // which keeps every part of the pill sharp at all zoom levels.
   pill.style.cssText =
-    "display:flex;align-items:center;gap:4px;padding:3px 8px 3px 3px;" +
-    `border-radius:999px;background:${color};border:1.5px solid #fff;` +
-    "box-shadow:0 1px 4px rgba(0,0,0,0.3);transform-origin:center;will-change:transform;";
+    "display:flex;align-items:center;gap:8px;padding:6px 16px 6px 6px;" +
+    `border-radius:999px;background:${color};border:3px solid #fff;` +
+    "box-shadow:0 2px 8px rgba(0,0,0,0.3);transform-origin:center;will-change:transform;";
 
   const circle = document.createElement("span");
   circle.style.cssText =
-    "display:flex;align-items:center;justify-content:center;width:18px;height:18px;" +
-    "flex:0 0 auto;border-radius:999px;background:#fff;font:800 11px/1 system-ui,sans-serif;";
+    "display:flex;align-items:center;justify-content:center;width:36px;height:36px;" +
+    "flex:0 0 auto;border-radius:999px;background:#fff;font:800 22px/1 system-ui,sans-serif;";
   const numEl = document.createElement("span");
   numEl.textContent = short;
   numEl.style.color = color;
@@ -204,7 +286,7 @@ function makeBusEl(short: string, color: string): BusEls {
   img.src = "/bus.png";
   img.alt = "";
   img.draggable = false;
-  img.style.cssText = "height:18px;width:auto;display:block;flex:0 0 auto;";
+  img.style.cssText = "height:24px;width:auto;display:block;flex:0 0 auto;";
 
   pill.appendChild(circle);
   pill.appendChild(img);
@@ -223,6 +305,9 @@ export default function BusRouteMap() {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const busStateRef = useRef<Map<number, BusAnim>>(new Map());
   const busElsRef = useRef<Map<number, BusEls>>(new Map());
+  // Loaded stop-pin image (public/bus-stop.svg). Held in a ref so it can be
+  // (re-)registered with the map after every basemap swap (setStyle wipes images).
+  const stopImgRef = useRef<HTMLImageElement | null>(null);
   const [activeRoutes, setActiveRoutes] = useState<Set<string>>(
     () => new Set(BUS_ROUTES.map((r) => r.id)),
   );
@@ -318,6 +403,9 @@ export default function BusRouteMap() {
           });
         }
         const vis = active.has(route.id) ? "visible" : "none";
+        // Each line sits in its own lane (constant px offset) so shared roads
+        // render as parallel ribbons rather than one line hiding the others.
+        const offset = laneOffset(route.id);
         // White halo so routes are legible over the basemap
         if (!map.getLayer(`route-${route.id}-halo`)) {
           map.addLayer({
@@ -325,7 +413,12 @@ export default function BusRouteMap() {
             type: "line",
             source: `route-${route.id}`,
             layout: { "line-join": "round", "line-cap": "round", visibility: vis },
-            paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.7 },
+            paint: {
+              "line-color": "#ffffff",
+              "line-width": 8,
+              "line-opacity": 0.7,
+              "line-offset": offset,
+            },
           });
         }
         if (!map.getLayer(`route-${route.id}-line`)) {
@@ -334,7 +427,7 @@ export default function BusRouteMap() {
             type: "line",
             source: `route-${route.id}`,
             layout: { "line-join": "round", "line-cap": "round", visibility: vis },
-            paint: { "line-color": route.color, "line-width": 4.5 },
+            paint: { "line-color": route.color, "line-width": 5, "line-offset": offset },
           });
         }
       });
@@ -348,7 +441,12 @@ export default function BusRouteMap() {
             features: BUS_STOPS.map((stop) => ({
               type: "Feature" as const,
               geometry: { type: "Point" as const, coordinates: stop.coordinates },
-              properties: { id: stop.id, name: stop.name, routeIds: stop.routeIds.join(",") },
+              properties: {
+                id: stop.id,
+                name: stop.name,
+                routeIds: stop.routeIds.join(","),
+                pinImg: stopImageName(stopPinColor(stop)),
+              },
             })),
           },
         });
@@ -364,31 +462,21 @@ export default function BusRouteMap() {
         });
       }
 
-      // Outer white circle — small when zoomed out (just dots), growing as you
-      // zoom in so they become easy tap targets.
-      if (!map.getLayer("stops-bg")) {
+      // Stop pins (public/bus-stop.svg), one image per line colour. Re-register
+      // them here since setStyle wipes images, then a symbol layer that picks its
+      // image per-feature by line colour and grows as you zoom in.
+      const stopImg = stopImgRef.current;
+      if (stopImg) registerStopImages(map, stopImg);
+      if (!map.getLayer("stops-sym")) {
         map.addLayer({
-          id: "stops-bg",
-          type: "circle",
+          id: "stops-sym",
+          type: "symbol",
           source: "bus-stops",
-          paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3, 14, 5, 16, 9],
-            "circle-color": "#ffffff",
-            "circle-stroke-color": "#52525b",
-            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, 1, 16, 1.5],
-          },
-        });
-      }
-
-      // Inner filled dot
-      if (!map.getLayer("stops-dot")) {
-        map.addLayer({
-          id: "stops-dot",
-          type: "circle",
-          source: "bus-stops",
-          paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 1.2, 14, 2.2, 16, 4],
-            "circle-color": "#27272a",
+          layout: {
+            "icon-image": ["get", "pinImg"],
+            "icon-anchor": "center", // round icon sits centred on the stop coordinate
+            "icon-allow-overlap": true,
+            "icon-size": ["interpolate", ["linear"], ["zoom"], 12, 0.35, 14, 0.56, 16, 1.0],
           },
         });
       }
@@ -403,54 +491,68 @@ export default function BusRouteMap() {
         ["literal", activeStopIds],
       ];
       map.setFilter("stops-hit", stopFilter);
-      map.setFilter("stops-bg", stopFilter);
-      map.setFilter("stops-dot", stopFilter);
+      map.setFilter("stops-sym", stopFilter);
     };
 
     // Stop hover/click + background-click handlers. Bound once to the map (they
     // survive style swaps), keyed by layer id which addOverlays re-creates.
     const registerInteractions = () => {
-      map.on("mouseenter", "stops-hit", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "stops-hit", () => {
-        map.getCanvas().style.cursor = "";
-      });
+      // Bind to both the invisible tap target AND the pin itself, since the pin
+      // is anchored at its tip — its head sits above the hit circle.
+      const STOP_LAYERS = ["stops-hit", "stops-sym"];
+      for (const layer of STOP_LAYERS) {
+        map.on("mouseenter", layer, () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", layer, () => {
+          map.getCanvas().style.cursor = "";
+        });
+      }
 
-      map.on("click", "stops-hit", (e) => {
+      const onStopClick = (e: maplibregl.MapLayerMouseEvent) => {
         if (!e.features?.length) return;
         const props = e.features[0].properties as { name: string; routeIds: string };
         const coords = (
           e.features[0].geometry as GeoJSON.Point
         ).coordinates.slice(0, 2) as [number, number];
 
-        // Which routes serve this stop?
-        const routeIds = props.routeIds.split(",");
-        const badges = routeIds
+        // Which routes serve this stop? Colour the card by the first (matching
+        // the pin colour); list every serving line beneath the name.
+        const routes = props.routeIds
+          .split(",")
           .map((rid) => BUS_ROUTES.find((r) => r.id === rid))
-          .filter(Boolean)
-          .map(
-            (r) =>
-              `<span style="display:inline-flex;align-items:center;gap:4px;background:${r!.color}18;color:${r!.color};border:1px solid ${r!.color}44;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700;">${r!.name}</span>`,
-          )
-          .join(" ");
+          .filter((r): r is (typeof BUS_ROUTES)[number] => !!r);
+        const color = routes[0]?.color ?? "#3b82f6";
+        const lines = routes.map((r) => r.name).join(" · ");
+        const icon = `<svg viewBox="${STOP_ICON_VIEWBOX}" width="34" height="34" fill="${color}" style="flex:0 0 auto;">${STOP_ICON_INNER}</svg>`;
 
         popupRef.current?.remove();
         setSelectedBusId(null); // opening a stop popup closes the bus panel
-        popupRef.current = new maplibregl.Popup({ closeButton: false, offset: 10, maxWidth: "240px", className: "pp-map-popup" })
+        popupRef.current = new maplibregl.Popup({
+          closeButton: false,
+          anchor: "bottom", // sit above the stop, tip pointing down
+          offset: 26,
+          maxWidth: "260px",
+          className: "pp-map-popup",
+        })
           .setLngLat(coords)
           .setHTML(
-            `<div style="padding:10px 12px;font-family:inherit;">
-              <p style="margin:0 0 5px;font-size:13px;font-weight:600;color:#18181b;">${props.name}</p>
-              <div style="display:flex;gap:4px;flex-wrap:wrap;">${badges}</div>
+            `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px 12px 12px;font-family:inherit;">
+              ${icon}
+              <div style="display:flex;flex-direction:column;line-height:1.2;min-width:0;">
+                <span style="font-size:16px;font-weight:800;color:${color};">${props.name}</span>
+                <span style="font-size:13px;font-weight:600;color:#52525b;">${lines}</span>
+              </div>
             </div>`,
           )
           .addTo(map);
-      });
+      };
+      map.on("click", "stops-hit", onStopClick);
+      map.on("click", "stops-sym", onStopClick);
 
       // Dismiss popup when clicking the map background
       map.on("click", (e) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: ["stops-hit"] });
+        const features = map.queryRenderedFeatures(e.point, { layers: STOP_LAYERS });
         if (!features.length) {
           popupRef.current?.remove();
           setSelectedBusId(null);
@@ -468,7 +570,9 @@ export default function BusRouteMap() {
         initialized = true;
         // Frame the whole network and make that the zoom-out floor.
         map.fitBounds(FIT_BOUNDS, { padding: 24, duration: 0 });
-        map.setMinZoom(map.getZoom());
+        // Floor a bit tighter than the full-network fit so the map can't be
+        // zoomed out into empty surroundings past where the buses run.
+        map.setMinZoom(map.getZoom() + 0.7);
         registerInteractions();
         // Scale every marker with the zoom level (small when out, larger when in).
         map.on("zoom", () => {
@@ -489,6 +593,21 @@ export default function BusRouteMap() {
       els.clear();
       states.clear();
     };
+  }, []);
+
+  // ── Load the stop-pin image once, then register it with the map ─────────────
+  // Kept in a ref so addOverlays can re-register it after each basemap swap.
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      stopImgRef.current = img;
+      const map = mapRef.current;
+      if (map && map.isStyleLoaded()) {
+        registerStopImages(map, img);
+        map.triggerRepaint();
+      }
+    };
+    img.src = "/bus-stop.svg";
   }, []);
 
   // ── Swap basemap when the user picks a different style ───────────────────────
@@ -515,7 +634,7 @@ export default function BusRouteMap() {
     });
 
     // Show only stops that belong to at least one active route
-    if (map.getLayer("stops-bg")) {
+    if (map.getLayer("stops-sym")) {
       const activeIds = BUS_STOPS.filter((s) =>
         s.routeIds.some((rid) => activeRoutes.has(rid)),
       ).map((s) => s.id);
@@ -526,8 +645,7 @@ export default function BusRouteMap() {
         ["literal", activeIds],
       ];
       map.setFilter("stops-hit", filter);
-      map.setFilter("stops-bg", filter);
-      map.setFilter("stops-dot", filter);
+      map.setFilter("stops-sym", filter);
     }
   }, [activeRoutes, mapReady]);
 
@@ -562,8 +680,16 @@ export default function BusRouteMap() {
       }
     }
     function onVisibility() {
-      if (document.hidden) stop();
-      else start();
+      if (document.hidden) {
+        stop();
+      } else {
+        // Returning after the tab/app was hidden: rAF was paused, so the
+        // animation state is stale. Drop it so the next fix places each bus
+        // instantly at its real spot instead of "catching up" with a long,
+        // wrong tween across the map.
+        busStateRef.current.clear();
+        start();
+      }
     }
 
     if (!document.hidden) start();
@@ -811,11 +937,15 @@ export default function BusRouteMap() {
   );
 
   // The middle node: the bus glyph on the rail + speed (owner) / time beside it.
-  const busNode = (color: string, bus: LiveBus) => (
+  // When live, the glyph gently bobs toward the next stop (paired with the
+  // flowing rail) to read as "on its way"; offline it sits still.
+  const busNode = (color: string, bus: LiveBus, animate: boolean) => (
     <div className="flex min-h-10 items-center gap-2.5">
       <span className="relative z-1 flex w-6 shrink-0 justify-center">
         <span
-          className="flex h-7.5 w-7.5 items-center justify-center rounded-full"
+          className={`flex h-7.5 w-7.5 items-center justify-center rounded-full ${
+            animate ? "pp-bus-bob" : ""
+          }`}
           style={{ background: color, boxShadow: "0 1px 5px rgba(0,0,0,.25),0 0 0 3px #fff" }}>
           {/* public/bus icon.svg, recoloured white to sit on the coloured dot */}
           {/* eslint-disable-next-line @next/next/no-img-element -- tiny static inline SVG glyph */}
@@ -854,15 +984,15 @@ export default function BusRouteMap() {
     // the latest fix (snap + course) so the panel needs no animation-ref access.
     const geom = ROUTE_GEOM[bus.routeId];
     const snap = geom ? snapToLine(geom, bus.lng, bus.lat) : null;
-    const onLine = !!snap && snap.gap <= SNAP_MAX_M;
+    // Resolve prev/next from the nearest point on the line regardless of how far
+    // the raw fix sits from the polyline — otherwise GPS jitter blanks the stops.
     const forward =
-      onLine && geom && bus.course != null
+      snap && geom && bus.course != null
         ? angleDiff(bearingAt(geom, snap.along, true), bus.course) <= 90
         : true;
-    const { prev, next } =
-      onLine && snap
-        ? aroundStops(bus.routeId, snap.along, forward)
-        : { prev: null, next: null };
+    const { prev, next } = snap
+      ? aroundStops(bus.routeId, snap.along, forward)
+      : { prev: null, next: null };
 
     return (
       <div className="flex flex-col">
@@ -883,19 +1013,24 @@ export default function BusRouteMap() {
           </button>
         </div>
         <div className="relative flex flex-col gap-2 px-4 pb-4">
-          <div className="absolute left-6.75 top-4 bottom-4 w-0.5 bg-zinc-200" />
+          {/* Connector rail: live → a downward-flowing gradient in the line's
+              colour (lighter → full); offline → a plain grey line. */}
           {offline ? (
-            <>
-              {stopNode(GREY, 11, prev, true)}
-              {busNode(color, bus)}
-            </>
+            <div className="absolute left-6.75 top-4 bottom-4 w-0.5 bg-zinc-200" />
           ) : (
-            <>
-              {stopNode("#cbd5e1", 11, prev, false)}
-              {busNode(color, bus)}
-              {stopNode(baseColor, 13, next, true)}
-            </>
+            <div
+              className="pp-rail-flow absolute left-6.75 top-4 bottom-4 w-0.5"
+              style={
+                {
+                  "--line": baseColor,
+                  "--line-light": tint(baseColor, 0.6),
+                } as CSSProperties
+              }
+            />
           )}
+          {stopNode(offline ? GREY : "#cbd5e1", 11, prev, false)}
+          {busNode(color, bus, !offline)}
+          {stopNode(offline ? GREY : baseColor, 13, next, true)}
         </div>
       </div>
     );
@@ -996,7 +1131,7 @@ export default function BusRouteMap() {
         {selectedBus && (
           <>
             {/* Desktop: slides in from the left edge */}
-            <div className="pp-panel-left absolute inset-y-3 left-3 z-40 hidden w-60 overflow-y-auto rounded-2xl border border-white/60 bg-linear-to-b from-white/85 to-white/55 shadow-xl ring-1 ring-white/40 backdrop-blur-2xl lg:block">
+            <div className="pp-panel-left absolute top-0 bottom-0 left-3 z-40 my-auto hidden h-fit max-h-[calc(100%-1.5rem)] w-60 overflow-y-auto rounded-2xl border border-white/60 bg-linear-to-b from-white/85 to-white/55 shadow-xl ring-1 ring-white/40 backdrop-blur-2xl lg:block">
               {panelInner}
             </div>
             {/* Mobile / tablet: slides up like a bottom drawer (10% smaller content,

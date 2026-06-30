@@ -449,19 +449,59 @@ label[for] {
   }
 }
 
+/* Live bus timeline: the connector rail flows downward in the line's colour
+   (lighter → full) to read as the bus heading toward the next stop. Colours
+   come from --line / --line-light set per line. */
+.pp-rail-flow {
+  background-image: linear-gradient(
+    to bottom,
+    var(--line-light),
+    var(--line) 50%,
+    var(--line-light)
+  );
+  background-size: 100% 200%;
+  background-repeat: repeat-y;
+  animation: pp-rail-flow 1.6s linear infinite;
+}
+@keyframes pp-rail-flow {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 200%;
+  }
+}
+/* The bus glyph gently bobs toward the next stop in sync with the rail. */
+.pp-bus-bob {
+  animation: pp-bus-bob 1.6s ease-in-out infinite;
+}
+@keyframes pp-bus-bob {
+  0%,
+  100% {
+    transform: translateY(-1.5px);
+  }
+  50% {
+    transform: translateY(2px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-rail-flow,
+  .pp-bus-bob {
+    animation: none;
+  }
+}
+
 /* Map info popups (stops) — slim, rounded, glassy card */
 .pp-map-popup .maplibregl-popup-content {
-  border-radius: 18px;
+  border-radius: 16px;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: #ffffff;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
 }
+/* Solid-white tip. The popup is anchored above the pin, so the tip points down. */
 .pp-map-popup .maplibregl-popup-tip {
-  border-top-color: rgba(255, 255, 255, 0.72);
-  border-bottom-color: rgba(255, 255, 255, 0.72);
+  border-top-color: #ffffff;
+  border-bottom-color: #ffffff;
 }
 
 /* MapLibre attribution — keep the © button but hide the expanded text */

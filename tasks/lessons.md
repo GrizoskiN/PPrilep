@@ -261,6 +261,31 @@ ANY anonymous user change any issue's status. Both traps below applied:
 
 ---
 
+## UI / rendering
+
+### A blurry HTML map marker = scaling UP, not the image
+- Custom MapLibre markers built small then `transform: scale()`d UP
+  rasterize at the small size and stretch → the WHOLE pill blurs
+  (background, text, photo), not just the bitmap.
+- Rule: build the marker at its LARGEST size and only ever scale DOWN
+  (downscaling stays crisp). Don't blame the asset before checking the
+  transform.
+
+### Don't blank derived UI on a strict snap threshold
+- Gating prev/next stops on `snap.gap <= SNAP_MAX_M` made the timeline
+  stations vanish whenever GPS jittered off the coarse polyline.
+- Rule: resolve "nearest stop" info from the projected point regardless
+  of gap; reserve the threshold for deciding whether to visually snap.
+
+## Workflow
+
+### One "push" is not standing permission to keep pushing
+- After the user says "push the code", commit+push THAT, then stop.
+  Follow-up fixes need their own explicit go-ahead — they may want to
+  review locally first.
+
+---
+
 ## How to add new lessons
 
 When the user corrects something I did:
