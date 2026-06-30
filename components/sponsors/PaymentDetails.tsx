@@ -74,6 +74,7 @@ export default function PaymentDetails({ purpose = DEFAULT_PURPOSE }: { purpose?
           Уплата од странство (девизна сметка)
         </summary>
         <div className="mt-1 divide-y divide-zinc-100 border-t border-zinc-100 pt-1">
+          <CopyRow label="Платежна сметка" value={BANK.fxAccount} strong />
           <CopyRow label="IBAN" value={BANK.iban} strong />
           <CopyRow label="SWIFT / BIC" value={BANK.swift} strong />
         </div>

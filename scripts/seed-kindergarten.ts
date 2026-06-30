@@ -2,7 +2,7 @@
  * Seed script — Kindergarten Наша Иднина
  *
  * Creates:
- *   • 4 institution documents
+ *   • 6 institution documents
  *   • 1 weekly menu (18.05 – 29.05.2026, shared across all institutions)
  *
  * Run once:
@@ -44,19 +44,19 @@ const INSTITUTIONS = [
     name:  "Градинка Наша Иднина - Бончејца",
     slug:  { _type: "slug", current: "bonchejca" },
     address:     "Киро Нацески-Феток 1",
-    phone:       "048 424 076",
+    phone:       null,
     closingTime: "18:00",
     district:    "Бончејца",
   },
   {
-    _id:  "institution-mirche-acev",
+    _id:  "institution-moja-bajka",
     _type: "institution",
-    name:  "Градинка Наша Иднина - Мирче Ацев",
-    slug:  { _type: "slug", current: "mirche-acev" },
+    name:  "Градинка Наша Иднина - Моја Бајка",
+    slug:  { _type: "slug", current: "moja-bajka" },
     address:     null,
-    phone:       "048 421 996",
-    closingTime: "17:00",
-    district:    "Центар",
+    phone:       null,
+    closingTime: "18:00",
+    district:    "Точила",
   },
   {
     _id:  "institution-trizla",
@@ -64,9 +64,29 @@ const INSTITUTIONS = [
     name:  "Градинка Наша Иднина - Тризла",
     slug:  { _type: "slug", current: "trizla" },
     address:     null,
-    phone:       "075 235 689",
+    phone:       null,
     closingTime: "18:00",
     district:    "Тризла",
+  },
+  {
+    _id:  "institution-alicair",
+    _type: "institution",
+    name:  "Градинка Наша Иднина - Аличаир",
+    slug:  { _type: "slug", current: "alicair" },
+    address:     null,
+    phone:       null,
+    closingTime: "18:00",
+    district:    "Аличаир",
+  },
+  {
+    _id:  "institution-goce-delcev",
+    _type: "institution",
+    name:  "Градинка Наша Иднина - Гоце Делчев",
+    slug:  { _type: "slug", current: "goce-delcev" },
+    address:     null,
+    phone:       null,
+    closingTime: "18:00",
+    district:    "Гоце Делчев",
   },
   {
     _id:  "institution-rabotnicki",

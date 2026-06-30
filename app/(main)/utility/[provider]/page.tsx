@@ -7,7 +7,6 @@ import WaterQuickActions from "../../../../components/utility/WaterQuickActions"
 import WaterInfoAccordion from "../../../../components/utility/WaterInfoAccordion";
 import KomunalecQuickActions from "../../../../components/utility/KomunalecQuickActions";
 import KomunalecInfoAccordion from "../../../../components/utility/KomunalecInfoAccordion";
-import AgencyChatButtons from "../../../../components/agency/AgencyChatButtons";
 import KomunalecContactForm from "../../../../components/komunalec/KomunalecContactForm";
 import KomunalecRequestQueue from "../../../../components/komunalec/KomunalecRequestQueue";
 import AgencyPostCard from "../../../../components/agency/AgencyPostCard";
@@ -155,7 +154,6 @@ export default async function UtilityPage({ params }: Props) {
               <h2 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-700">
                 💬 Контакт и барања
               </h2>
-              <AgencyChatButtons agencyId="komunalec" />
               <KomunalecContactForm
                 loggedIn={!!authUser.user}
                 defaultName={viewer?.full_name ?? undefined}

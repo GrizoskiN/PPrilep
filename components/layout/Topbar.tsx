@@ -57,21 +57,6 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
     return () => clearTimeout(timeout);
   }, [isDeleting, typedWord, wordIndex]);
 
-  const sectionLabel = (() => {
-    if (pathname === "/") return "Почетна";
-    if (pathname.startsWith("/account")) return "Мој профил";
-    if (pathname.startsWith("/issues")) return "Пријави";
-    if (pathname.startsWith("/ideas")) return "Идеи";
-    if (pathname.startsWith("/fund")) return "Фонд";
-    if (pathname.startsWith("/heroes")) return "Херои";
-    if (pathname.startsWith("/communities")) return "Заедници";
-    if (pathname.startsWith("/utility")) return "Комунални";
-    if (pathname.startsWith("/auth/login")) return "Најава";
-    if (pathname.startsWith("/auth/register")) return "Регистрација";
-    if (pathname.startsWith("/auth")) return "Профил";
-    return "Почетна";
-  })();
-
   function openMobileMenu() {
     const now = Date.now();
     if (now - lastMenuOpenRef.current < 400) return;
@@ -115,10 +100,6 @@ export default function Topbar({ onOpenMobileMenu }: Props) {
               </span>
               <span className="font-semibold text-primary">Прилеп</span>
             </div>
-            <span className="hidden text-sm text-slate-500 lg:inline">|</span>
-            <span className="hidden text-sm text-slate-500 lg:inline">
-              {sectionLabel}
-            </span>
           </div>
         </Link>
 

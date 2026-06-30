@@ -26,7 +26,9 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const TOKEN = process.env.FLESPI_TOKEN;
-const MAX_AGE_S = 30 * 60; // hide a bus with no valid fix in 30 min (out of service)
+const MAX_AGE_S = 10 * 60; // hide a bus with no valid fix in 10 min (out of service).
+// Its last-known/parked position stays visible to the owner only, via the admin
+// endpoint (/api/buses/positions/admin), never to the public.
 
 const CACHE_HEADERS = {
   "Cache-Control": "public, s-maxage=8, stale-while-revalidate=20",

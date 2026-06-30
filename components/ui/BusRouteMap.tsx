@@ -125,12 +125,16 @@ function aroundStops(
   return forward ? { prev: lower, next: upper } : { prev: upper, next: lower };
 }
 
-const POLL_MS = 15_000; // smoothness is animated client-side, so 15s loses nothing
+const POLL_MS = 7_000; // poll faster so a new fix is picked up sooner (cache is s-maxage 8)
 const STALE_MS = 5 * 60_000; // no fix in 5 min → grey out
 const SNAP_MAX_M = 75; // snap to the line within this gap (route polyline is coarse
 // + GPS jitters, so 45m detached the bus too eagerly); else show raw point
 const MIN_TWEEN_MS = 1_500; // floor so a fix never teleports
-const MAX_TWEEN_MS = 40_000; // ceiling so a long gap doesn't crawl forever
+// Ceiling on the catch-up animation. The tween replays the bus from its previous
+// fix to the newest one; over a long reporting gap that kept the marker ~one
+// interval behind. Cap it short so the marker reaches the latest known position
+// quickly (then waits for the next fix) instead of crawling for up to 40s.
+const MAX_TWEEN_MS = 10_000;
 const GREY = "#94a3b8";
 
 // Per-bus animation state — lives in a ref, mutated by the rAF loop (not React).
@@ -1147,7 +1151,7 @@ export default function BusRouteMap() {
       </details>
 
       {/* Map frame */}
-      <div className="relative rounded-2xl overflow-hidden border border-zinc-200 h-115">
+      <div className="relative rounded-2xl overflow-hidden border border-zinc-200 h-115 lg:h-153">
         <div ref={containerRef} className="w-full h-full" />
 
         {/* Hint label */}

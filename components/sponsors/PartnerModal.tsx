@@ -35,10 +35,47 @@ const MEMBERSHIP_OPTIONS: { value: MembershipTier; label: string; price: string;
 ];
 
 const COMPANY_TIERS: { value: CompanyTier; label: string; price: string; perks: string[] }[] = [
-  { value: "basic",     label: "Основно",      price: "5.000 ден / год",  perks: ["Лого во апликацијата", "Благодарница на социјалните мрежи"] },
-  { value: "preferred", label: "Преферирано",  price: "15.000 ден / год", perks: ["Сè од Основно", "Истакнато место на страницата", "Месечен извештај"] },
-  { value: "premium",   label: "Премиум",      price: "По договор",       perks: ["Сè од Преферирано", "Брендирани акции", "Партнерски настани"] },
+  {
+    value: "basic",
+    label: "Основно",
+    price: "5.000 ден / год",
+    perks: [
+      "Лого во директориумот на апликацијата",
+      "Еднократна благодарница на социјалните мрежи",
+      "Дигитален беџ „Пријател на Прилеп“ (сертификат/слика за вашиот сајт или социјални мрежи за општествена одговорност)",
+    ],
+  },
+  {
+    value: "preferred",
+    label: "Преферирано",
+    price: "15.000 ден / год",
+    perks: [
+      "Сè од Основно",
+      "Истакнато место на почетната страница во апликацијата",
+      "Месечен извештај за прегледи и кликови",
+      "1x месечна Push нотификација („Овој месец, Мој Прилеп е поддржан од [Име на фирма]“)",
+      "Простор за „Локална понуда“ (ексклузивен попуст или акција за корисниците на апликацијата)",
+    ],
+  },
+  {
+    value: "premium",
+    label: "Премиум",
+    price: "По договор",
+    perks: [
+      "Сè од Преферирано",
+      "Брендирани заеднички акции",
+      "Партнерски настани",
+      "Индустриска ексклузивност (гаранција дека ќе бидат единствен премиум партнер од нивната дејност, пр. само една пицерија или само еден маркет)",
+      "Главен спонзор на урбана/зелена акција (пр. „Обнова на паркови поддржана од [Име на фирма]“)",
+    ],
+  },
 ];
+
+// Public-transparency notice shown under the free-text message field. Donations
+// and memberships are published openly from the bank statement, so contributors
+// who want to stay anonymous must say so here.
+const PUBLIC_NOTICE =
+  "Сите донации и членарини ги објавуваме јавно, директно од изводот од банка. Доколку не сакате вашето име да биде прикажано, ве молиме напоменете тука.";
 
 interface Props {
   onClose: () => void;
@@ -243,6 +280,7 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
                 <textarea rows={3} placeholder="Вашите вештини, идеи, прашања..." value={memberForm.message}
                   onChange={(e) => setMemberForm((f) => ({ ...f, message: e.target.value }))}
                   className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-sm outline-none focus:border-zinc-400 focus:bg-white resize-none transition-colors" />
+                <p className="mt-1.5 text-xs font-semibold leading-relaxed text-red-600">{PUBLIC_NOTICE}</p>
               </div>
             </form>
           )}
@@ -284,7 +322,7 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
                 </div>
                 <PaymentDetails purpose="Партнерство — Мој Прилеп" />
                 <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 leading-relaxed">
-                  Фактура ќе добиете на е-пошта по потврдата.
+                  Деталите за уплата ќе ги добиете и на е-пошта. Членарината се активира по евидентирана уплата.
                 </p>
                 {!userId && (
                   <p className="text-xs text-zinc-500 px-1">
@@ -302,6 +340,7 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
                 <textarea rows={3} placeholder="Идеи за соработка, прашања..." value={companyForm.message}
                   onChange={(e) => setCompanyForm((f) => ({ ...f, message: e.target.value }))}
                   className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-sm outline-none focus:border-zinc-400 focus:bg-white resize-none transition-colors" />
+                <p className="mt-1.5 text-xs font-semibold leading-relaxed text-red-600">{PUBLIC_NOTICE}</p>
               </div>
             </form>
           )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { FileDown, Phone, Clock } from "lucide-react";
+import { FileDown, Clock } from "lucide-react";
 import WeeklyMenuPanel from "./WeeklyMenuPanel";
 import type { SignupDocument, MenuPost } from "../../lib/sanity/kindergarten";
 
@@ -34,15 +34,12 @@ export default function KindergartenListRightPanel({ signupDocuments, latestMenu
           <p className="text-sm font-bold text-zinc-900">Наша Иднина</p>
         </div>
         <p className="text-xs leading-relaxed text-zinc-500">
-          Јавна установа за деца со 4 објекти во Прилеп. Работи секој работен ден и нуди целодневна грижа, воспитување и образование.
+          Јавна установа за деца со 6 објекти во Прилеп. Работи секој работен ден и нуди целодневна грижа, воспитување и образование.
         </p>
         <div className="space-y-1.5 pt-1">
           <div className="flex items-center gap-2 text-xs text-zinc-500">
             <Clock size={12} className="text-zinc-400" /> Работно време: 07:00 – 18:00
           </div>
-          <a href="tel:048424076" className="flex items-center gap-2 text-xs text-zinc-500 hover:text-rose-500 transition-colors">
-            <Phone size={12} className="text-zinc-400" /> 048 424 076
-          </a>
         </div>
       </div>
 

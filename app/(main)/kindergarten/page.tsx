@@ -19,7 +19,8 @@ function mergeWithSanity(fb: typeof INSTITUTION_FALLBACK[0], sanity?: Kindergart
   return {
     ...fb,
     address:     sanity.address     ?? fb.address,
-    phone:       sanity.phone       ?? fb.phone,
+    // Phone intentionally not merged from Sanity — kindergartens show no phone.
+    phone:       fb.phone,
     closingTime: sanity.closingTime ?? fb.closingTime,
     district:    sanity.district    ?? fb.district,
     coverImage:  sanity.coverImage,
@@ -60,7 +61,7 @@ export default function KindergartenPage() {
         </div>
         <div>
           <h1 className="text-sm font-bold text-zinc-900">Наша Иднина — Градинки</h1>
-          <p className="text-xs text-zinc-500">4 установи во Прилеп</p>
+          <p className="text-xs text-zinc-500">6 установи во Прилеп</p>
         </div>
       </div>
 

@@ -7,6 +7,7 @@ export const BANK = {
   holder: "МОЈОТ ГРАД Прилеп",
   bankName: "Комерцијална банка АД Скопје",
   denarAccount: "300020000663418",
+  fxAccount: "0270100442377", // девизна платежна сметка (foreign-currency account)
   iban: "MK07300701004423749",
   swift: "KOBSMK2X",
 } as const;
@@ -34,6 +35,7 @@ export function paymentBlockHtml(purpose: string = DEFAULT_PURPOSE): string {
       </table>
       <p style="margin:14px 0 6px;font-size:12px;color:#94a3b8">Уплати од странство (девизна сметка):</p>
       <table style="width:100%;border-collapse:collapse">
+        ${ROW("Платежна сметка", BANK.fxAccount, true)}
         ${ROW("IBAN", BANK.iban, true)}
         ${ROW("SWIFT / BIC", BANK.swift, true)}
       </table>

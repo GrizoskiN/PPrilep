@@ -62,6 +62,15 @@ export const AGENCY_EMAIL: Record<AgencyId, string> = {
 };
 
 /**
+ * Recipients for Комуналец requests sent from the utility/garbage form — the
+ * agency's own press inbox plus our shared inbox, so nothing is missed.
+ */
+export const KOMUNALEC_REQUEST_RECIPIENTS: string[] = [
+  "presskomunalec@yahoo.com",
+  "mojpprilep@gmail.com",
+];
+
+/**
  * Viber / WhatsApp click-to-chat numbers per agency. Numbers are in plain
  * international form WITHOUT the leading "+" or spaces (e.g. "38970123456");
  * the UI builds `wa.me/<n>` and `viber://chat?number=%2B<n>` from them.

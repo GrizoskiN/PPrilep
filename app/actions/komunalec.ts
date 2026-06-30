@@ -4,7 +4,7 @@ import { createClient } from "../../lib/supabase/server";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { createNotification } from "../../lib/notifications";
 import { sendKomunalecRequest } from "../../lib/email";
-import { AGENCY_EMAIL } from "../../lib/agencies";
+import { KOMUNALEC_REQUEST_RECIPIENTS } from "../../lib/agencies";
 import type {
   KomunalecRequestType,
   KomunalecRequestStatus,
@@ -93,9 +93,8 @@ export async function submitKomunalecRequest(input: KomunalecRequestInput) {
 
   if (error) return { error: error.message };
 
-  // Notify the operator(s) in-app (free); email goes to the agency inbox
-  // (currently the shared mojpprilep@gmail.com via AGENCY_EMAIL) until each
-  // institution's real address is set.
+  // Notify the operator(s) in-app (free); email goes to the Комуналец press
+  // inbox plus our shared inbox (see KOMUNALEC_REQUEST_RECIPIENTS).
   const ids = await komunalecOperatorIds();
   const typeLabel = REQUEST_TYPE_LABELS[input.request_type];
 
@@ -110,7 +109,7 @@ export async function submitKomunalecRequest(input: KomunalecRequestInput) {
         link: "/agency/komunalec",
       }),
     ),
-    sendKomunalecRequest(AGENCY_EMAIL.komunalec, {
+    sendKomunalecRequest(KOMUNALEC_REQUEST_RECIPIENTS, {
       requestType: input.request_type,
       category: input.request_type === "complaint" ? input.category ?? null : null,
       fullName: input.full_name.trim(),

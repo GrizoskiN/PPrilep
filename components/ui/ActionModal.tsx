@@ -32,6 +32,12 @@ const LocationPickerModal = dynamic(
 );
 
 // ── Constants ──────────────────────────────────────────────────────────────────
+// Temporarily disable *posting* a problem report. The form stays fully openable
+// and fillable (so people can see how it works) — only the final insert is
+// blocked. Ideas, stories, memberships and donations are unaffected. Flip back
+// to `true` to re-enable reporting.
+const REPORTING_ENABLED = false;
+
 const DISTRICTS = [
   "Center",
   "Varoš",
@@ -263,6 +269,11 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
 
   // ── Report submit ─────────────────────────────────────────────────────────────
   async function onReportSubmit(values: ReportFields) {
+    if (!REPORTING_ENABLED) {
+      toast.info("Пријавувањето проблеми е привремено оневозможено. Наскоро повторно ќе биде достапно. 🙏");
+      return;
+    }
+
     if (!userId) {
       const next = `${location.pathname}${location.search}`;
       window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
@@ -778,6 +789,12 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
                         similar={similar}
                         onDismiss={() => setDupDismissed(true)}
                       />
+                    )}
+
+                    {!REPORTING_ENABLED && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[12px] leading-snug text-amber-800">
+                        ℹ️ Пријавувањето проблеми е привремено оневозможено. Можете да ја разгледате формата, но сè уште не може да се објави. Наскоро повторно ќе биде достапно.
+                      </div>
                     )}
 
                     <div className="sticky bottom-0 z-10 -mx-4 flex justify-end gap-3 border-t border-zinc-100 bg-white/95 px-4 pb-1 pt-3 backdrop-blur sm:-mx-5 sm:px-5">

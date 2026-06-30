@@ -1,80 +1,52 @@
-import Link from "next/link";
-import { createClient } from "../../../lib/supabase/server";
-import AvatarInitials, { type MembershipTier } from "../../../components/ui/AvatarInitials";
+import AvatarInitials from "../../../components/ui/AvatarInitials";
 
-interface HeroProfile {
-  id: string;
-  full_name: string | null;
-  avatar_url: string | null;
+interface Hero {
+  name: string;
   username: string | null;
   points: number;
-  is_company: boolean;
-  membership_tier: string | null;
 }
 
-function HeroList({
-  heroes,
-  emptyText,
-}: {
-  heroes: HeroProfile[];
-  emptyText: string;
-}) {
+// Placeholder until live applause tracking goes public. The real leaderboard
+// will be driven by profiles.points once the feature launches.
+const HEROES: Hero[] = [{ name: "Мој Прилеп", username: null, points: 7 }];
+
+function HeroList({ heroes }: { heroes: Hero[] }) {
   if (heroes.length === 0) {
-    return <p className="text-xs text-theme-subtle">{emptyText}</p>;
+    return (
+      <p className="text-xs text-theme-subtle">
+        Сè уште нема херои. Бидете први да помогнете!
+      </p>
+    );
   }
   return (
     <div className="space-y-2">
-      {heroes.map((profile, index) => (
-        <Link
-          key={profile.id}
-          href={
-            profile.username ? `/${profile.username}` : `/${profile.id}`
-          }
-          className="bg-theme-surface border border-theme rounded-lg p-4 flex items-center gap-3 hover:border-zinc-300 hover:bg-zinc-50 transition-colors">
+      {heroes.map((hero, index) => (
+        <div
+          key={hero.name}
+          className="bg-theme-surface border border-theme rounded-lg p-4 flex items-center gap-3">
           <span className="text-sm font-bold text-theme-subtle w-6 text-right shrink-0">
             {index + 1}
           </span>
-          <AvatarInitials
-            name={profile.full_name}
-            avatarUrl={profile.avatar_url}
-            size="md"
-            membershipTier={profile.membership_tier as MembershipTier}
-            points={profile.points}
-          />
+          <AvatarInitials name={hero.name} size="md" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate text-theme-heading">
-              {profile.full_name ?? "Анонимно"}
+              {hero.name}
             </p>
-            {profile.username && (
-              <p className="text-xs text-theme-subtle">@{profile.username}</p>
+            {hero.username && (
+              <p className="text-xs text-theme-subtle">@{hero.username}</p>
             )}
           </div>
           <div className="text-right shrink-0">
-            <p className="text-sm font-bold text-theme-heading">
-              {profile.points}
-            </p>
+            <p className="text-sm font-bold text-theme-heading">{hero.points}</p>
             <p className="text-[10px] text-theme-subtle">аплаузи</p>
           </div>
-        </Link>
+        </div>
       ))}
     </div>
   );
 }
 
-export default async function HeroesPage() {
-  const supabase = await createClient();
-
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, full_name, avatar_url, username, points, is_company, membership_tier")
-    .gt("points", 0)
-    .order("points", { ascending: false })
-    .limit(40);
-
-  const all = (profiles ?? []) as HeroProfile[];
-  const people = all.filter((p) => !p.is_company);
-  const companies = all.filter((p) => p.is_company);
-
+export default function HeroesPage() {
   return (
     <div className="space-y-6">
       <div>
@@ -88,31 +60,87 @@ export default async function HeroesPage() {
 
       <section className="space-y-3">
         <div className="flex items-center gap-2">
-          <span className="text-base">👤</span>
-          <h2 className="text-sm font-semibold text-theme-heading">Граѓани</h2>
-          {people.length > 0 && (
-            <span className="ml-auto text-xs font-bold bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full">
-              {people.length}
-            </span>
-          )}
+          <span className="text-base">🏆</span>
+          <h2 className="text-sm font-semibold text-theme-heading">
+            Ранг-листа
+          </h2>
         </div>
-        <HeroList
-          heroes={people}
-          emptyText="Сè уште нема херои-граѓани. Бидете први да помогнете!"
-        />
+        <HeroList heroes={HEROES} />
       </section>
 
-      <section className="space-y-3">
+      <section className="rounded-xl border border-theme bg-theme-surface p-4 space-y-4">
         <div className="flex items-center gap-2">
-          <span className="text-base">🏢</span>
-          <h2 className="text-sm font-semibold text-theme-heading">Компании</h2>
-          {companies.length > 0 && (
-            <span className="ml-auto text-xs font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">
-              {companies.length}
-            </span>
-          )}
+          <span className="text-base">👏</span>
+          <h2 className="text-sm font-semibold text-theme-heading">
+            Како функционира системот на „Аплаузи“?
+          </h2>
         </div>
-        <HeroList heroes={companies} emptyText="Сè уште нема компании-херои." />
+        <p className="text-sm leading-relaxed text-theme-muted">
+          Овој систем функционира на принцип на заедничко признание. Граѓаните
+          самите ги наградуваат оние кои придонесуваат за подобро утре.
+        </p>
+
+        <div className="space-y-1.5">
+          <h3 className="text-sm font-semibold text-theme-heading">
+            1. Решавање и објава (резултат)
+          </h3>
+          <p className="text-sm leading-relaxed text-theme-muted">
+            <strong className="text-theme-heading">Акција:</strong> граѓанин или
+            компанија решава конкретен отворен проблем во градот.
+          </p>
+          <p className="text-sm leading-relaxed text-theme-muted">
+            <strong className="text-theme-heading">Доказ:</strong> решениот
+            проблем се објавува на платформата под нивно име (на пр.
+            „Компанијата Х ја поправи урбаната опрема во паркот“ или „Марко
+            Марковски ја исчисти дивата депонија кај игралиштето“).
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <h3 className="text-sm font-semibold text-theme-heading">
+            2. Јавно гласање (моментот на аплауз)
+          </h3>
+          <p className="text-sm leading-relaxed text-theme-muted">
+            <strong className="text-theme-heading">Поддршка од народот:</strong>{" "}
+            останатите сограѓани ја гледаат оваа објава и можат да стиснат
+            „Аплауз“ (слично како лајк).
+          </p>
+          <p className="text-sm leading-relaxed text-theme-muted">
+            <strong className="text-theme-heading">Вреднување:</strong> колку
+            позначаен и покорисен е проблемот што е решен, толку повеќе луѓе ќе
+            стиснат аплауз за да кажат „Благодарам!“.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <h3 className="text-sm font-semibold text-theme-heading">
+            3. Рангирање и Херој на месецот
+          </h3>
+          <p className="text-sm leading-relaxed text-theme-muted">
+            <strong className="text-theme-heading">Автоматско бодување:</strong>{" "}
+            сите аплаузи од заедницата се претвораат во поени на јавната
+            ранг-листа.
+          </p>
+          <p className="text-sm leading-relaxed text-theme-muted">
+            <strong className="text-theme-heading">Крунисување:</strong> на
+            крајот на месецот, оној што успеал да собере најмногу аплаузи од
+            своите сограѓани ја добива титулата{" "}
+            <strong className="text-theme-heading">Херој на градот</strong> и
+            соодветната награда.
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-theme bg-theme-canvas p-3">
+          <p className="text-sm leading-relaxed text-theme-muted">
+            <strong className="text-theme-heading">
+              Зошто е ова одлично?
+            </strong>{" "}
+            Затоа што го спречува фаворизирањето. Не одлучува комисија кој е
+            најдобар, туку самите граѓани гласаат за она што им е најважно. Ова
+            ги мотивира компаниите и поединците да решаваат проблеми што навистина
+            ги засегаат луѓето.
+          </p>
+        </div>
       </section>
     </div>
   );

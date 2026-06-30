@@ -19,15 +19,6 @@ type Sponsor = {
   is_company?: boolean;
 };
 
-type Member = {
-  id: string;
-  full_name: string | null;
-  username: string | null;
-  avatar_url: string | null;
-  points: number;
-  membership_tier: string | null;
-};
-
 const COMPANY_TIERS = ["company_basic", "company_preferred", "company_premium"];
 const TIER_ORDER: Record<string, number> = {
   company_premium: 0,
@@ -42,14 +33,15 @@ export default function AboutRightPanel() {
   const { user } = useAuth();
 
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
   const [memberCount, setMemberCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     async function load() {
-      const [{ data: sponsorData }, { data: memberData, count }] =
+      // The members list is no longer rendered here, but we still query the
+      // count to drive the "Наша цел: N членови" progress bar.
+      const [{ data: sponsorData }, { count }] =
         await Promise.all([
           supabase
             .from("profiles")
@@ -77,7 +69,6 @@ export default function AboutRightPanel() {
           (TIER_ORDER[b.membership_tier ?? ""] ?? 9),
       );
       setSponsors(sorted);
-      setMembers((memberData as Member[] | null) ?? []);
       setMemberCount(count ?? 0);
       setLoading(false);
     }
@@ -196,51 +187,6 @@ export default function AboutRightPanel() {
         </Link>
       </section>
 
-      {/* ── Members ────────────────────────────────────────── */}
-      {!loading && members.length > 0 && (
-        <section className="rounded-2xl border border-[#e4ece8] bg-white p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-theme-subtle mb-3">
-            Членови на заедницата
-          </p>
-          <div className="max-h-72 overflow-y-auto space-y-1 pr-0.5">
-            {members.map((m) => {
-              const tier = m.membership_tier
-                ? (TIER_CONFIG[m.membership_tier as keyof typeof TIER_CONFIG] ?? null)
-                : null;
-              const name = m.full_name ?? m.username ?? "Член";
-              return (
-                <Link
-                  key={m.id}
-                  href={userPath(m.username, m.id)}
-                  className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors hover:bg-slate-50">
-                  <AvatarInitials
-                    name={name}
-                    avatarUrl={m.avatar_url}
-                    size="sm"
-                    membershipTier={m.membership_tier as MembershipTier}
-                    points={m.points}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-semibold text-slate-800">{name}</p>
-                    {tier && (
-                      <p className="text-[10px] font-medium" style={{ color: tier.color }}>
-                        {tier.emoji} {tier.label}
-                      </p>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-          {memberCount > 8 && (
-            <Link
-              href="/heroes"
-              className="mt-2 block rounded-xl border border-dashed border-[#e4ece8] py-2 text-center text-[11px] font-semibold text-theme-muted hover:text-primary hover:border-[#cfe0da] transition-colors">
-              Види сите {memberCount} членови →
-            </Link>
-          )}
-        </section>
-      )}
     </div>
   );
 }
