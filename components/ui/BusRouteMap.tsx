@@ -201,7 +201,8 @@ const stopPinColor = (stop: (typeof BUS_STOPS)[number]): string =>
   BUS_ROUTES.find((r) => r.id === stop.routeIds[0])?.color ?? "#27272a";
 // One pin image per distinct line colour, keyed by colour.
 const STOP_PIN_COLORS = Array.from(new Set(BUS_ROUTES.map((r) => r.color)));
-const stopImageName = (color: string) => `bus-stop-${color}`;
+const STOP_IMG_PREFIX = "bus-stop-";
+const stopImageName = (color: string) => `${STOP_IMG_PREFIX}${color}`;
 
 // The stop icon's inner markup (public/bus-stop.svg, viewBox 0 0 24 24), inlined
 // so the popup can render it in the line's colour without a second request.
@@ -568,6 +569,18 @@ export default function BusRouteMap() {
       addOverlays();
       if (!initialized) {
         initialized = true;
+        // Generate stop-pin images on demand. Covers the production cold-load
+        // race where the basemap style finishes before /bus-stop.svg, so the
+        // symbol layer asks for an icon that isn't registered yet. Bound once —
+        // it survives basemap swaps.
+        map.on("styleimagemissing", (e) => {
+          const id = e.id;
+          if (!id.startsWith(STOP_IMG_PREFIX) || map.hasImage(id)) return;
+          const src = stopImgRef.current;
+          if (!src) return; // SVG not loaded yet — the load handler re-resolves
+          const color = id.slice(STOP_IMG_PREFIX.length);
+          map.addImage(id, recolorIcon(src, color, STOP_ICON_PX), { pixelRatio: 2 });
+        });
         // Frame the whole network and make that the zoom-out floor.
         map.fitBounds(FIT_BOUNDS, { padding: 24, duration: 0 });
         // Floor a bit tighter than the full-network fit so the map can't be
@@ -604,6 +617,13 @@ export default function BusRouteMap() {
       const map = mapRef.current;
       if (map && map.isStyleLoaded()) {
         registerStopImages(map, img);
+        // Force the symbol layer to re-resolve its icons. If the basemap loaded
+        // before the SVG (the prod cold-load race), the stops were laid out as
+        // "image missing" and styleimagemissing won't re-fire for those ids —
+        // re-setting the layout property re-lays them out now the images exist.
+        if (map.getLayer("stops-sym")) {
+          map.setLayoutProperty("stops-sym", "icon-image", ["get", "pinImg"]);
+        }
         map.triggerRepaint();
       }
     };
@@ -1047,7 +1067,15 @@ export default function BusRouteMap() {
             gridTemplateColumns: `repeat(${Math.min(liveBuses.length, 4)}, minmax(0, 1fr))`,
           }}>
 
-          {liveBuses.map((bus) => {
+          {[...liveBuses]
+            .sort((a, b) => {
+              // Order the chips by line number (Линија 1, 2, 3…), not by the
+              // arbitrary order the live-positions feed returns buses in.
+              const ai = BUS_ROUTES.findIndex((r) => r.id === a.routeId);
+              const bi = BUS_ROUTES.findIndex((r) => r.id === b.routeId);
+              return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
+            })
+            .map((bus) => {
             const route = BUS_ROUTES.find((r) => r.id === bus.routeId);
             const short = route?.name.replace(/[^0-9]/g, "") || bus.label;
             return (

@@ -46,7 +46,7 @@ export const BUS_STOPS: BusStop[] = [
 
   // ── Shared Line 1 + 2 (GPS-precise on both) ───────────────────────────────
   { id: "ekonomski",      name: "Економски Факултет",          coordinates: [21.5418388, 41.3541164], routeIds: ["line1", "line2"] },
-  { id: "blakoneski",     name: "ООУ Блаже Конески",           coordinates: [21.5435715, 41.3525864], routeIds: ["line1", "line2"] },
+  { id: "internat",     name: "Интернат",           coordinates: [21.5435715, 41.3525864], routeIds: ["line2"] },
   { id: "Brza pomos",         name: "Брза Помош",                      coordinates: [21.5632836, 41.3448273], routeIds: ["line1", "line2"] },
 
   // ── Shared Lines 1 + 2 + 3 (GPS-precise) ─────────────────────────────────
@@ -58,8 +58,8 @@ export const BUS_STOPS: BusStop[] = [
   { id: "l2-ps",          name: "Ла Страда",                   coordinates: [21.5550169, 41.3469059], routeIds: ["line2", "line3"] },
 
   // ── Line 2 only — northwest section (GPS-precise) ─────────────────────────
-  { id: "internat",       name: "Интернат",                    coordinates: [21.5417384, 41.3511023], routeIds: ["line2"] },
-  { id: "belston",        name: "Белстон",                     coordinates: [21.5380703, 41.3505932], routeIds: ["line2"] },
+  { id: "blaze koneski",       name: "OОУ Блаже Конески",                    coordinates:  [21.5380703, 41.3505932], routeIds: ["line2"] },
+  { id: "belston",        name: "Белстон",                     coordinates:[21.5417384, 41.3511023] , routeIds: ["line2"] },
   { id: "crkvapetka",     name: "Црква Св. Петка",             coordinates: [21.5379059, 41.3483448], routeIds: ["line2"] },
 
   // ── Line 2 only — center section (GPS-precise) ────────────────────────────
