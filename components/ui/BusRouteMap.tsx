@@ -129,12 +129,23 @@ const POLL_MS = 7_000; // poll faster so a new fix is picked up sooner (cache is
 const STALE_MS = 5 * 60_000; // no fix in 5 min → grey out
 const SNAP_MAX_M = 75; // snap to the line within this gap (route polyline is coarse
 // + GPS jitters, so 45m detached the bus too eagerly); else show raw point
-const MIN_TWEEN_MS = 1_500; // floor so a fix never teleports
-// Ceiling on the catch-up animation. The tween replays the bus from its previous
-// fix to the newest one; over a long reporting gap that kept the marker ~one
-// interval behind. Cap it short so the marker reaches the latest known position
-// quickly (then waits for the next fix) instead of crawling for up to 40s.
-const MAX_TWEEN_MS = 10_000;
+
+// ── Motion model: forward prediction (dead reckoning) ──────────────────────────
+// Instead of replaying the past (tweening from the previous fix to the latest —
+// which leaves the marker ~one reporting interval behind, and MORE behind for a
+// bus that reports every 30s than one every 7s), we project the latest fix
+// FORWARD along the route by speed × time-since-fix. The marker estimates where
+// the bus is *now*, so lag is small and uniform across the fleet regardless of
+// each tracker's interval. When the next fix lands we re-anchor and ease to it.
+const SMOOTH_TAU_S = 1.1; // easing time constant: how gently the marker chases its
+// target. Larger = a fix-time correction glides in over a couple seconds instead
+// of snapping (the visible "jump" on a new GPS signal); smaller = snappier.
+const PREDICT_HORIZON_S = 40; // cap dead reckoning: if a fix is missed, stop
+// projecting after this long so a bus can't be flung across town on stale speed.
+const MAX_SPEED_MPS = 30; // ~108 km/h clamp on the projection speed (reject junk).
+const REPOSITION_M = 50; // a new fix landing this far BEHIND the predicted marker
+// is treated as a real GPS reposition (ease to it); anything smaller is prediction
+// overshoot — we hold rather than reverse the bus, which looks unnatural.
 const GREY = "#94a3b8";
 
 // Per-bus animation state — lives in a ref, mutated by the rAF loop (not React).
@@ -143,16 +154,15 @@ type BusAnim = {
   label: string;
   color: string;
   onRoute: boolean;
-  // line-referenced tween (when onRoute)
-  fromAlong: number;
-  toAlong: number;
   forward: boolean;
-  // raw-coordinate tween (when off route)
-  fromLngLat: LngLat;
-  toLngLat: LngLat;
-  // animation clock
-  startT: number;
-  durationMs: number;
+  // Prediction anchor = the latest fix. fixRecvT is the CLIENT clock time we
+  // applied it (not the device/server timestamp), so extrapolation is immune to
+  // tracker clock skew.
+  fixAlong: number; // onRoute: distance along the line at the fix
+  fixLngLat: LngLat; // off-route: raw fix coordinate
+  fixRecvT: number; // ms, Date.now() when this fix was applied
+  speedMps: number; // ground speed used to project the marker forward (0 = parked)
+  // Rendered state, mutated every frame by the rAF loop.
   renderAlong: number;
   renderLngLat: LngLat;
   bearing: number;
@@ -776,12 +786,29 @@ export default function BusRouteMap() {
         setSelectedBusId(bus.id);
       };
 
-      // Update animation state.
+      // Update prediction state.
       const fixKey = bus.lastSeen ?? `${bus.lat},${bus.lng}`;
       const prev = states.get(bus.id);
 
+      // Ground speed for forward projection: trust the reported speed
+      // (km/h → m/s); fall back to distance/time between the last two fixes;
+      // 0 (parked) so a stopped bus doesn't drift ahead of its fix.
+      const speedMps = (() => {
+        if (bus.speed != null && bus.speed > 0)
+          return Math.min(bus.speed / 3.6, MAX_SPEED_MPS);
+        if (prev && prev.onRoute && onRoute && prev.lastSeen && bus.lastSeen) {
+          const dt =
+            (new Date(bus.lastSeen).getTime() -
+              new Date(prev.lastSeen).getTime()) /
+            1000;
+          if (dt > 0)
+            return Math.min(Math.abs(snap!.along - prev.fixAlong) / dt, MAX_SPEED_MPS);
+        }
+        return 0;
+      })();
+
       if (!prev) {
-        // First sighting: place instantly (no tween).
+        // First sighting: place instantly at the fix.
         const along = onRoute ? snap!.along : 0;
         const lngLat: LngLat = onRoute ? [snap!.lng, snap!.lat] : [bus.lng, bus.lat];
         let forward = true;
@@ -791,54 +818,45 @@ export default function BusRouteMap() {
         const brg =
           onRoute && geom ? bearingAt(geom, along, forward) : bus.course ?? 0;
         states.set(bus.id, {
-          routeId: bus.routeId, label: bus.label, color, onRoute,
-          fromAlong: along, toAlong: along, forward,
-          fromLngLat: lngLat, toLngLat: lngLat,
-          startT: now, durationMs: 0,
+          routeId: bus.routeId, label: bus.label, color, onRoute, forward,
+          fixAlong: along, fixLngLat: [bus.lng, bus.lat], fixRecvT: now, speedMps,
           renderAlong: along, renderLngLat: lngLat, bearing: brg,
           speed: bus.speed, lastSeen: bus.lastSeen, fixKey,
         });
       } else if (prev.fixKey !== fixKey) {
-        // New fix: tween from the current rendered position to the new target,
-        // over the real time that elapsed between the two fixes.
-        const deltaMs =
-          prev.lastSeen && bus.lastSeen
-            ? new Date(bus.lastSeen).getTime() - new Date(prev.lastSeen).getTime()
-            : MIN_TWEEN_MS;
-        const durationMs = Math.max(MIN_TWEEN_MS, Math.min(MAX_TWEEN_MS, deltaMs));
-
+        // New fix: re-anchor the prediction. Keep the current rendered position
+        // so the marker EASES to the correction (via the rAF loop) instead of
+        // teleporting.
         if (onRoute && geom) {
-          const from = prev.onRoute ? prev.renderAlong : snap!.along;
-          let toAlong = snap!.along;
-          // Loop wrap: take the short way around a closed line.
-          if (geom.length > 0 && Math.abs(toAlong - from) > geom.length / 2) {
-            toAlong += toAlong < from ? geom.length : -geom.length;
-          }
+          const newAlong = snap!.along;
+          if (!prev.onRoute) prev.renderAlong = newAlong; // just re-attached to the line
+          // Direction: trust the movement between fixes when meaningful, else the
+          // reported course, else keep the last direction.
           prev.forward =
-            Math.abs(toAlong - from) > 1
-              ? toAlong >= from
+            Math.abs(newAlong - prev.fixAlong) > 1
+              ? newAlong >= prev.fixAlong
               : bus.course != null
-                ? angleDiff(bearingAt(geom, snap!.along, true), bus.course) <= 90
+                ? angleDiff(bearingAt(geom, newAlong, true), bus.course) <= 90
                 : prev.forward;
           prev.onRoute = true;
-          prev.fromAlong = from;
-          prev.toAlong = toAlong;
+          prev.fixAlong = newAlong;
         } else {
+          if (prev.onRoute) prev.renderLngLat = [bus.lng, bus.lat]; // just left the line
           prev.onRoute = false;
-          prev.fromLngLat = prev.renderLngLat;
-          prev.toLngLat = [bus.lng, bus.lat];
+          prev.fixLngLat = [bus.lng, bus.lat];
           if (bus.course != null) prev.bearing = bus.course;
         }
         prev.routeId = bus.routeId;
         prev.label = bus.label;
         prev.color = color;
-        prev.startT = now;
-        prev.durationMs = durationMs;
+        prev.fixRecvT = now;
+        prev.speedMps = speedMps;
         prev.speed = bus.speed;
         prev.lastSeen = bus.lastSeen;
         prev.fixKey = fixKey;
       } else {
-        // Same fix between polls: just keep meta / colour fresh.
+        // Same fix between polls: refresh meta only — keep predicting from the
+        // original fix time so motion stays continuous.
         prev.routeId = bus.routeId;
         prev.label = bus.label;
         prev.color = color;
@@ -857,34 +875,70 @@ export default function BusRouteMap() {
     }
   }, [liveBuses, activeRoutes, mapReady, isOwner, showSpeed]);
 
-  // ── Animate markers along their line every frame ────────────────────────────
+  // ── Animate markers by predicting forward every frame ───────────────────────
   useEffect(() => {
     if (!mapReady) return;
     let raf = 0;
+    let lastT = 0;
     const tick = () => {
       const now = Date.now();
-      for (const [id, st] of busStateRef.current) {
-        const e = busElsRef.current.get(id);
-        if (!e) continue;
-        const p = st.durationMs <= 0 ? 1 : Math.min(1, (now - st.startT) / st.durationMs);
+      const dt = lastT ? (now - lastT) / 1000 : 0;
+      lastT = now;
+      // Frame-rate-independent exponential smoothing: renderAlong chases the
+      // predicted target, so a correction when a new fix lands eases in instead
+      // of snapping. dt=0 on the first frame → snap straight to target.
+      const smooth = dt > 0 ? 1 - Math.exp(-dt / SMOOTH_TAU_S) : 1;
 
-        let lngLat: LngLat;
-        if (st.onRoute) {
-          const geom = ROUTE_GEOM[st.routeId];
-          const along = st.fromAlong + (st.toAlong - st.fromAlong) * p;
-          lngLat = geom ? pointAt(geom, along) : st.renderLngLat;
-          st.renderAlong = along;
-          if (geom && Math.abs(st.toAlong - st.fromAlong) > 1) {
-            st.bearing = bearingAt(geom, along, st.forward);
+      for (const [id, st] of busStateRef.current) {
+        // Isolate each bus: one bad frame (e.g. a NaN coordinate from a stray
+        // fix) must never throw out of tick, or the rAF loop below stops being
+        // rescheduled and EVERY bus freezes until a page reload.
+        try {
+          const e = busElsRef.current.get(id);
+          if (!e) continue;
+
+          let lngLat: LngLat;
+          if (st.onRoute) {
+            const geom = ROUTE_GEOM[st.routeId];
+            if (!geom) {
+              lngLat = st.renderLngLat;
+            } else {
+              // Project the fix forward by speed × time since the fix, capped by
+              // the horizon so a missed fix can't fling the marker across town.
+              const elapsed = Math.min((now - st.fixRecvT) / 1000, PREDICT_HORIZON_S);
+              const dir = st.forward ? 1 : -1;
+              const target = Math.max(
+                0,
+                Math.min(geom.length, st.fixAlong + dir * st.speedMps * elapsed),
+              );
+              const delta = target - st.renderAlong;
+              // Don't reverse the bus for a small overshoot (target landed BEHIND
+              // the marker) — hold and let reality catch up. Move only when the
+              // target is ahead in the travel direction, or it's a large genuine
+              // reposition. Buses don't drive backwards; a visible reverse reads wrong.
+              if (dir * delta >= 0 || Math.abs(delta) > REPOSITION_M) {
+                st.renderAlong += delta * smooth;
+              }
+              lngLat = pointAt(geom, st.renderAlong);
+              if (Math.abs(delta) > 0.5) {
+                st.bearing = bearingAt(geom, st.renderAlong, st.forward);
+              }
+            }
+          } else {
+            // Off route: ease toward the raw fix, no forward projection.
+            lngLat = [
+              st.renderLngLat[0] + (st.fixLngLat[0] - st.renderLngLat[0]) * smooth,
+              st.renderLngLat[1] + (st.fixLngLat[1] - st.renderLngLat[1]) * smooth,
+            ];
           }
-        } else {
-          lngLat = [
-            st.fromLngLat[0] + (st.toLngLat[0] - st.fromLngLat[0]) * p,
-            st.fromLngLat[1] + (st.toLngLat[1] - st.fromLngLat[1]) * p,
-          ];
+          // Guard: MapLibre throws on a non-finite LngLat. Skip this frame for
+          // this bus and keep its last good position rather than crash the loop.
+          if (!Number.isFinite(lngLat[0]) || !Number.isFinite(lngLat[1])) continue;
+          st.renderLngLat = lngLat;
+          e.marker.setLngLat(lngLat);
+        } catch {
+          /* one bus glitched this frame — keep animating the rest */
         }
-        st.renderLngLat = lngLat;
-        e.marker.setLngLat(lngLat);
       }
       raf = requestAnimationFrame(tick);
     };
