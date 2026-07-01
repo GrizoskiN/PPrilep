@@ -143,9 +143,9 @@ const SMOOTH_TAU_S = 1.1; // easing time constant: how gently the marker chases 
 const PREDICT_HORIZON_S = 40; // cap dead reckoning: if a fix is missed, stop
 // projecting after this long so a bus can't be flung across town on stale speed.
 const MAX_SPEED_MPS = 30; // ~108 km/h clamp on the projection speed (reject junk).
-const REPOSITION_M = 50; // a new fix landing this far BEHIND the predicted marker
-// is treated as a real GPS reposition (ease to it); anything smaller is prediction
-// overshoot — we hold rather than reverse the bus, which looks unnatural.
+const PREDICT_SPEED_FACTOR = 0.85; // under-predict slightly so the marker tends to
+// sit just BEHIND reality — corrections then land ahead of it (a natural forward
+// catch-up) instead of behind it (which would need an unnatural reverse).
 const GREY = "#94a3b8";
 
 // Per-bus animation state — lives in a ref, mutated by the rAF loop (not React).
@@ -909,20 +909,22 @@ export default function BusRouteMap() {
               const dir = st.forward ? 1 : -1;
               const target = Math.max(
                 0,
-                Math.min(geom.length, st.fixAlong + dir * st.speedMps * elapsed),
+                Math.min(
+                  geom.length,
+                  st.fixAlong + dir * st.speedMps * PREDICT_SPEED_FACTOR * elapsed,
+                ),
               );
               const delta = target - st.renderAlong;
-              // Don't reverse the bus for a small overshoot (target landed BEHIND
-              // the marker) — hold and let reality catch up. Move only when the
-              // target is ahead in the travel direction, or it's a large genuine
-              // reposition. Buses don't drive backwards; a visible reverse reads wrong.
-              if (dir * delta >= 0 || Math.abs(delta) > REPOSITION_M) {
+              // Only ever ease FORWARD (in the travel direction). If the target
+              // lands behind the marker (prediction overshot, or a stray fix), we
+              // HOLD — never animate a reverse, which looks like the bus driving
+              // backwards. It self-heals: a forward-running bus's next fixes push
+              // fixAlong past the marker, so motion resumes on its own.
+              if (dir * delta > 0) {
                 st.renderAlong += delta * smooth;
-              }
-              lngLat = pointAt(geom, st.renderAlong);
-              if (Math.abs(delta) > 0.5) {
                 st.bearing = bearingAt(geom, st.renderAlong, st.forward);
               }
+              lngLat = pointAt(geom, st.renderAlong);
             }
           } else {
             // Off route: ease toward the raw fix, no forward projection.
