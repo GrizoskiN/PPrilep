@@ -23,6 +23,7 @@ const TIER_SHORT: Record<string, string> = {
   monthly:           "Месечен",
   yearly:            "Годишен",
   mega_donor:        "МегаГига",
+  mega_donator:      "Мега",
   company_basic:     "Партнер",
   company_preferred: "Партнер+",
   company_premium:   "Премиум",

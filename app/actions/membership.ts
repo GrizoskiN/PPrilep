@@ -15,6 +15,7 @@ export type MembershipTier =
   | "monthly"
   | "yearly"
   | "mega_donor"
+  | "mega_donator"
   | "company_basic"
   | "company_preferred"
   | "company_premium";
