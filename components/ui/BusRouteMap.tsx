@@ -209,14 +209,31 @@ const laneOffset = (routeId: string): number => {
   return (i - (BUS_ROUTES.length - 1) / 2) * LANE_GAP;
 };
 
-// Stop pins are coloured by their line. A stop on several lines uses its first
-// line's colour (filtering hides it when no serving line is active anyway).
-const stopPinColor = (stop: (typeof BUS_STOPS)[number]): string =>
-  BUS_ROUTES.find((r) => r.id === stop.routeIds[0])?.color ?? "#27272a";
-// One pin image per distinct line colour, keyed by colour.
-const STOP_PIN_COLORS = Array.from(new Set(BUS_ROUTES.map((r) => r.color)));
+// Stop pins are coloured by their line(s). A stop served by several lines shows
+// a pin split into vertical bands — one per distinct serving-line colour — so
+// interchange stops (e.g. Болница on Линија 1 + 2) read as multi-line at a glance.
+const stopPinColors = (stop: (typeof BUS_STOPS)[number]): string[] => {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const r of BUS_ROUTES) {
+    if (stop.routeIds.includes(r.id) && !seen.has(r.color)) {
+      seen.add(r.color);
+      out.push(r.color);
+    }
+  }
+  return out.length ? out : ["#27272a"];
+};
+// One pin image per distinct colour-combination that actually occurs.
+const STOP_PIN_COMBOS: string[][] = Array.from(
+  new Map(
+    BUS_STOPS.map((s) => {
+      const c = stopPinColors(s);
+      return [c.join("|"), c] as const;
+    }),
+  ).values(),
+);
 const STOP_IMG_PREFIX = "bus-stop-";
-const stopImageName = (color: string) => `${STOP_IMG_PREFIX}${color}`;
+const stopImageName = (colors: string[]) => `${STOP_IMG_PREFIX}${colors.join("|")}`;
 
 // The stop icon's inner markup (public/bus-stop.svg, viewBox 0 0 24 24), inlined
 // so the popup can render it in the line's colour without a second request.
@@ -231,16 +248,22 @@ const STOP_ICON_INNER =
 // Drawn at 2x for crispness (paired with pixelRatio: 2). A solid white disc is
 // painted behind it so the icon's transparent cut-outs (the bus "windows") read
 // as white instead of showing the basemap through — clean, not see-through.
-function recolorIcon(img: HTMLImageElement, color: string, px: number): ImageData {
-  // Recolour the icon on its own canvas (source-in keeps the alpha shape).
+function recolorIcon(img: HTMLImageElement, colors: string[], px: number): ImageData {
+  // Recolour the icon on its own canvas. Paint the colour bands as opaque
+  // rectangles first (plain source-over), then clip them to the icon's alpha in a
+  // single destination-in pass. Per-band source-in would wipe the previous bands
+  // (each pass clears everything outside its own rect), leaving a blank pin.
   const tmp = document.createElement("canvas");
   tmp.width = px;
   tmp.height = px;
   const tctx = tmp.getContext("2d")!;
+  const n = colors.length;
+  for (let i = 0; i < n; i++) {
+    tctx.fillStyle = colors[i];
+    tctx.fillRect(Math.round((px * i) / n), 0, Math.ceil(px / n) + 1, px);
+  }
+  tctx.globalCompositeOperation = "destination-in";
   tctx.drawImage(img, 0, 0, px, px);
-  tctx.globalCompositeOperation = "source-in";
-  tctx.fillStyle = color;
-  tctx.fillRect(0, 0, px, px);
 
   // Composite: white disc background, then the recoloured icon on top.
   const canvas = document.createElement("canvas");
@@ -259,10 +282,10 @@ const STOP_ICON_PX = 96; // source raster size (→ 48 logical px at pixelRatio 
 // (Re)register one recoloured pin image per line colour. setStyle wipes images,
 // so this runs again on every basemap swap.
 function registerStopImages(map: maplibregl.Map, img: HTMLImageElement) {
-  for (const color of STOP_PIN_COLORS) {
-    const name = stopImageName(color);
+  for (const colors of STOP_PIN_COMBOS) {
+    const name = stopImageName(colors);
     if (map.hasImage(name)) map.removeImage(name);
-    map.addImage(name, recolorIcon(img, color, STOP_ICON_PX), { pixelRatio: 2 });
+    map.addImage(name, recolorIcon(img, colors, STOP_ICON_PX), { pixelRatio: 2 });
   }
 }
 
@@ -460,7 +483,7 @@ export default function BusRouteMap() {
                 id: stop.id,
                 name: stop.name,
                 routeIds: stop.routeIds.join(","),
-                pinImg: stopImageName(stopPinColor(stop)),
+                pinImg: stopImageName(stopPinColors(stop)),
               },
             })),
           },
@@ -592,8 +615,8 @@ export default function BusRouteMap() {
           if (!id.startsWith(STOP_IMG_PREFIX) || map.hasImage(id)) return;
           const src = stopImgRef.current;
           if (!src) return; // SVG not loaded yet — the load handler re-resolves
-          const color = id.slice(STOP_IMG_PREFIX.length);
-          map.addImage(id, recolorIcon(src, color, STOP_ICON_PX), { pixelRatio: 2 });
+          const colors = id.slice(STOP_IMG_PREFIX.length).split("|");
+          map.addImage(id, recolorIcon(src, colors, STOP_ICON_PX), { pixelRatio: 2 });
         });
         // Frame the whole network and make that the zoom-out floor.
         map.fitBounds(FIT_BOUNDS, { padding: 24, duration: 0 });

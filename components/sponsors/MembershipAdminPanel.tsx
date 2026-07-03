@@ -146,6 +146,32 @@ interface MemberRequest {
   user_id: string | null;
 }
 
+// ── Expandable request message ────────────────────────────────────────────────
+
+function RequestMessage({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  // Only offer a toggle when the text is long enough to actually get clamped.
+  const clampable = text.length > 90;
+
+  return (
+    <button
+      type="button"
+      onClick={() => clampable && setExpanded((e) => !e)}
+      className={cn(
+        "mt-1 block w-full text-left text-xs italic text-zinc-500",
+        !expanded && "line-clamp-2",
+        clampable && "cursor-pointer hover:text-zinc-700",
+      )}>
+      {text}
+      {clampable && (
+        <span className="ml-1 not-italic font-semibold text-zinc-400">
+          {expanded ? "прикажи помалку" : "прикажи повеќе"}
+        </span>
+      )}
+    </button>
+  );
+}
+
 // ── Main panel ────────────────────────────────────────────────────────────────
 
 export default function MembershipAdminPanel() {
@@ -264,11 +290,7 @@ export default function MembershipAdminPanel() {
                       style={{ color: "#2aa99d" }}>
                       {TIER_LABELS[req.tier] ?? req.tier}
                     </p>
-                    {req.message && (
-                      <p className="mt-1 line-clamp-2 text-xs italic text-zinc-400">
-                        {req.message}
-                      </p>
-                    )}
+                    {req.message && <RequestMessage text={req.message} />}
                   </div>
                 </div>
                 <div className="mt-2.5 flex gap-2">
