@@ -27,6 +27,15 @@ export interface StopSchedule {
   times: string[]; // "HH:MM", chronological
 }
 
+// Grace window: a departure counts as "next" until this many minutes AFTER its
+// scheduled time. Keeps a bus that's a few minutes ahead/behind from making the
+// panel jump to the following hour (e.g. at 12:40 the 12:39 run still shows).
+export const GRACE_MIN = 10;
+
+// Minutes-since-midnight for a "HH:MM" string.
+export const hhmmToMin = (t: string) =>
+  Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+
 const DIR_GROBISTA = "→ Н. Гробишта";
 const DIR_SALIDA = "→ Хотел Салида";
 const DIR_RID = "→ Рид";
@@ -295,11 +304,7 @@ export function nextDepartureAt(
   if (!sched) return null;
 
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  return (
-    sched.times.find(
-      (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) >= nowMin,
-    ) ?? null
-  );
+  return sched.times.find((t) => hhmmToMin(t) >= nowMin - GRACE_MIN) ?? null;
 }
 
 // All timetable entries for one stop across every route that has a timetable.

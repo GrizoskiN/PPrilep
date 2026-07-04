@@ -5,7 +5,12 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Bus, ChevronDown, Check, Gauge, Clock, X, Sun, Moon } from "lucide-react";
 import { BUS_ROUTES, BUS_STOPS } from "../../lib/data/busRoutes";
-import { timetableForStop, nextDepartureAt } from "../../lib/data/busTimetables";
+import {
+  timetableForStop,
+  nextDepartureAt,
+  GRACE_MIN,
+  hhmmToMin,
+} from "../../lib/data/busTimetables";
 import { useAuthContext } from "../../lib/context/AuthContext";
 import { OWNER_EMAIL, FLEET_OPERATOR_EMAIL } from "../../lib/config/owner";
 import {
@@ -1163,10 +1168,12 @@ export default function BusRouteMap() {
     const color = routes[0]?.color ?? "#3b82f6";
     const timetables = timetableForStop(selectedStop.id);
 
-    // "Now" as minutes-since-midnight, to highlight the next departure.
+    // "Now" as minutes-since-midnight, to highlight the next departure. A run
+    // stays "next" for GRACE_MIN after its time (a bus a few minutes off
+    // shouldn't skip the panel to the next hour).
     const d = new Date();
-    const nowMin = d.getHours() * 60 + d.getMinutes();
-    const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+    const nowMin = d.getHours() * 60 + d.getMinutes() - GRACE_MIN;
+    const toMin = hhmmToMin;
 
     return (
       <div className="flex flex-col">
