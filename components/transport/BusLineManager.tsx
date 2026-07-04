@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Bus } from "lucide-react";
 import { fetchBuses, updateBus, type BusRow } from "../../app/actions/buses";
 import { BUS_ROUTES } from "../../lib/data/busRoutes";
+import { plateForLabel } from "../../lib/data/busPlates";
 
 /**
  * Operator panel (Јавен превоз account + admins): reassign each bus to a line
@@ -62,8 +63,13 @@ export default function BusLineManager() {
           <div
             key={bus.id}
             className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-100 bg-zinc-50 px-2.5 py-2">
-            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-700">
+            <span className="flex min-w-0 flex-1 items-center gap-2 truncate text-[13px] font-medium text-zinc-700">
               {bus.label}
+              {plateForLabel(bus.label) && (
+                <span className="rounded-md border border-zinc-200 bg-white px-1.5 py-px font-mono text-[11px] font-semibold tracking-wide text-zinc-600">
+                  {plateForLabel(bus.label)}
+                </span>
+              )}
             </span>
 
             <select

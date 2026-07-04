@@ -5,8 +5,9 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Bus, ChevronDown, Check, Gauge, Clock, X, Sun, Moon } from "lucide-react";
 import { BUS_ROUTES, BUS_STOPS } from "../../lib/data/busRoutes";
+import { timetableForStop, nextDepartureAt } from "../../lib/data/busTimetables";
 import { useAuthContext } from "../../lib/context/AuthContext";
-import { OWNER_EMAIL } from "../../lib/config/owner";
+import { OWNER_EMAIL, FLEET_OPERATOR_EMAIL } from "../../lib/config/owner";
 import {
   buildGeom,
   snapToLine,
@@ -335,11 +336,12 @@ function makeBusEl(short: string, color: string): BusEls {
 export default function BusRouteMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const popupRef = useRef<maplibregl.Popup | null>(null);
-  // Which bus the detail panel is showing (null = closed). The panel is a fixed
-  // window (left dock on lg+, bottom drawer on mobile/tablet), not glued to the
-  // marker, so we only need the id — React renders the panel from live data.
+  // Which bus / stop the detail panel is showing (null = closed). The panel is
+  // a fixed window (left dock on lg+, bottom drawer on mobile/tablet), not
+  // glued to the marker, so we only need the id — React renders the panel from
+  // data. Bus and stop are mutually exclusive: opening one closes the other.
   const [selectedBusId, setSelectedBusId] = useState<number | null>(null);
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const busStateRef = useRef<Map<number, BusAnim>>(new Map());
   const busElsRef = useRef<Map<number, BusEls>>(new Map());
@@ -385,6 +387,27 @@ export default function BusRouteMap() {
   // at their last known location. Gated to a single account (see OWNER_EMAIL).
   const { user } = useAuthContext();
   const isOwner = user?.email === OWNER_EMAIL;
+  // Private fleet detail: registration plates, visible to the owner and the
+  // Јавен превоз operator only. Fetched from a server-gated endpoint (the plate
+  // strings never reach anyone else's browser).
+  const canSeePlates = isOwner || user?.email === FLEET_OPERATOR_EMAIL;
+  const [plates, setPlates] = useState<Record<number, string>>({});
+  useEffect(() => {
+    if (!canSeePlates) return;
+    let cancelled = false;
+    fetch("/api/buses/plates", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { plates: {} }))
+      .then((j) => {
+        if (!cancelled) setPlates((j.plates ?? {}) as Record<number, string>);
+      })
+      .catch(() => {
+        /* leave plates empty on a transient error */
+      });
+    return () => {
+      cancelled = true;
+      setPlates({}); // clear on sign-out / gate change so plates never linger
+    };
+  }, [canSeePlates]);
   const [showSpeed, setShowSpeed] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -547,53 +570,23 @@ export default function BusRouteMap() {
         });
       }
 
+      // Click → open the React stop panel (same glassy dock/drawer the bus
+      // panel uses); closes the bus panel since they share the window.
       const onStopClick = (e: maplibregl.MapLayerMouseEvent) => {
         if (!e.features?.length) return;
-        const props = e.features[0].properties as { name: string; routeIds: string };
-        const coords = (
-          e.features[0].geometry as GeoJSON.Point
-        ).coordinates.slice(0, 2) as [number, number];
-
-        // Which routes serve this stop? Colour the card by the first (matching
-        // the pin colour); list every serving line beneath the name.
-        const routes = props.routeIds
-          .split(",")
-          .map((rid) => BUS_ROUTES.find((r) => r.id === rid))
-          .filter((r): r is (typeof BUS_ROUTES)[number] => !!r);
-        const color = routes[0]?.color ?? "#3b82f6";
-        const lines = routes.map((r) => r.name).join(" · ");
-        const icon = `<svg viewBox="${STOP_ICON_VIEWBOX}" width="34" height="34" fill="${color}" style="flex:0 0 auto;">${STOP_ICON_INNER}</svg>`;
-
-        popupRef.current?.remove();
-        setSelectedBusId(null); // opening a stop popup closes the bus panel
-        popupRef.current = new maplibregl.Popup({
-          closeButton: false,
-          anchor: "bottom", // sit above the stop, tip pointing down
-          offset: 26,
-          maxWidth: "260px",
-          className: "pp-map-popup",
-        })
-          .setLngLat(coords)
-          .setHTML(
-            `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px 12px 12px;font-family:inherit;">
-              ${icon}
-              <div style="display:flex;flex-direction:column;line-height:1.2;min-width:0;">
-                <span style="font-size:16px;font-weight:800;color:${color};">${props.name}</span>
-                <span style="font-size:13px;font-weight:600;color:#52525b;">${lines}</span>
-              </div>
-            </div>`,
-          )
-          .addTo(map);
+        const props = e.features[0].properties as { id: string };
+        setSelectedBusId(null);
+        setSelectedStopId(props.id);
       };
       map.on("click", "stops-hit", onStopClick);
       map.on("click", "stops-sym", onStopClick);
 
-      // Dismiss popup when clicking the map background
+      // Dismiss the panel when clicking the map background
       map.on("click", (e) => {
         const features = map.queryRenderedFeatures(e.point, { layers: STOP_LAYERS });
         if (!features.length) {
-          popupRef.current?.remove();
           setSelectedBusId(null);
+          setSelectedStopId(null);
         }
       });
     };
@@ -802,10 +795,10 @@ export default function BusRouteMap() {
       e.numEl.style.color = baseColor;
       e.numEl.textContent = short;
 
-      // Click → open the React detail panel for this bus (closes any stop popup).
+      // Click → open the React detail panel for this bus (closes any stop panel).
       e.root.onclick = (ev) => {
         ev.stopPropagation();
-        popupRef.current?.remove();
+        setSelectedStopId(null);
         setSelectedBusId(bus.id);
       };
 
@@ -1018,6 +1011,7 @@ export default function BusRouteMap() {
     size: number,
     name: string | null,
     strong: boolean,
+    time?: string | null,
   ) => (
     <div className="flex min-h-8 items-center gap-2.5">
       <span className="relative z-1 flex w-6 shrink-0 justify-center">
@@ -1036,6 +1030,11 @@ export default function BusRouteMap() {
         style={{ color: strong ? "#18181b" : "#71717a", fontWeight: strong ? 700 : 500 }}>
         {name ?? "—"}
       </span>
+      {time && (
+        <span className="ml-auto shrink-0 rounded-md bg-white/70 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-zinc-600">
+          {time}
+        </span>
+      )}
     </div>
   );
 
@@ -1102,6 +1101,11 @@ export default function BusRouteMap() {
         <div className="flex items-center justify-between gap-2 px-4 pt-3.5 pb-2.5">
           <span className="flex items-center gap-1.5 text-sm font-bold" style={{ color }}>
             {route?.name ?? ""}
+            {plates[bus.id] && (
+              <span className="rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-px font-mono text-[11px] font-semibold tracking-wide text-zinc-600">
+                {plates[bus.id]}
+              </span>
+            )}
             {offline && (
               <span className="rounded-full border border-zinc-200 bg-zinc-100 px-1.5 py-px text-[10px] font-bold text-zinc-500">
                 ОФЛАЈН
@@ -1133,8 +1137,128 @@ export default function BusRouteMap() {
           )}
           {stopNode(offline ? GREY : "#cbd5e1", 11, prev, false)}
           {busNode(color, bus, !offline)}
-          {stopNode(offline ? GREY : baseColor, 13, next, true)}
+          {stopNode(
+            offline ? GREY : baseColor,
+            13,
+            next,
+            true,
+            // Scheduled time at the upcoming stop (this route + travel direction)
+            next && !offline ? nextDepartureAt(bus.routeId, next, forward) : null,
+          )}
         </div>
+      </div>
+    );
+  })();
+
+  // ── Stop panel — name, serving lines, and the возен ред for this stop ────────
+  const selectedStop = selectedStopId
+    ? BUS_STOPS.find((s) => s.id === selectedStopId) ?? null
+    : null;
+
+  const stopPanelInner = (() => {
+    if (!selectedStop) return null;
+    const routes = selectedStop.routeIds
+      .map((rid) => BUS_ROUTES.find((r) => r.id === rid))
+      .filter((r): r is (typeof BUS_ROUTES)[number] => !!r);
+    const color = routes[0]?.color ?? "#3b82f6";
+    const timetables = timetableForStop(selectedStop.id);
+
+    // "Now" as minutes-since-midnight, to highlight the next departure.
+    const d = new Date();
+    const nowMin = d.getHours() * 60 + d.getMinutes();
+    const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+
+    return (
+      <div className="flex flex-col">
+        <div className="flex items-start justify-between gap-2 px-4 pt-3.5 pb-1">
+          <span className="flex items-center gap-2.5 min-w-0">
+            <svg
+              viewBox={STOP_ICON_VIEWBOX}
+              width="30"
+              height="30"
+              fill={color}
+              className="shrink-0"
+              dangerouslySetInnerHTML={{ __html: STOP_ICON_INNER }}
+            />
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="text-sm font-bold" style={{ color }}>
+                {selectedStop.name}
+              </span>
+              <span className="text-[12px] font-semibold text-zinc-500">
+                {routes.map((r) => r.name).join(" · ")}
+              </span>
+            </span>
+          </span>
+          <button
+            onClick={() => setSelectedStopId(null)}
+            title="Затвори"
+            className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700">
+            <X size={22} />
+          </button>
+        </div>
+
+        {timetables.length > 0 && (
+          // keyed by stop id so switching stops always starts collapsed
+          <details key={selectedStop.id} className="group px-4 pb-3.5 pt-1">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg bg-white/60 px-2.5 py-2 text-[12px] font-bold text-zinc-600 [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center gap-1.5">
+                <Clock size={13} className="text-zinc-400" />
+                Возен ред
+              </span>
+              <ChevronDown
+                size={15}
+                className="shrink-0 text-zinc-400 transition-transform group-open:rotate-180"
+              />
+            </summary>
+            <div className="flex flex-col gap-3 pt-2.5">
+            {timetables.map(({ routeId, schedules }) => {
+              const route = BUS_ROUTES.find((r) => r.id === routeId);
+              return (
+                <div key={routeId} className="flex flex-col gap-2">
+                  {schedules.map((sched) => {
+                    // First departure still ahead of us today (if any).
+                    const nextIdx = sched.times.findIndex((t) => toMin(t) >= nowMin);
+                    return (
+                      <div key={sched.direction} className="flex flex-col gap-1.5">
+                        <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                          <span
+                            className="inline-block h-1.5 w-4 rounded-full"
+                            style={{ background: route?.color ?? color }}
+                          />
+                          {sched.direction}
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {sched.times.map((t, i) => {
+                            const past = toMin(t) < nowMin;
+                            const isNext = i === nextIdx;
+                            return (
+                              <span
+                                key={t + i}
+                                className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold ${
+                                  isNext
+                                    ? "text-white"
+                                    : past
+                                      ? "bg-white/50 text-zinc-400"
+                                      : "bg-white/70 text-zinc-700"
+                                }`}
+                                style={
+                                  isNext ? { background: route?.color ?? color } : undefined
+                                }>
+                                {t}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+            </div>
+          </details>
+        )}
+        {timetables.length === 0 && <div className="pb-3.5" />}
       </div>
     );
   })();
@@ -1233,25 +1357,18 @@ export default function BusRouteMap() {
       <div className="relative rounded-2xl overflow-hidden border border-zinc-200 h-115 lg:h-153">
         <div ref={containerRef} className="w-full h-full" />
 
-        {/* Hint label */}
-        <div className="pointer-events-none absolute bottom-3 left-3 rounded-xl bg-white/80 backdrop-blur-sm px-2.5 py-1 text-[11px] text-zinc-500 border border-zinc-100 shadow-sm">
-          Кликни на точките за повеќе детели
-        </div>
-
-        {/* Bus detail panel — left dock on lg+, bottom drawer on mobile/tablet */}
-        {selectedBus && (
+        {/* Detail panel (bus or stop) — left dock on lg+, bottom drawer on
+            mobile/tablet. Shared glassy window; bus and stop are exclusive. */}
+        {(selectedBus || stopPanelInner) && (
           <>
             {/* Desktop: slides in from the left edge */}
             <div className="pp-panel-left absolute top-0 bottom-0 left-3 z-40 my-auto hidden h-fit max-h-[calc(100%-1.5rem)] w-60 overflow-y-auto rounded-2xl border border-white/60 bg-linear-to-b from-white/85 to-white/55 shadow-xl ring-1 ring-white/40 backdrop-blur-2xl lg:block">
-              {panelInner}
+              {selectedBus ? panelInner : stopPanelInner}
             </div>
             {/* Mobile / tablet: slides up like a bottom drawer (10% smaller content,
                 inset 5% on each side) */}
             <div className="pp-panel-up absolute right-[5%] bottom-0 left-[5%] z-40 max-h-[70%] overflow-y-auto rounded-t-2xl border-t border-white/60 bg-linear-to-b from-white/90 to-white/60 shadow-2xl ring-1 ring-white/40 backdrop-blur-2xl lg:hidden">
-              <div className="flex justify-center pt-2">
-                <span className="h-1 w-9 rounded-full bg-zinc-300" />
-              </div>
-              <div style={{ zoom: 0.9 }}>{panelInner}</div>
+              <div style={{ zoom: 0.9 }}>{selectedBus ? panelInner : stopPanelInner}</div>
             </div>
           </>
         )}
