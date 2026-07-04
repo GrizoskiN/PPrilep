@@ -6,7 +6,8 @@
 // Source: ЈП за ПУП timetables (July 2026). Where the sheet's stop names differ
 // from ours they were matched by sequence between their neighbours; "спроти /
 // наспроти X" (across the street from X) maps to the same stop as X. Notable
-// aliases: Ст. Општина → Фурна Плетварец, Табана → Бела Зграда Табана,
+// aliases: Реклами → Комерцијална банка (same stop),
+// Ст. Општина → Фурна Плетварец, Табана → Бела Зграда Табана,
 // спроти Дени Мебел / Стерна → Завод за Здравство, Футура суд → Футура Маркет,
 // Палмашоп (L2) → Мое Пазарче, Пошта Точила → ООУ Блаже Конески,
 // спроти Орде Чопела → Интернат, Футура рид → Ул. Мирче Ацев Центропромет,
@@ -14,9 +15,10 @@
 // Др. Савески → Форд Сервис, 11 Окт. → Ф-ка 11ти Октомври, Лав → Дониа,
 // Маслинкара → Центропромет Магацини, Микрон → Васидора, Д.Бањарот → Жабино
 // Маало, 5та Прилепска 2 → 5та Прилепска Згради.
-// Rows with no matching map stop, kept commented until a stop exists:
-// L1 "Автоконтрол" (06:54…14:54), L1 "Венеција" (07:03…15:03),
-// L3 "5та Прилепска 3" (07:25…19:25 — possibly Лук Оил?).
+// "5та Прилепска 2/3" are one physical stop (5та Прилепска Згради) — the
+// earlier time (07:24…) is used. Rows with no matching map stop, kept
+// commented until a stop exists: L1 "Автоконтрол" (06:54…14:54),
+// L1 "Венеција" (07:03…15:03).
 
 import { BUS_STOPS } from "./busRoutes";
 
@@ -153,12 +155,11 @@ const LINE2: Record<string, StopSchedule[]> = {
     { direction: DIR_RID, times: hourly("06:39", 14) }, // "Футура суд"
     { direction: DIR_FAKULTET, times: hourly("07:17", 13) },
   ],
-  "moepazarche": [
-    { direction: DIR_RID, times: hourly("06:41", 14) }, // "Палмашоп" in the L2 sheet
-    { direction: DIR_FAKULTET, times: hourly("07:16", 13) },
-  ],
-  "reklami": [
-    { direction: DIR_RID, times: hourly("06:43", 14) },
+  // L2 outbound stops at Палма Шоп; on the way back it stops at Мое Пазарче.
+  "palmashop": [{ direction: DIR_RID, times: hourly("06:41", 14) }],
+  "moepazarche": [{ direction: DIR_FAKULTET, times: hourly("07:16", 13) }],
+  "komercijalna": [
+    { direction: DIR_RID, times: hourly("06:43", 14) }, // "Реклами" in the sheet
     { direction: DIR_FAKULTET, times: hourly("07:15", 13) },
   ],
   "l2-ps": [
@@ -206,8 +207,8 @@ const LINE3: Record<string, StopSchedule[]> = {
     { direction: DIR_AMFORA, times: hourly("06:36", 14) },
     { direction: DIR_AMSM, times: hourly("07:16", 13) },
   ],
-  "reklami": [
-    { direction: DIR_AMFORA, times: hourly("06:38", 14) },
+  "komercijalna": [
+    { direction: DIR_AMFORA, times: hourly("06:38", 14) }, // "Реклами" in the sheet
     { direction: DIR_AMSM, times: hourly("07:15", 13) },
   ],
   "palmashop": [

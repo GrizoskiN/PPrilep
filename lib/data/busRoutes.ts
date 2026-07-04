@@ -215,13 +215,6 @@ export const BUS_STOPS: BusStop[] = [
     routeIds: ["line2", "line3"],
   },
   {
-    id: "reklami",
-    name: "Реклами",
-    coordinates: [  21.5521885, 41.3454553],
-    routeIds: ["line2", "line3"],
-  },
-  
-  {
     id: "l2-ft",
     name: "Футура Маркет",
     coordinates: [21.5469199, 41.3435364],
@@ -332,7 +325,7 @@ export const BUS_STOPS: BusStop[] = [
     id: "palmashop",
     name: "Палма Шоп",
     coordinates: [21.5493448, 41.3440159],
-    routeIds: ["line3"],
+    routeIds: ["line3", "line2"],
   },
   {
     id: "l3-5pazar",
@@ -356,12 +349,6 @@ export const BUS_STOPS: BusStop[] = [
     id: "ivan elektricar",
     name: "Иван Електричар",
     coordinates: [21.5684932, 41.3478832],
-    routeIds: ["line3"],
-  },
-  {
-    id: "lukoil",
-    name: "Лук Оил",
-    coordinates: [21.5792654, 41.3558421],
     routeIds: ["line3"],
   },
 ];
@@ -511,7 +498,7 @@ export const BUS_ROUTES: BusRoute[] = [
   {
     id: "line3",
     name: "Линија 3",
-    description: "Амфора — Лук Оил",
+    description: "Амфора — АМСМ",
     color: "#ea580c",
     path: [
       [21.5221442, 41.3431045],
@@ -555,17 +542,6 @@ export const BUS_ROUTES: BusRoute[] = [
       [21.5718976, 41.349454],
       [21.5716321, 41.3496153],
       [21.5710127, 41.3499854],
-      [21.5715057, 41.3506782],
-      [21.5729721, 41.3519403],
-      [21.5741225, 41.3529367],
-      [21.5752224, 41.3535725],
-      [21.5772956, 41.3544265],
-      [21.5793056, 41.3558499],
-      [21.5790528, 41.3558119],
-      [21.577245, 41.3544929],
-      [21.5744512, 41.3532688],
-      [21.5726561, 41.35176],
-      [21.571354, 41.3506022],
       [21.5706082, 41.3495109],
       [21.5685097, 41.3478406],
       [21.565817, 41.3458476],
