@@ -31,7 +31,7 @@ const MAX_AGE_S = 10 * 60; // hide a bus with no valid fix in 10 min (out of ser
 // endpoint (/api/buses/positions/admin), never to the public.
 
 const CACHE_HEADERS = {
-  "Cache-Control": "public, s-maxage=8, stale-while-revalidate=20",
+  "Cache-Control": "public, s-maxage=15, stale-while-revalidate=30",
 };
 
 export async function GET() {

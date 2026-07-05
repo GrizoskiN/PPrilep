@@ -131,7 +131,18 @@ function aroundStops(
   return forward ? { prev: lower, next: upper } : { prev: upper, next: lower };
 }
 
-const POLL_MS = 7_000; // poll faster so a new fix is picked up sooner (cache is s-maxage 8)
+const POLL_MS = 15_000; // trackers only report every ~30s, so 15s (cache s-maxage 15)
+// loses no real freshness while halving edge requests / function invocations.
+
+// Bus service window (local time). Outside it no bus runs, so the public map
+// stops polling entirely — nothing to show and no reason to spend requests.
+// The owner is exempt (keeps watching parked buses via the admin endpoint).
+const SERVICE_START_MIN = 5 * 60 + 30; // 05:30 — margin before the 06:30 first bus
+const SERVICE_END_MIN = 21 * 60 + 30; // 21:30 — margin after the last bus (~20:30) clears its route
+function inServiceHours(now: Date = new Date()): boolean {
+  const m = now.getHours() * 60 + now.getMinutes();
+  return m >= SERVICE_START_MIN && m <= SERVICE_END_MIN;
+}
 const STALE_MS = 5 * 60_000; // no fix in 5 min → grey out
 const SNAP_MAX_M = 75; // snap to the line within this gap (route polyline is coarse
 // + GPS jitters, so 45m detached the bus too eagerly); else show raw point
@@ -714,6 +725,13 @@ export default function BusRouteMap() {
     const url = isOwner ? "/api/buses/positions/admin" : "/api/buses/positions";
 
     async function load() {
+      // Off-hours: no bus is running, so skip the request entirely and clear the
+      // map. The timer keeps ticking (free) and resumes fetching once service
+      // opens. The owner is exempt so parked buses stay watchable any time.
+      if (!isOwner && !inServiceHours()) {
+        if (!cancelled) setLiveBuses((prev) => (prev.length ? [] : prev));
+        return;
+      }
       try {
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) return;
