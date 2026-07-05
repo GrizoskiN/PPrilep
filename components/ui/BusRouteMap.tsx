@@ -10,6 +10,8 @@ import {
   nextDepartureAt,
   GRACE_MIN,
   hhmmToMin,
+  isSundayService,
+  SUNDAY_ROUTE_ID,
 } from "../../lib/data/busTimetables";
 import { useAuthContext } from "../../lib/context/AuthContext";
 import { OWNER_EMAIL, FLEET_OPERATOR_EMAIL } from "../../lib/config/owner";
@@ -220,37 +222,78 @@ function tint(hex: string, t: number): string {
 // the route so overlapping lines render side-by-side (transit-map style) instead
 // of stacking. Spread symmetrically around centre by route index.
 const LANE_GAP = 4; // px between adjacent lanes
+// The Недела line rides the centre (no lane): it's the only line shown on its
+// service day, and a non-zero offset would split its out-and-back loop
+// (Макпетрол) into two parallel lines, since the offset flips side with the
+// direction of travel.
+const LANE_ROUTES = BUS_ROUTES.filter((r) => r.id !== SUNDAY_ROUTE_ID);
 const laneOffset = (routeId: string): number => {
-  const i = BUS_ROUTES.findIndex((r) => r.id === routeId);
+  const i = LANE_ROUTES.findIndex((r) => r.id === routeId);
   if (i < 0) return 0;
-  return (i - (BUS_ROUTES.length - 1) / 2) * LANE_GAP;
+  return (i - (LANE_ROUTES.length - 1) / 2) * LANE_GAP;
 };
 
 // Stop pins are coloured by their line(s). A stop served by several lines shows
 // a pin split into vertical bands — one per distinct serving-line colour — so
 // interchange stops (e.g. Болница on Линија 1 + 2) read as multi-line at a glance.
-const stopPinColors = (stop: (typeof BUS_STOPS)[number]): string[] => {
+// Colours of the lines serving this stop — restricted to `active` when given,
+// so a stop shows only the bands of the currently-selected lines (e.g. only
+// yellow when just the Недела line is on, even if Линија 2 also stops there).
+const stopPinColors = (
+  stop: (typeof BUS_STOPS)[number],
+  active?: Set<string>,
+): string[] => {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const r of BUS_ROUTES) {
-    if (stop.routeIds.includes(r.id) && !seen.has(r.color)) {
-      seen.add(r.color);
-      out.push(r.color);
-    }
+    if (!stop.routeIds.includes(r.id)) continue;
+    if (active && !active.has(r.id)) continue;
+    if (seen.has(r.color)) continue;
+    seen.add(r.color);
+    out.push(r.color);
   }
   return out.length ? out : ["#27272a"];
 };
-// One pin image per distinct colour-combination that actually occurs.
+// Every ordered non-empty subset of a colour list — the combos an active-line
+// subset can produce, so all needed pin images exist regardless of selection.
+const colorSubsets = (colors: string[]): string[][] => {
+  const out: string[][] = [];
+  for (let mask = 1; mask < 1 << colors.length; mask++) {
+    const sub = colors.filter((_, i) => mask & (1 << i));
+    out.push(sub);
+  }
+  return out;
+};
+// One pin image per distinct colour-combination that can occur (any subset of
+// each stop's serving lines, plus the neutral fallback).
 const STOP_PIN_COMBOS: string[][] = Array.from(
   new Map(
-    BUS_STOPS.map((s) => {
-      const c = stopPinColors(s);
-      return [c.join("|"), c] as const;
-    }),
+    [["#27272a"], ...BUS_STOPS.flatMap((s) => colorSubsets(stopPinColors(s)))].map(
+      (c) => [c.join("|"), c] as const,
+    ),
   ).values(),
 );
 const STOP_IMG_PREFIX = "bus-stop-";
 const stopImageName = (colors: string[]) => `${STOP_IMG_PREFIX}${colors.join("|")}`;
+
+// Stop features for the map source. `pinImg` is recomputed from the active
+// lines so a stop's colour bands match the current selection; the source is
+// re-fed via setData whenever the selection changes.
+const buildStopFeatures = (
+  active: Set<string>,
+): GeoJSON.FeatureCollection<GeoJSON.Point> => ({
+  type: "FeatureCollection",
+  features: BUS_STOPS.map((stop) => ({
+    type: "Feature",
+    geometry: { type: "Point", coordinates: stop.coordinates },
+    properties: {
+      id: stop.id,
+      name: stop.name,
+      routeIds: stop.routeIds.join(","),
+      pinImg: stopImageName(stopPinColors(stop, active)),
+    },
+  })),
+});
 
 // The stop icon's inner markup (public/bus-stop.svg, viewBox 0 0 24 24), inlined
 // so the popup can render it in the line's colour without a second request.
@@ -364,8 +407,18 @@ export default function BusRouteMap() {
   // Loaded stop-pin image (public/bus-stop.svg). Held in a ref so it can be
   // (re-)registered with the map after every basemap swap (setStyle wipes images).
   const stopImgRef = useRef<HTMLImageElement | null>(null);
+  // Default line selection follows the day: Sundays/holidays show only the
+  // Недела line, the rest of the week only the regular lines. Users can still
+  // toggle any line on/off.
   const [activeRoutes, setActiveRoutes] = useState<Set<string>>(
-    () => new Set(BUS_ROUTES.map((r) => r.id)),
+    () =>
+      new Set(
+        isSundayService()
+          ? [SUNDAY_ROUTE_ID]
+          : BUS_ROUTES.filter((r) => r.id !== SUNDAY_ROUTE_ID).map(
+              (r) => r.id,
+            ),
+      ),
   );
   // Mirror of activeRoutes for the map callbacks (which live outside React and
   // must re-apply visibility after a basemap swap wipes the layers).
@@ -513,19 +566,7 @@ export default function BusRouteMap() {
       if (!map.getSource("bus-stops")) {
         map.addSource("bus-stops", {
           type: "geojson",
-          data: {
-            type: "FeatureCollection",
-            features: BUS_STOPS.map((stop) => ({
-              type: "Feature" as const,
-              geometry: { type: "Point" as const, coordinates: stop.coordinates },
-              properties: {
-                id: stop.id,
-                name: stop.name,
-                routeIds: stop.routeIds.join(","),
-                pinImg: stopImageName(stopPinColors(stop)),
-              },
-            })),
-          },
+          data: buildStopFeatures(active),
         });
       }
 
@@ -699,7 +740,11 @@ export default function BusRouteMap() {
       }
     });
 
-    // Show only stops that belong to at least one active route
+    // Recolour each pin to the active lines' bands…
+    const src = map.getSource("bus-stops") as maplibregl.GeoJSONSource | undefined;
+    src?.setData(buildStopFeatures(activeRoutes));
+
+    // …and show only stops that belong to at least one active route.
     if (map.getLayer("stops-sym")) {
       const activeIds = BUS_STOPS.filter((s) =>
         s.routeIds.some((rid) => activeRoutes.has(rid)),
@@ -790,7 +835,8 @@ export default function BusRouteMap() {
 
       const route = BUS_ROUTES.find((r) => r.id === bus.routeId);
       const baseColor = route?.color ?? "#52525b";
-      const short = route?.name.replace(/[^0-9]/g, "") ?? "";
+      // Line number for the glyph; non-numbered lines (Недела) use their initial.
+      const short = route ? route.name.replace(/[^0-9]/g, "") || route.name[0] : "";
       const stale = bus.lastSeen
         ? now - new Date(bus.lastSeen).getTime() > STALE_MS
         : true;
@@ -1184,7 +1230,18 @@ export default function BusRouteMap() {
       .map((rid) => BUS_ROUTES.find((r) => r.id === rid))
       .filter((r): r is (typeof BUS_ROUTES)[number] => !!r);
     const color = routes[0]?.color ?? "#3b82f6";
-    const timetables = timetableForStop(selectedStop.id);
+    const allTimetables = timetableForStop(selectedStop.id);
+
+    // Two dropdowns, both always visible: Редовна линија (lines 1–3, Mon–Sat)
+    // and Недела (Sundays + holidays). Only the one running today highlights
+    // past/next departures.
+    const sundayToday = isSundayService();
+    const weekdayTimetables = allTimetables.filter(
+      (t) => t.routeId !== SUNDAY_ROUTE_ID,
+    );
+    const sundayTimetables = allTimetables.filter(
+      (t) => t.routeId === SUNDAY_ROUTE_ID,
+    );
 
     // "Now" as minutes-since-midnight, to highlight the next departure. A run
     // stays "next" for GRACE_MIN after its time (a bus a few minutes off
@@ -1192,6 +1249,79 @@ export default function BusRouteMap() {
     const d = new Date();
     const nowMin = d.getHours() * 60 + d.getMinutes() - GRACE_MIN;
     const toMin = hhmmToMin;
+
+    // One collapsible timetable dropdown. `active` = this timetable runs
+    // today, so past times grey out and the next departure is highlighted;
+    // the off-day one renders neutral.
+    const timetableBlock = (
+      entries: typeof allTimetables,
+      label: string,
+      active: boolean,
+    ) => (
+      // keyed by stop id so switching stops always starts collapsed
+      <details key={selectedStop.id + label} className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg bg-white/60 px-2.5 py-2 text-[12px] font-bold text-zinc-600 [&::-webkit-details-marker]:hidden">
+          <span className="flex items-center gap-1.5">
+            <Clock size={13} className="text-zinc-400" />
+            {label}
+          </span>
+          <ChevronDown
+            size={15}
+            className="shrink-0 text-zinc-400 transition-transform group-open:rotate-180"
+          />
+        </summary>
+        <div className="flex flex-col gap-3 pt-2.5 pb-1">
+          {entries.map(({ routeId, schedules }) => {
+            const route = BUS_ROUTES.find((r) => r.id === routeId);
+            return (
+              <div key={routeId} className="flex flex-col gap-2">
+                {schedules.map((sched) => {
+                  // First departure still ahead of us today (if any).
+                  const nextIdx = active
+                    ? sched.times.findIndex((t) => toMin(t) >= nowMin)
+                    : -1;
+                  return (
+                    <div key={sched.direction} className="flex flex-col gap-1.5">
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                        <span
+                          className="inline-block h-1.5 w-4 rounded-full"
+                          style={{ background: route?.color ?? color }}
+                        />
+                        {sched.direction}
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {sched.times.map((t, i) => {
+                          const past = active && toMin(t) < nowMin;
+                          const isNext = i === nextIdx;
+                          return (
+                            <span
+                              key={t + i}
+                              className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold ${
+                                isNext
+                                  ? "text-white"
+                                  : past
+                                    ? "bg-white/50 text-zinc-400"
+                                    : "bg-white/70 text-zinc-700"
+                              }`}
+                              style={
+                                isNext
+                                  ? { background: route?.color ?? color }
+                                  : undefined
+                              }>
+                              {t}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </details>
+    );
 
     return (
       <div className="flex flex-col">
@@ -1222,68 +1352,16 @@ export default function BusRouteMap() {
           </button>
         </div>
 
-        {timetables.length > 0 && (
-          // keyed by stop id so switching stops always starts collapsed
-          <details key={selectedStop.id} className="group px-4 pb-3.5 pt-1">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg bg-white/60 px-2.5 py-2 text-[12px] font-bold text-zinc-600 [&::-webkit-details-marker]:hidden">
-              <span className="flex items-center gap-1.5">
-                <Clock size={13} className="text-zinc-400" />
-                Возен ред
-              </span>
-              <ChevronDown
-                size={15}
-                className="shrink-0 text-zinc-400 transition-transform group-open:rotate-180"
-              />
-            </summary>
-            <div className="flex flex-col gap-3 pt-2.5">
-            {timetables.map(({ routeId, schedules }) => {
-              const route = BUS_ROUTES.find((r) => r.id === routeId);
-              return (
-                <div key={routeId} className="flex flex-col gap-2">
-                  {schedules.map((sched) => {
-                    // First departure still ahead of us today (if any).
-                    const nextIdx = sched.times.findIndex((t) => toMin(t) >= nowMin);
-                    return (
-                      <div key={sched.direction} className="flex flex-col gap-1.5">
-                        <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                          <span
-                            className="inline-block h-1.5 w-4 rounded-full"
-                            style={{ background: route?.color ?? color }}
-                          />
-                          {sched.direction}
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {sched.times.map((t, i) => {
-                            const past = toMin(t) < nowMin;
-                            const isNext = i === nextIdx;
-                            return (
-                              <span
-                                key={t + i}
-                                className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold ${
-                                  isNext
-                                    ? "text-white"
-                                    : past
-                                      ? "bg-white/50 text-zinc-400"
-                                      : "bg-white/70 text-zinc-700"
-                                }`}
-                                style={
-                                  isNext ? { background: route?.color ?? color } : undefined
-                                }>
-                                {t}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-            </div>
-          </details>
+        {weekdayTimetables.length > 0 || sundayTimetables.length > 0 ? (
+          <div className="flex flex-col gap-1.5 px-4 pb-3.5 pt-1">
+            {weekdayTimetables.length > 0 &&
+              timetableBlock(weekdayTimetables, "Редовна линија", !sundayToday)}
+            {sundayTimetables.length > 0 &&
+              timetableBlock(sundayTimetables, "Недела", sundayToday)}
+          </div>
+        ) : (
+          <div className="pb-3.5" />
         )}
-        {timetables.length === 0 && <div className="pb-3.5" />}
       </div>
     );
   })();
@@ -1299,31 +1377,47 @@ export default function BusRouteMap() {
             gridTemplateColumns: `repeat(${Math.min(liveBuses.length, 4)}, minmax(0, 1fr))`,
           }}>
 
-          {[...liveBuses]
-            .sort((a, b) => {
-              // Order the chips by line number (Линија 1, 2, 3…), not by the
-              // arbitrary order the live-positions feed returns buses in.
+          {(() => {
+            const sorted = [...liveBuses].sort((a, b) => {
+              // Order the chips by line number (Линија 1, 2, 3…), then by bus id
+              // so the per-line sequence below is stable across polls.
               const ai = BUS_ROUTES.findIndex((r) => r.id === a.routeId);
               const bi = BUS_ROUTES.findIndex((r) => r.id === b.routeId);
-              return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
-            })
-            .map((bus) => {
-            const route = BUS_ROUTES.find((r) => r.id === bus.routeId);
-            const short = route?.name.replace(/[^0-9]/g, "") || bus.label;
-            return (
-              <button
-                key={bus.id}
-                onClick={() => flyToBus(bus.id)}
-                title={`Зумирај на ${bus.label}`}
-                className="flex min-w-0 items-center justify-center gap-1 rounded-sm  bg-white px-2 py-2 text-[13px]  sm:px-3"
-                style={{ borderColor: "#000000 " }}>
-                <Bus size={15} className="shrink-0" />
-                {/* mobile: just the line number; ≥sm: the full line name */}
-                <span className="truncate sm:hidden">{short}</span>
-                <span className="hidden truncate sm:inline">{route?.name ?? bus.label}</span>
-              </button>
-            );
-          })}
+              const byLine =
+                (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
+              return byLine !== 0 ? byLine : a.id - b.id;
+            });
+            const lineSeq: Record<string, number> = {};
+            return sorted.map((bus) => {
+              const route = BUS_ROUTES.find((r) => r.id === bus.routeId);
+              lineSeq[bus.routeId] = (lineSeq[bus.routeId] ?? 0) + 1;
+              const short =
+                route?.name.replace(/[^0-9]/g, "") || route?.name[0] || bus.label;
+              // The Недела line has no number, so its chip shows the full name
+              // plus a 1-based per-line index (Недела 1, Недела 2) — there are
+              // only a couple of buses on it, so it fits even on mobile.
+              const isNamedLine = bus.routeId === SUNDAY_ROUTE_ID;
+              const fullLabel = isNamedLine
+                ? `${route?.name} ${lineSeq[bus.routeId]}`
+                : (route?.name ?? bus.label);
+              return (
+                <button
+                  key={bus.id}
+                  onClick={() => flyToBus(bus.id)}
+                  title={`Зумирај на ${bus.label}`}
+                  className="flex min-w-0 items-center justify-center gap-1 rounded-sm  bg-white px-2 py-2 text-[13px]  sm:px-3"
+                  style={{ borderColor: "#000000 " }}>
+                  <Bus size={15} className="shrink-0" />
+                  {/* mobile: line number, or the full "Недела N" for the named
+                      Sunday line; ≥sm: always the full line name */}
+                  <span className="truncate sm:hidden">
+                    {isNamedLine ? fullLabel : short}
+                  </span>
+                  <span className="hidden truncate sm:inline">{fullLabel}</span>
+                </button>
+              );
+            });
+          })()}
         </div>
       )}
 

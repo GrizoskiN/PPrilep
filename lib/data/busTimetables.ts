@@ -8,7 +8,8 @@
 // наспроти X" (across the street from X) maps to the same stop as X. Notable
 // aliases: Реклами → Комерцијална банка (same stop),
 // Ст. Општина → Фурна Плетварец, Табана → Бела Зграда Табана,
-// спроти Дени Мебел / Стерна → Завод за Здравство, Футура суд → Футура Маркет,
+// спроти Дени Мебел → Завод за Здравство, Стерна → Болница Кружен тек,
+// Футура суд → Футура Маркет,
 // Палмашоп (L2) → Мое Пазарче, Пошта Точила → ООУ Блаже Конески,
 // спроти Орде Чопела → Интернат, Футура рид → Ул. Мирче Ацев Центропромет,
 // под Суд/под Липа → Хотел Липа, Д.Наредникот → Симпо, Макам → Хотел Сонце,
@@ -184,8 +185,9 @@ const LINE2: Record<string, StopSchedule[]> = {
   "bonita": [{ direction: DIR_FAKULTET, times: hourly("07:09", 13) }],
   "zavodzdrav": [
     { direction: DIR_RID, times: hourly("06:50", 14) }, // "спроти Дени Мебел"
-    { direction: DIR_FAKULTET, times: hourly("07:08", 13) }, // "Стерна"
   ],
+  // "Стерна" = Болница Кружен тек.
+  "bolnicakruzen": [{ direction: DIR_FAKULTET, times: hourly("07:08", 13) }],
   "bolnica": [
     { direction: DIR_RID, times: hourly("06:52", 14) },
     { direction: DIR_FAKULTET, times: hourly("07:06", 13) },
@@ -266,19 +268,156 @@ const LINE3: Record<string, StopSchedule[]> = {
   "5taprilep": [{ direction: DIR_AMSM, times: hourly("07:24", 13) }], // "5та Прилепска 2"
 };
 
+// ── Недела (line4): Салида → Н.Гробишта, недела и празници (hourly) ──────────
+// Runs ONLY on Sundays and public holidays; on those days lines 1–3 don't run.
+// Same alias mapping as above; additionally Ќутуче / Турско училиште → Ана
+// Марија, Меше маркет → Педано (matched by sequence), Стерна → Болница
+// Кружен тек, Тутунски сала → Сала Тутунски (own stop, not Амбуланта).
+// Rows with no map stop: Автоконтрол (07:04…), Венеција (07:33…).
+const LINE4: Record<string, StopSchedule[]> = {
+  "hotelsalida": [
+    { direction: DIR_GROBISTA, times: hourly("06:30", 6) },
+    { direction: DIR_SALIDA, times: hourly("08:30", 5) },
+  ],
+  "rampo levkata": [
+    { direction: DIR_GROBISTA, times: hourly("06:31", 6) },
+    { direction: DIR_SALIDA, times: hourly("08:10", 6) },
+  ],
+  "maticno": [
+    { direction: DIR_GROBISTA, times: hourly("06:32", 6) },
+    { direction: DIR_SALIDA, times: hourly("08:09", 6) },
+  ],
+  "teatar": [
+    { direction: DIR_GROBISTA, times: hourly("06:34", 6) },
+    { direction: DIR_SALIDA, times: hourly("08:07", 6) },
+  ],
+  "bolnica": [
+    { direction: DIR_GROBISTA, times: hourly("06:36", 6) },
+    { direction: DIR_SALIDA, times: hourly("08:05", 6) },
+  ],
+  // "Стерна" (= Болница Кружен тек) — outbound only.
+  "bolnicakruzen": [{ direction: DIR_GROBISTA, times: hourly("06:37", 6) }],
+  // "Дени Мебел" — return leg only.
+  "zavodzdrav": [{ direction: DIR_SALIDA, times: hourly("08:04", 6) }],
+  "bonita": [{ direction: DIR_GROBISTA, times: hourly("06:38", 6) }],
+  // "Табана" — return leg only.
+  "belazgrada": [{ direction: DIR_SALIDA, times: hourly("08:02", 6) }],
+  // "Ст. Општина" / "спроти Ст. Општина".
+  "furnapletve": [
+    { direction: DIR_GROBISTA, times: hourly("06:40", 6) },
+    { direction: DIR_SALIDA, times: hourly("08:00", 6) },
+  ],
+  "13-katnica": [
+    { direction: DIR_GROBISTA, times: hourly("06:42", 6) },
+    { direction: DIR_SALIDA, times: hourly("07:59", 6) },
+  ],
+  // "Педан" outbound / "Меше маркет" return.
+  "pedano": [
+    { direction: DIR_GROBISTA, times: hourly("06:43", 6) },
+    { direction: DIR_SALIDA, times: hourly("07:58", 6) },
+  ],
+  // "Ќутуче" outbound / "Турско училиште" return.
+  "ana marija": [
+    { direction: DIR_GROBISTA, times: hourly("06:44", 6) },
+    { direction: DIR_SALIDA, times: hourly("07:56", 6) },
+  ],
+  "ured": [
+    { direction: DIR_GROBISTA, times: hourly("06:47", 6) },
+    { direction: DIR_SALIDA, times: hourly("07:54", 6) }, // "наспроти Уред"
+  ],
+  // "Тутунски сала" in the sheet.
+  "sala tutunski": [
+    { direction: DIR_GROBISTA, times: hourly("06:49", 6) },
+    { direction: DIR_SALIDA, times: hourly("07:53", 6) },
+  ],
+  "dom zabrcanec": [
+    { direction: DIR_GROBISTA, times: hourly("06:51", 6) }, // "дом С.Забрчанец"
+    { direction: DIR_SALIDA, times: hourly("07:51", 6) },
+  ],
+  // "спроти Макпетрол" — outbound only.
+  "makpetrol": [{ direction: DIR_GROBISTA, times: hourly("06:53", 6) }],
+  // "пред Н.Автобуска" — return leg only.
+  "l2-av": [{ direction: DIR_SALIDA, times: hourly("07:48", 6) }],
+  "crkvapetka": [
+    { direction: DIR_GROBISTA, times: hourly("06:54", 6) }, // "Св.Петка"
+    { direction: DIR_SALIDA, times: hourly("07:46", 6) }, // "спроти Св.Петка"
+  ],
+  // "пред Б.Конески" — return leg only.
+  "blaze koneski": [{ direction: DIR_SALIDA, times: hourly("07:45", 6) }],
+  "belston": [
+    { direction: DIR_GROBISTA, times: hourly("06:56", 6) },
+    { direction: DIR_SALIDA, times: hourly("07:43", 6) },
+  ],
+  // "спроти О.Чопела" outbound / "Интернат" return.
+  "internat": [
+    { direction: DIR_GROBISTA, times: hourly("06:57", 6) },
+    { direction: DIR_SALIDA, times: hourly("07:41", 6) },
+  ],
+  "ekonomski": [
+    { direction: DIR_GROBISTA, times: hourly("06:59", 6) }, // "Факултет"
+    { direction: DIR_SALIDA, times: hourly("07:40", 6) },
+  ],
+  "varos-meanite": [
+    { direction: DIR_GROBISTA, times: hourly("07:01", 6) },
+    { direction: DIR_SALIDA, times: hourly("07:38", 6) },
+  ],
+  "varos-brasnara": [
+    { direction: DIR_GROBISTA, times: hourly("07:02", 6) },
+    { direction: DIR_SALIDA, times: hourly("07:36", 6) },
+  ],
+  "varos-trloto": [
+    { direction: DIR_GROBISTA, times: hourly("07:02", 6) },
+    { direction: DIR_SALIDA, times: hourly("07:35", 6) },
+  ],
+  "grobista": [{ direction: DIR_SALIDA, times: hourly("07:30", 6) }],
+};
+
 export const TIMETABLES: Record<string, Record<string, StopSchedule[]>> = {
   line1: LINE1,
   line2: LINE2,
   line3: LINE3,
+  line4: LINE4,
 };
+
+// ── Sunday / holiday service ──────────────────────────────────────────────────
+// The Недела line replaces lines 1–3 on Sundays and public holidays.
+export const SUNDAY_ROUTE_ID = "line4";
+
+// Fixed-date national holidays (MM-DD), observed every year.
+const HOLIDAYS_FIXED = [
+  "01-01", // Нова Година
+  "01-07", // Божиќ
+  "05-01", // Ден на трудот
+  "05-24", // Св. Кирил и Методиј
+  "08-02", // Илинден
+  "09-08", // Ден на независноста
+  "10-11", // Ден на востанието
+  "10-23", // Ден на македонската револуционерна борба
+  "12-08", // Св. Климент Охридски
+];
+
+// Movable holidays (Велигден, Рамазан Бајрам…) — add per year as "YYYY-MM-DD".
+export const HOLIDAY_DATES: string[] = [];
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+// True when the Недела timetable applies (Sunday or a public holiday).
+export function isSundayService(d: Date = new Date()): boolean {
+  if (d.getDay() === 0) return true;
+  const mmdd = `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const ymd = `${d.getFullYear()}-${mmdd}`;
+  return HOLIDAYS_FIXED.includes(mmdd) || HOLIDAY_DATES.includes(ymd);
+}
 
 // Timetable direction a bus serves when travelling the route path forward
 // (increasing distance along the polyline):
-// line1 runs Гробишта → Салида, line2 Факултет → Рид, line3 Амфора → АМСМ.
+// line1 runs Гробишта → Салида, line2 Факултет → Рид, line3 Амфора → АМСМ,
+// line4 (Недела) Салида → Н.Гробишта.
 const FORWARD_DIR: Record<string, string> = {
   line1: DIR_SALIDA,
   line2: DIR_RID,
   line3: DIR_AMSM,
+  line4: DIR_GROBISTA,
 };
 
 // Next scheduled departure (≥ now) at the named stop for this route and travel
@@ -290,6 +429,9 @@ export function nextDepartureAt(
   forward: boolean,
   now: Date = new Date(),
 ): string | null {
+  // A route only has departures on the days it actually runs: Недела on
+  // Sundays/holidays, lines 1–3 the rest of the week.
+  if (isSundayService(now) !== (routeId === SUNDAY_ROUTE_ID)) return null;
   const table = TIMETABLES[routeId];
   if (!table) return null;
   const stop = BUS_STOPS.find((s) => s.name === stopName);

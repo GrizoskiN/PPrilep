@@ -277,6 +277,16 @@ ANY anonymous user change any issue's status. Both traps below applied:
 - Rule: resolve "nearest stop" info from the projected point regardless
   of gap; reserve the threshold for deciding whether to visually snap.
 
+## Bus timetable data (July 2026)
+
+### Sheet stop names: sequence-matching is a guess — surface every alias
+- The operator's sheets use street names that don't match our stops;
+  matching by neighbour sequence is a first guess, not a fact. "Стерна"
+  turned out to be Болница Кружен тек (not Завод за Здравство) and
+  "Тутунски сала" its own new stop (not Амбуланта Тутунски).
+- Rule: list every non-obvious alias in the reply for a one-pass review,
+  and keep the alias table in busTimetables.ts' header comment current.
+
 ## Workflow
 
 ### One "push" is not standing permission to keep pushing
