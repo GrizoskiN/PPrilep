@@ -64,7 +64,7 @@ export const BUS_STOPS: BusStop[] = [
     id: "bonita",
     name: "Бонита",
     coordinates: [21.5631992, 41.3454199],
-    routeIds: ["line1", "line3", "line4"],
+    routeIds: ["line1", "line2", "line3", "line4"],
   },
   {
     id: "gradski stadion",
@@ -166,7 +166,7 @@ export const BUS_STOPS: BusStop[] = [
     id: "zavodzdrav",
     name: "Завод за Здравство",
     coordinates: [21.5644247, 41.3447533],
-    routeIds: ["line2", "line3", "line4"],
+    routeIds: ["line1", "line2", "line3", "line4"],
   },
   {
     id: "l2-ps",
@@ -206,7 +206,7 @@ export const BUS_STOPS: BusStop[] = [
     id: "moepazarche",
     name: "Мое Пазарче",
     coordinates: [21.5489025, 41.3439115],
-    routeIds: ["line2"],
+    routeIds: ["line2", "line3"],
   },
   {
     id: "komercijalna",

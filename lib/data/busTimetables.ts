@@ -226,6 +226,9 @@ const LINE3: Record<string, StopSchedule[]> = {
     { direction: DIR_AMFORA, times: hourly("06:39", 14) },
     { direction: DIR_AMSM, times: hourly("07:14", 13) },
   ],
+  // Мое Пазарче is the АМФОРА-direction counterpart of Палма Шоп at this spot
+  // (same street, opposite side) — only the westbound leg stops here.
+  "moepazarche": [{ direction: DIR_AMFORA, times: hourly("06:39", 14) }],
   "hotel lipa": [
     { direction: DIR_AMFORA, times: hourly("06:40", 14) }, // "под Суд"
     { direction: DIR_AMSM, times: hourly("07:13", 13) }, // "под Липа"
