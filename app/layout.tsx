@@ -87,7 +87,7 @@ export default function RootLayout({
         <div className=" mx-auto h-full">{children}</div>
         <Toaster position="bottom-right" />
         < Analytics />
-        < SpeedInsights />
+        < SpeedInsights sampleRate={0.5} />
       </body>
     </html>
   );
