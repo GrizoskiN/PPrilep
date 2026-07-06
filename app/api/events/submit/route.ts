@@ -17,7 +17,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "next-sanity";
 import { createClient as createServerClient } from "../../../../lib/supabase/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
-import { createNotification } from "../../../../lib/notifications";
 import { slugify } from "../../../../lib/utils";
 
 const PROJECT_ID  = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!;
@@ -75,18 +74,19 @@ async function notifyAdmins(actorUserId: string, title: string) {
     .select("id")
     .eq("is_admin", true);
   if (!admins?.length) return;
-  await Promise.all(
-    admins.map((a: { id: string }) =>
-      createNotification(admin, {
-        recipientUserId: a.id,
-        actorUserId,
-        type: "event_submission",
-        title,
-        body: "пријави нов настан за преглед",
-        link: "/studio",
-      }),
-    ),
-  );
+  // Insert directly (not via createNotification, which skips recipient===actor):
+  // this is a review-queue alert, so admins should be notified about ANY new
+  // submission — including one an admin sends through the form themselves.
+  const rows = admins.map((a: { id: string }) => ({
+    recipient_user_id: a.id,
+    actor_user_id: actorUserId,
+    type: "event_submission",
+    title,
+    body: "пријави нов настан за преглед",
+    link: "/studio",
+  }));
+  const { error } = await admin.from("notifications").insert(rows);
+  if (error) console.error("[events/submit] notify insert", error.message);
 }
 
 export async function POST(req: Request) {
