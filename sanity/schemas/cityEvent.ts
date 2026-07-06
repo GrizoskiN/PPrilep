@@ -106,6 +106,52 @@ export default defineType({
         "закачен настан се прикажува — ако има повеќе, се зема најскорешниот.",
       initialValue: false,
     }),
+    defineField({
+      name: "autoPost",
+      title: "Сподели на Facebook и Instagram",
+      type: "boolean",
+      description:
+        "Вклучи го за да се објави овој настан автоматски на нашите Facebook и " +
+        "Instagram страници кога ќе го објавиш. Стандардно е исклучено — ти " +
+        "одбираш кои настани се споделуваат.",
+      initialValue: false,
+    }),
+
+    // ── Citizen submission fields (mirrors post.ts review queue) ──────────────
+    defineField({
+      name: "isSubmission",
+      title: "Пратено од граѓанин",
+      type: "boolean",
+      initialValue: false,
+      description:
+        "Означува дека настанот е пратен преку формата, не внесен од редакција.",
+    }),
+    defineField({
+      name: "reviewed",
+      title: "Прегледано",
+      type: "boolean",
+      initialValue: false,
+      hidden: ({ document }) => !document?.isSubmission,
+      description:
+        "Означи кога ќе го прегледаш настанот — го вади од редот за преглед.",
+    }),
+    defineField({
+      name: "submittedBy",
+      title: "Испратено од",
+      type: "object",
+      hidden: ({ document }) => !document?.isSubmission,
+      fields: [
+        defineField({ name: "name", title: "Име", type: "string" }),
+        defineField({ name: "email", title: "Е-пошта", type: "string" }),
+        defineField({ name: "phone", title: "Телефон", type: "string" }),
+        defineField({
+          name: "userId",
+          title: "User ID (Supabase)",
+          type: "string",
+          readOnly: true,
+        }),
+      ],
+    }),
   ],
 
   preview: {

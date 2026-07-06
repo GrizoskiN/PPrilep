@@ -306,3 +306,13 @@ When the user corrects something I did:
 3. If it overlaps an existing lesson, EDIT that one rather than adding
    a new section. Better one good rule than five overlapping ones.
 4. Keep it short. If a lesson grows past ~5 lines, split it.
+
+## Facebook Page posts need a *Page* access token, not the user token
+Context: /api/social/publish IG posts worked but FB `/{page}/feed` failed with
+error #200 ("requires pages_read_engagement and pages_manage_posts") even though
+the System User token had both perms.
+Rule: Instagram publishing works with the user/System-User token, but posting to
+a Page feed requires the **Page** access token. Derive it once via
+`GET /{page-id}?fields=access_token&access_token=<user-token>` and use that for
+`/{page-id}/feed`. Page tokens minted from a never-expiring System User token
+also don't expire, so cache it.

@@ -215,7 +215,7 @@ export default function EventDetailModal({
             onClick={() => onToggleInterested(ev._id)}
             aria-pressed={interested}
             className={cn(
-              "flex max-w-[15rem] flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
+              "flex max-w-60 flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
               interested
                 ? "bg-primary text-white hover:bg-primary/90"
                 : "bg-primary-light text-primary hover:bg-primary/15",

@@ -9,6 +9,7 @@ import { z } from "zod";
 import {
   AlertTriangle,
   ArrowLeft,
+  CalendarPlus,
   Check,
   ImagePlus,
   Lightbulb,
@@ -24,6 +25,7 @@ import StreetAutocomplete from "../issues/StreetAutocomplete";
 import DuplicateAlert, { type SimilarIssue } from "../issues/DuplicateAlert";
 import NewInitiativeForm from "../initiatives/NewInitiativeForm";
 import StoryForm from "../positive/StoryForm";
+import EventSubmitForm from "../events/EventSubmitForm";
 import { toast } from "sonner";
 
 const LocationPickerModal = dynamic(
@@ -97,7 +99,7 @@ const reportSchema = z.object({
 type ReportFields = z.infer<typeof reportSchema>;
 
 // ── Component types ────────────────────────────────────────────────────────────
-type Step = "choose" | "report" | "idea" | "story";
+type Step = "choose" | "report" | "idea" | "story" | "event";
 
 interface Props {
   userId?: string;
@@ -341,7 +343,8 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────────
-  const atForm = step === "report" || step === "idea" || step === "story";
+  const atForm =
+    step === "report" || step === "idea" || step === "story" || step === "event";
   const headerTitle =
     step === "report"
       ? "Пријави проблем"
@@ -349,7 +352,9 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
         ? "Нова идеја"
         : step === "story"
           ? "Сподели приказна"
-          : "Учествувај";
+          : step === "event"
+            ? "Пријави настан"
+            : "Учествувај";
 
   // ──────────────────────────────────────────────────────────────────────────────
   return (
@@ -365,7 +370,7 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
       <div className="pointer-events-none  fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
         <div
           ref={drawerRef}
-          className={`pointer-events-auto flex w-full flex-col overflow-hidden bg-white shadow-2xl sm:max-w-xl sm:rounded-2xl${swipeDy === 0 ? " transition-[transform,opacity] duration-500 ease-out" : ""}`}
+          className={`pointer-events-auto flex w-full flex-col overflow-hidden bg-white shadow-2xl sm:max-w-xl sm:rounded-2xl lg:max-w-3xl${swipeDy === 0 ? " transition-[transform,opacity] duration-500 ease-out" : ""}`}
           style={{
             transform: isDesktop
               ? open
@@ -437,20 +442,20 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
               }}>
               {/* ══ Panel 0: Chooser ══ */}
               <div className="desktop-scrollbar-hidden w-1/2 overflow-y-auto">
-                {/* Horizontal rows (icon left, text right) that stretch to
-                    fill the available height */}
-                <div className="flex min-h-full flex-col gap-3 p-4 sm:p-5">
+                {/* Compact rows (icon left, text right). Single column on
+                    mobile, 2×2 grid on large screens. */}
+                <div className="flex min-h-full flex-col p-4 sm:p-5">
                   {/* Citizen actions — hidden for institution operator accounts,
                       which only broadcast official posts. */}
                   {!agencyId && (
-                    <>
+                    <div className="grid flex-1 auto-rows-fr grid-cols-1 gap-2.5 sm:gap-3 lg:grid-cols-2">
                   {/* Report Problem */}
                   <button
                     type="button"
                     onClick={() => setStep("report")}
-                    className="group flex w-full flex-1 items-center gap-4 rounded-2xl bg-zinc-100 p-4 text-left transition-colors hover:bg-zinc-200 active:scale-[0.99]">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-                      <AlertTriangle size={26} className="text-zinc-600" />
+                    className="group flex h-full w-full items-center gap-3.5 rounded-2xl bg-zinc-100 px-4 py-3 text-left transition-colors hover:bg-zinc-200 active:scale-[0.99]">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                      <AlertTriangle size={24} className="text-zinc-600" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-base font-bold text-zinc-900">
@@ -466,9 +471,9 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
                   <button
                     type="button"
                     onClick={() => setStep("idea")}
-                    className="group flex w-full flex-1 items-center gap-4 rounded-2xl bg-zinc-100 p-4 text-left transition-colors hover:bg-zinc-200 active:scale-[0.99]">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-                      <Lightbulb size={26} className="text-zinc-600" />
+                    className="group flex h-full w-full items-center gap-3.5 rounded-2xl bg-zinc-100 px-4 py-3 text-left transition-colors hover:bg-zinc-200 active:scale-[0.99]">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                      <Lightbulb size={24} className="text-zinc-600" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-base font-bold text-zinc-900">
@@ -480,13 +485,31 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
                     </div>
                   </button>
 
+                  {/* Report Event */}
+                  <button
+                    type="button"
+                    onClick={() => setStep("event")}
+                    className="group flex h-full w-full items-center gap-3.5 rounded-2xl bg-zinc-100 px-4 py-3 text-left transition-colors hover:bg-zinc-200 active:scale-[0.99]">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                      <CalendarPlus size={24} className="text-zinc-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base font-bold text-zinc-900">
+                        Пријави Настан
+                      </p>
+                      <p className="mt-0.5 text-sm leading-snug text-zinc-500">
+                        Концерт, фестивал, спорт или друго случување.
+                      </p>
+                    </div>
+                  </button>
+
                   {/* Share Story */}
                   <button
                     type="button"
                     onClick={() => setStep("story")}
-                    className="group flex w-full flex-1 items-center gap-4 rounded-2xl bg-zinc-100 p-4 text-left transition-colors hover:bg-zinc-200 active:scale-[0.99]">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-                      <Newspaper size={26} className="text-zinc-600" />
+                    className="group flex h-full w-full items-center gap-3.5 rounded-2xl bg-zinc-100 px-4 py-3 text-left transition-colors hover:bg-zinc-200 active:scale-[0.99]">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                      <Newspaper size={24} className="text-zinc-600" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-base font-bold text-zinc-900">
@@ -497,7 +520,7 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
                       </p>
                     </div>
                   </button>
-                    </>
+                    </div>
                   )}
 
                   {/* Agency alert — only for institution operator accounts */}
@@ -835,6 +858,16 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
                 {/* ── Story wizard (creates a Позитива draft in Sanity) ── */}
                 <div className={step === "story" ? "h-full" : "hidden"}>
                   <StoryForm
+                    onCancel={() => setStep("choose")}
+                    onClose={handleClose}
+                    userEmail={userEmail}
+                    userName={userName}
+                  />
+                </div>
+
+                {/* ── Event wizard (creates a cityEvent draft in Sanity) ── */}
+                <div className={step === "event" ? "h-full" : "hidden"}>
+                  <EventSubmitForm
                     onCancel={() => setStep("choose")}
                     onClose={handleClose}
                     userEmail={userEmail}

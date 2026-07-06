@@ -28,6 +28,16 @@ export const structure: StructureResolver = (S) =>
           S.list()
             .title("Случувања")
             .items([
+              // Citizen submissions awaiting review (isSubmission && not reviewed)
+              S.listItem()
+                .title("📥 Настани за преглед")
+                .child(
+                  S.documentList()
+                    .title("Настани за преглед")
+                    .filter('_type == "cityEvent" && isSubmission == true && reviewed != true')
+                    .apiVersion("2024-01-01"),
+                ),
+              S.divider(),
               S.documentTypeListItem("cityEvent").title("Настани"),
             ]),
         ),

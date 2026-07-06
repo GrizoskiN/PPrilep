@@ -44,6 +44,64 @@ immediately; spotlight shows next-upcoming until an event is pinned.
   `EventInterestButton` on the page; share buttons + spotlight now point at the
   canonical `/events/…` URL. Counter appears only when count > 0.
 
+### Events: auto-post new events to Facebook + Instagram
+Direct Meta Graph API integration (no third-party tool). A second Sanity
+webhook (`/api/social/publish`, separate from revalidate) fires on cityEvent
+create/update and posts once to the FB Page (link post → OG card) and Instagram
+(image container → publish; captions can't hold clickable links so the URL is
+plain text). Deduped via a Supabase `social_posts` ledger.
+
+- [x] `sanity/schemas/cityEvent.ts` — `autoPost` boolean (default true) opt-out.
+- [x] `lib/sanity/queries.ts` — `autoPost` on type+fields; `fetchEventFresh`
+      (no-store) so the webhook never reads a stale cache.
+- [x] `lib/social/meta.ts` — Graph API helpers (FB link post, IG two-step),
+      caption builder, `*Configured()` guards. Server-only.
+- [x] `app/api/social/publish/route.ts` — secret-guarded webhook; skips drafts /
+      past / autoPost-off; claim-row dedupe; posts to each network independently;
+      releases the claim on total failure so a re-publish retries.
+- [x] `supabase/add_social_posts.sql` — dedupe ledger; RLS on, no policies.
+- [x] typecheck + lint.
+
+**Blocked on user (Meta + env setup):**
+- Meta app + **long-lived / System User token** with `pages_manage_posts` +
+  `instagram_content_publish` (App Review needed for public use; dev mode works
+  on own page/IG first). IG must be Business/Creator linked to the Page (it is).
+- Vercel env vars: `SANITY_SOCIAL_SECRET`, `FB_PAGE_ID`, `IG_USER_ID`,
+  `META_PAGE_ACCESS_TOKEN`.
+- Run `supabase/add_social_posts.sql`.
+- Add the second Sanity webhook (URL + `_type == "cityEvent"` filter).
+
+### Events: auto-post opt-in + citizen event submissions
+Two related changes on the Случувања feature.
+
+**1. Auto-post is now opt-in (default OFF).** `autoPost` on `cityEvent` flipped to
+`initialValue: false` (relabelled "Сподели на Facebook и Instagram"); `EVENT_FIELDS`
+coalesce default → `false`. Editor deliberately ticks each event to broadcast. The
+`/api/social/publish` route already skips when `autoPost === false`, so no route change.
+
+**2. Public event submissions** — mirror of the Позитива story form.
+- [x] `sanity/schemas/cityEvent.ts` — `isSubmission` / `reviewed` / `submittedBy` fields.
+- [x] `sanity/structure.ts` — "📥 Настани за преглед" queue under Случувања.
+- [x] `app/api/events/submit/route.ts` — logged-in only; per-user rate limit + durable
+      pending-drafts cap; honeypot; single cover-image upload; creates a `drafts.*`
+      cityEvent with `isSubmission:true`, `reviewed:false`, **`autoPost:false`**.
+- [x] `components/events/EventSubmitForm.tsx` — 3-step wizard (Настан / Слика / Контакт),
+      brand-teal styling; `SubmitEventModal.tsx` shell; `SubmitEventButton.tsx` client
+      island (auth-gated → /account when logged out) wired into the /events header.
+- [x] typecheck (0) + lint clean; route returns 401 unauth; /events renders with button.
+
+Reuses the existing `SANITY_WRITE_TOKEN` — no new env. User verifies the authenticated
+wizard + Studio queue interactively.
+
+**3. Submission notification → in-app (not email).** New event submissions ping every admin
+(`profiles.is_admin`) via the free `notifications` system instead of Resend (email has monthly
+caps). New `event_submission` notification type; the bell links to `/studio`.
+- [x] `lib/notifications.ts` — `event_submission` added to the type union.
+- [x] `app/api/events/submit/route.ts` — `notifyAdmins()` inserts a notification per admin via
+      the service-role client (fire-and-forget).
+- [ ] **User runs** `supabase/add_event_submission_notification.sql` (widens the type CHECK).
+      Until then the insert fails the CHECK and no notification appears (submission still saves).
+
 ---
 
 ## Recently completed
@@ -110,6 +168,9 @@ immediately; spotlight shows next-upcoming until an event is pinned.
 -- 3. Comment photos
 ALTER TABLE issue_comments ADD COLUMN IF NOT EXISTS photo_url text;
 NOTIFY pgrst, 'reload schema';
+
+-- 4. Allow the event_submission notification type
+-- File: supabase/add_event_submission_notification.sql
 ```
 
 ---

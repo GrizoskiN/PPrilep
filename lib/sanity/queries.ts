@@ -81,6 +81,7 @@ export type SanityEvent = {
   sourceUrl: string | null;
   pinned: boolean;
   slug: string | null;
+  autoPost: boolean;
 };
 
 const EVENT_FIELDS = `
@@ -95,7 +96,8 @@ const EVENT_FIELDS = `
     coverImage{ asset, alt },
     sourceUrl,
     "pinned": coalesce(pinned, false),
-    "slug": slug.current
+    "slug": slug.current,
+    "autoPost": coalesce(autoPost, false)
 `;
 
 const EVENTS_QUERY = `
@@ -170,6 +172,16 @@ export async function fetchEventByKey(key: string): Promise<SanityEvent | null> 
     EVENT_BY_KEY_QUERY,
     { key },
     { next: { revalidate: REVALIDATE_CONTENT, tags: ["events"] } },
+  );
+}
+
+// Uncached fetch by document id — used by the social-publish webhook, which
+// fires the instant an event is published and must NOT read a stale cache.
+export async function fetchEventFresh(id: string): Promise<SanityEvent | null> {
+  return sanityClient.fetch<SanityEvent | null>(
+    `*[_type == "cityEvent" && _id == $id][0] { ${EVENT_FIELDS} }`,
+    { id },
+    { cache: "no-store" },
   );
 }
 
