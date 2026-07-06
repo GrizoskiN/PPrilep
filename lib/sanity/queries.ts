@@ -79,10 +79,11 @@ export type SanityEvent = {
     alt: string | null;
   } | null;
   sourceUrl: string | null;
+  pinned: boolean;
+  slug: string | null;
 };
 
-const EVENTS_QUERY = `
-  *[_type == "cityEvent"] | order(startDate asc) {
+const EVENT_FIELDS = `
     _id,
     title,
     category,
@@ -92,7 +93,25 @@ const EVENTS_QUERY = `
     location,
     description,
     coverImage{ asset, alt },
-    sourceUrl
+    sourceUrl,
+    "pinned": coalesce(pinned, false),
+    "slug": slug.current
+`;
+
+const EVENTS_QUERY = `
+  *[_type == "cityEvent"] | order(startDate asc) {
+    ${EVENT_FIELDS}
+  }
+`;
+
+// Spotlight for the right column: the pinned event if any, otherwise the next
+// upcoming one. `order(pinned desc, ...)` floats a pinned event to the top;
+// among ties the soonest wins. Only future/ongoing events qualify so a stale
+// pin never shows. $today is compared against endDate (falls back to startDate).
+const SPOTLIGHT_EVENT_QUERY = `
+  *[_type == "cityEvent" && coalesce(endDate, startDate) >= $today]
+  | order(coalesce(pinned, false) desc, startDate asc)[0] {
+    ${EVENT_FIELDS}
   }
 `;
 
@@ -122,6 +141,34 @@ export async function fetchCityEvents(): Promise<SanityEvent[]> {
   return sanityClient.fetch<SanityEvent[]>(
     EVENTS_QUERY,
     {},
+    { next: { revalidate: REVALIDATE_CONTENT, tags: ["events"] } },
+  );
+}
+
+// One event for its shareable detail page, resolved by slug OR document id so
+// events created before the slug field still open by _id.
+const EVENT_BY_KEY_QUERY = `
+  *[_type == "cityEvent" && (slug.current == $key || _id == $key)][0] {
+    ${EVENT_FIELDS}
+  }
+`;
+
+// The single event to feature in the right-column spotlight (pinned else next).
+// `today` is a YYYY-MM-DD string so the compare matches the date-only fields.
+export async function fetchSpotlightEvent(): Promise<SanityEvent | null> {
+  const today = new Date().toISOString().slice(0, 10);
+  return sanityClient.fetch<SanityEvent | null>(
+    SPOTLIGHT_EVENT_QUERY,
+    { today },
+    { next: { revalidate: REVALIDATE_CONTENT, tags: ["events"] } },
+  );
+}
+
+// Shareable per-event page, resolved by slug or _id (see EVENT_BY_KEY_QUERY).
+export async function fetchEventByKey(key: string): Promise<SanityEvent | null> {
+  return sanityClient.fetch<SanityEvent | null>(
+    EVENT_BY_KEY_QUERY,
+    { key },
     { next: { revalidate: REVALIDATE_CONTENT, tags: ["events"] } },
   );
 }

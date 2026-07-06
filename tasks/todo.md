@@ -10,7 +10,39 @@ about lives in "Backlog / ideas".
 
 ## Active
 
-_(empty — add items here when starting a sprint)_
+### Events: interest counter + pin + right-column spotlight
+Counter model = **hybrid** (anyone clicks; logged-in deduped by user_id, anon by
+a client-generated visitor_id). "Заинтересиран" was localStorage-only, so no
+count existed — this adds the first *write* feature.
+
+- [ ] `supabase/add_event_interest.sql` — `event_interest` table + partial unique
+      indexes; RLS on, no public policies (only service-role routes touch it). **User runs.**
+- [ ] `app/api/events/interest/route.ts` — GET counts (edge-cached, fail-soft),
+      POST toggle (auth-aware, keyed by user_id or visitor_id).
+- [ ] `sanity/schemas/cityEvent.ts` — add `pinned` boolean.
+- [ ] `lib/sanity/queries.ts` — `pinned` on type+query; spotlight fetch
+      (pinned desc, startDate asc, first upcoming).
+- [ ] `app/api/events/spotlight/route.ts` — `{ event, count }`, cached.
+- [ ] `components/ui/EventSpotlight.tsx` + wire into `RightPanel` under PromiseTracker.
+- [ ] `components/events/EventsExplorer.tsx` + `EventDetailModal.tsx` — show count,
+      optimistic toggle + POST.
+- [ ] typecheck + lint; counter stays inert (no number) until the SQL is run.
+
+**Status (built, verified typecheck+lint):** all code landed. Endpoints fail-soft,
+so the app is safe to deploy before the migration. **Blocked on user:** run
+`supabase/add_event_interest.sql` to activate the counter. Pin appears in Studio
+immediately; spotlight shows next-upcoming until an event is pinned.
+
+**Follow-up fixes/additions:**
+- Counter bug: POST used `.upsert(onConflict)` against a *partial* unique index,
+  which Postgres can't use as an ON CONFLICT arbiter → every insert threw →
+  count stayed 0. Fixed to a plain `.insert()` that swallows 23505 (the partial
+  index still dedupes). Counter now records once the SQL is applied.
+- Per-event shareable URLs (`/events/[slug]`): `slug` field on cityEvent schema
+  (Studio "Generate"); `fetchEventByKey` resolves slug OR _id; server page with
+  `generateMetadata` (OG cover image) for rich Facebook/Viber/WhatsApp previews;
+  `EventInterestButton` on the page; share buttons + spotlight now point at the
+  canonical `/events/…` URL. Counter appears only when count > 0.
 
 ---
 

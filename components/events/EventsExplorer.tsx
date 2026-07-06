@@ -10,6 +10,7 @@ import FilterSelect from "../ui/FilterSelect";
 import {
   EVENT_CATEGORY_LABELS,
   EVENT_CATEGORY_VISUAL,
+  eventPath,
   type EventCategory,
 } from "../../lib/data/events";
 import { urlForImage } from "../../lib/sanity/image";
@@ -32,6 +33,28 @@ const CATEGORY_OPTIONS = [
   })),
 ];
 const STORAGE_KEY = "events_interested";
+// Share links always point at the live domain — Facebook/Viber scrape the public
+// page for its OG card and cannot reach localhost.
+const SHARE_BASE = "https://mojprilep.mk";
+// Stable per-browser id so anonymous "interested" clicks can be deduped
+// server-side (hybrid with logged-in user_id — see /api/events/interest).
+const VISITOR_KEY = "pp_visitor_id";
+
+function getVisitorId(): string {
+  try {
+    let v = localStorage.getItem(VISITOR_KEY);
+    if (!v) {
+      v =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `v_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(VISITOR_KEY, v);
+    }
+    return v;
+  } catch {
+    return "";
+  }
+}
 
 // ── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -112,6 +135,7 @@ export default function EventsExplorer({ events }: Props) {
   const [category, setCategory] = useState<EventCategory | "all">("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("upcoming");
   const [interested, setInterested] = useState<Set<string>>(new Set());
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [selectedEvent, setSelectedEvent] = useState<SanityEvent | null>(null);
 
   useEffect(() => {
@@ -124,22 +148,77 @@ export default function EventsExplorer({ events }: Props) {
     return () => clearTimeout(id);
   }, []);
 
+  // Server-side interest counts (fail-soft: no counter shown if unavailable).
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/events/interest")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (alive && data?.counts) setCounts(data.counts as Record<string, number>);
+      })
+      .catch(() => { /* ignore */ });
+    return () => { alive = false; };
+  }, []);
+
+  // Reflect the open event in the address bar (shallow — no navigation/refetch)
+  // so the URL is copy-paste shareable and the back button closes the modal.
+  useEffect(() => {
+    if (!selectedEvent) return;
+    const path = eventPath(selectedEvent);
+    if (window.history.state?.eventModal !== selectedEvent._id) {
+      window.history.pushState({ eventModal: selectedEvent._id }, "", path);
+    }
+    const onPop = () => setSelectedEvent(null);
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      // Closed via the X/backdrop (URL still on the event) → restore /events.
+      if (window.history.state?.eventModal) window.history.back();
+    };
+  }, [selectedEvent]);
+
   function toggleInterested(id: string) {
+    const adding = !interested.has(id);
+
+    // Optimistic local state + count.
     setInterested((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (adding) next.add(id);
+      else next.delete(id);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
       } catch { /* ignore */ }
       return next;
     });
+    setCounts((prev) => ({
+      ...prev,
+      [id]: Math.max(0, (prev[id] ?? 0) + (adding ? 1 : -1)),
+    }));
+
+    // Persist; reconcile with the authoritative server count.
+    fetch("/api/events/interest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventId: id,
+        action: adding ? "add" : "remove",
+        visitorId: getVisitorId(),
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && typeof data.count === "number") {
+          setCounts((prev) => ({ ...prev, [id]: data.count }));
+        }
+      })
+      .catch(() => { /* keep optimistic value */ });
   }
 
+  // Shareable URL = our own event page on the LIVE domain (has OG tags for a rich
+  // preview), not the external sourceUrl and never localhost — Facebook/Viber can
+  // only scrape a public URL, so a dev-origin link shows no card.
   function eventUrl(ev: SanityEvent): string {
-    if (ev.sourceUrl) return ev.sourceUrl;
-    if (typeof window !== "undefined") return `${window.location.origin}/events`;
-    return "/events";
+    return `${SHARE_BASE}${eventPath(ev)}`;
   }
 
   // ── Filtering ─────────────────────────────────────────────────────────────
@@ -254,6 +333,7 @@ export default function EventsExplorer({ events }: Props) {
                 <InterestedButton
                   active={interested.has(featured._id)}
                   onClick={() => toggleInterested(featured._id)}
+                  count={counts[featured._id] ?? 0}
                   large
                 />
                 <ShareSheet
@@ -281,7 +361,7 @@ export default function EventsExplorer({ events }: Props) {
       {rest.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-sm font-semibold text-theme-heading">
-            Откриј настани
+            Останати настани
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {rest.map((ev) => (
@@ -309,6 +389,7 @@ export default function EventsExplorer({ events }: Props) {
                     <InterestedButton
                       active={interested.has(ev._id)}
                       onClick={() => toggleInterested(ev._id)}
+                      count={counts[ev._id] ?? 0}
                     />
                     <ShareSheet
                       url={eventUrl(ev)}
@@ -338,6 +419,7 @@ export default function EventsExplorer({ events }: Props) {
       <EventDetailModal
         event={selectedEvent}
         interested={interested.has(selectedEvent._id)}
+        interestedCount={counts[selectedEvent._id] ?? 0}
         onToggleInterested={(id) => {
           toggleInterested(id);
         }}
@@ -351,9 +433,9 @@ export default function EventsExplorer({ events }: Props) {
 
 
 function InterestedButton({
-  active, onClick, large = false,
+  active, onClick, large = false, count = 0,
 }: {
-  active: boolean; onClick: () => void; large?: boolean;
+  active: boolean; onClick: () => void; large?: boolean; count?: number;
 }) {
   return (
     <button
@@ -361,13 +443,18 @@ function InterestedButton({
       aria-pressed={active}
       className={cn(
         "inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg font-semibold transition-colors",
-        large ? "px-4 py-2 text-sm" : "h-8 px-3 text-xs",
+        large ? "max-w-xs px-4 py-2 text-sm" : "h-8 px-3 text-xs",
         active
-          ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
-          : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200",
+          ? "bg-primary text-white hover:bg-primary/90"
+          : "bg-primary-light text-primary hover:bg-primary/15",
       )}>
-      <Star size={large ? 15 : 14} className={active ? "fill-amber-500" : ""} />
+      <Star size={large ? 15 : 14} className={active ? "fill-white" : ""} />
       Заинтересиран
+      {count > 0 && (
+        <span className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] font-bold tabular-nums text-primary shadow-sm">
+          {count}
+        </span>
+      )}
     </button>
   );
 }

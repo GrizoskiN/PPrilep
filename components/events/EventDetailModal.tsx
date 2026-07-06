@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, CalendarDays, MapPin, Clock, ExternalLink } from "lucide-react";
+import { X, CalendarDays, MapPin, Clock, ExternalLink, Maximize2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import ShareSheet from "../ui/ShareSheet";
+import ImageLightbox from "../ui/ImageLightbox";
 import {
   EVENT_CATEGORY_LABELS,
   EVENT_CATEGORY_VISUAL,
@@ -40,7 +41,7 @@ function formatWhenFull(ev: SanityEvent): string {
 
 // ── Cover image / gradient ───────────────────────────────────────────────────
 
-function EventCover({ ev }: { ev: SanityEvent }) {
+function EventCover({ ev, onImageClick }: { ev: SanityEvent; onImageClick?: () => void }) {
   const visual =
     EVENT_CATEGORY_VISUAL[ev.category as EventCategory] ??
     EVENT_CATEGORY_VISUAL.other;
@@ -52,7 +53,8 @@ function EventCover({ ev }: { ev: SanityEvent }) {
       <img
         src={src}
         alt={ev.coverImage.alt ?? ev.title}
-        className="h-full w-full object-cover"
+        onClick={onImageClick}
+        className={cn("h-full w-full object-cover", onImageClick && "cursor-zoom-in")}
       />
     );
   }
@@ -73,6 +75,7 @@ function EventCover({ ev }: { ev: SanityEvent }) {
 interface Props {
   event: SanityEvent;
   interested: boolean;
+  interestedCount?: number;
   onToggleInterested: (id: string) => void;
   onClose: () => void;
   shareUrl: string;
@@ -83,18 +86,28 @@ interface Props {
 export default function EventDetailModal({
   event: ev,
   interested,
+  interestedCount = 0,
   onToggleInterested,
   onClose,
   shareUrl,
 }: Props) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  // Full-resolution, uncropped source for the fullscreen viewer.
+  const coverFull =
+    ev.coverImage && ev.coverImage.asset
+      ? urlForImage(ev.coverImage).width(1600).url()
+      : null;
+  const hasCover = Boolean(coverFull);
+
   // Close on Escape
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      // Let the lightbox handle Escape while it's open (it closes itself).
+      if (e.key === "Escape" && !lightboxOpen) onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, lightboxOpen]);
 
   // Lock body scroll
   useEffect(() => {
@@ -110,6 +123,7 @@ export default function EventDetailModal({
     EVENT_CATEGORY_LABELS[ev.category as EventCategory] ?? ev.category;
 
   const modal = (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4"
       role="dialog"
@@ -125,7 +139,19 @@ export default function EventDetailModal({
       <div className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl max-h-[92dvh]">
         {/* Cover image */}
         <div className="relative h-52 w-full shrink-0 sm:h-64">
-          <EventCover ev={ev} />
+          <EventCover
+            ev={ev}
+            onImageClick={hasCover ? () => setLightboxOpen(true) : undefined}
+          />
+
+          {/* View full image */}
+          {hasCover && (
+            <button
+              onClick={() => setLightboxOpen(true)}
+              className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm transition hover:bg-black/65">
+              <Maximize2 size={12} /> Цела слика
+            </button>
+          )}
 
           {/* Close button */}
           <button
@@ -189,16 +215,18 @@ export default function EventDetailModal({
             onClick={() => onToggleInterested(ev._id)}
             aria-pressed={interested}
             className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
+              "flex max-w-[15rem] flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
               interested
-                ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200",
+                ? "bg-primary text-white hover:bg-primary/90"
+                : "bg-primary-light text-primary hover:bg-primary/15",
             )}>
-            <Star
-              size={15}
-              className={interested ? "fill-amber-500" : ""}
-            />
+            <Star size={15} className={interested ? "fill-white" : ""} />
             {interested ? "Заинтересиран ✓" : "Заинтересиран"}
+            {interestedCount > 0 && (
+              <span className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] font-bold tabular-nums text-primary shadow-sm">
+                {interestedCount}
+              </span>
+            )}
           </button>
 
           {/* Share */}
@@ -223,6 +251,15 @@ export default function EventDetailModal({
         </div>
       </div>
     </div>
+
+    {lightboxOpen && coverFull && (
+      <ImageLightbox
+        src={coverFull}
+        alt={ev.coverImage?.alt ?? ev.title}
+        onClose={() => setLightboxOpen(false)}
+      />
+    )}
+    </>
   );
 
   if (typeof window === "undefined") return null;

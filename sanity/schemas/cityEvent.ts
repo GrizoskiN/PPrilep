@@ -30,6 +30,15 @@ export default defineType({
       validation: (r) => r.required().min(3).max(140),
     }),
     defineField({
+      name: "slug",
+      title: "Пократок линк (slug)",
+      type: "slug",
+      description:
+        "За споделлив линк /events/… . Кликни „Generate“ за да се создаде од " +
+        "насловот.",
+      options: { source: "title", maxLength: 96 },
+    }),
+    defineField({
       name: "category",
       title: "Категорија",
       type: "string",
@@ -87,6 +96,15 @@ export default defineType({
       name: "sourceUrl",
       title: "Надворешен линк (Facebook настан, билети…)",
       type: "url",
+    }),
+    defineField({
+      name: "pinned",
+      title: "Закачен настан",
+      type: "boolean",
+      description:
+        "Прикажи го во десната колона (под Ветувања) на почетната. Само еден " +
+        "закачен настан се прикажува — ако има повеќе, се зема најскорешниот.",
+      initialValue: false,
     }),
   ],
 

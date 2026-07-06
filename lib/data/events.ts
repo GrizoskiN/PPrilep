@@ -29,6 +29,12 @@ export interface CityEvent {
   sourceUrl?: string;
 }
 
+// Canonical in-app path for an event's shareable page. Prefers the slug,
+// falls back to the Sanity document id for events created before slugs existed.
+export function eventPath(ev: { slug?: string | null; _id: string }): string {
+  return `/events/${ev.slug || ev._id}`;
+}
+
 export const EVENT_CATEGORY_LABELS: Record<EventCategory, string> = {
   concert: "Концерт",
   festival: "Фестивал",
