@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useOptimistic, useState, useTransition, useCallback } from "react";
+import { useEffect, useOptimistic, useState, useTransition, useCallback } from "react";
 import { Coins, CircleCheck, Users } from "lucide-react";
 import { toast } from "sonner";
 import { castVoteOnInitiative } from "../../app/actions/initiatives";
@@ -60,6 +60,23 @@ export default function InitiativeCard({
 
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+
+  // Reflect the open initiative in the address bar (shallow — no navigation) so
+  // the URL is copy-paste shareable and the back button closes the modal.
+  useEffect(() => {
+    if (!open) return;
+    const path = `/initiatives/${initiative.id}`;
+    if (window.history.state?.initiativeModal !== initiative.id) {
+      window.history.pushState({ initiativeModal: initiative.id }, "", path);
+    }
+    const onPop = () => setOpen(false);
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      // Closed via the X/backdrop (URL still on the initiative) → restore.
+      if (window.history.state?.initiativeModal) window.history.back();
+    };
+  }, [open, initiative.id]);
 
   useInitiativeVoteSync(
     initiative.id,

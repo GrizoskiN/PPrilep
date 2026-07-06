@@ -15,3 +15,8 @@ alter table public.initiatives
 
 alter table public.initiatives
   add column if not exists lng double precision;
+
+-- Reload PostgREST's schema cache so the new columns are usable immediately
+-- (otherwise inserts fail with "Could not find the 'lat' column ... in the
+-- schema cache" until the next auto-reload).
+notify pgrst, 'reload schema';

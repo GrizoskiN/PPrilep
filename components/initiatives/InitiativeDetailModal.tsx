@@ -24,6 +24,7 @@ import {
 import { cn, DISTRICT_LABELS, formatDays, cdnUrl } from "../../lib/utils";
 import Image from "next/image";
 import AvatarInitials from "../ui/AvatarInitials";
+import ShareSheet from "../ui/ShareSheet";
 import SegmentedProgressBar from "./SegmentedProgressBar";
 import type { InitiativeWithDetails } from "../../lib/types/database";
 
@@ -129,6 +130,11 @@ export default function InitiativeDetailModal({
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            <ShareSheet
+              url={`https://mojprilep.mk/initiatives/${initiative.id}`}
+              title={initiative.title}
+              className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900"
+            />
             {(canEdit || canDelete) && (
               <div className="relative">
                 <button
