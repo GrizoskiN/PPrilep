@@ -26,6 +26,7 @@ import Image from "next/image";
 import AvatarInitials from "../ui/AvatarInitials";
 import ShareSheet from "../ui/ShareSheet";
 import SegmentedProgressBar from "./SegmentedProgressBar";
+import InitiativeSupporters from "./InitiativeSupporters";
 import type { InitiativeWithDetails } from "../../lib/types/database";
 
 interface Props {
@@ -245,6 +246,11 @@ export default function InitiativeDetailModal({
           {/* Vote progress for idea/voting */}
           {(stage === "idea" || stage === "voting") && (
             <SegmentedProgressBar votes={voteCount} />
+          )}
+
+          {/* Who supported (public list of Поддржи clicks) */}
+          {(stage === "idea" || stage === "voting") && (
+            <InitiativeSupporters initiativeId={initiative.id} />
           )}
 
           {/* Funding details */}

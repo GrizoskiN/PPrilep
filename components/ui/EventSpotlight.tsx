@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, MapPin, Star } from "lucide-react";
+import { CalendarDays, MapPin, Star, ChevronRight } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { urlForImage } from "../../lib/sanity/image";
 import type { SanityEvent } from "../../lib/sanity/queries";
@@ -65,6 +65,18 @@ export default function EventSpotlight() {
 
   return (
     <div className="lg:p-3">
+      {/* Section header — links out to the full events listing. */}
+      <div className="mb-1.5 flex items-center justify-between px-0.5">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+          Случувања
+        </span>
+        <Link
+          href="/events"
+          className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-primary transition-colors hover:text-primary/80">
+          Сите случувања
+          <ChevronRight size={13} />
+        </Link>
+      </div>
       <Link
         href={eventPath(event)}
         className="block overflow-hidden rounded-2xl border border-zinc-200 bg-white transition-shadow hover:shadow-md">
