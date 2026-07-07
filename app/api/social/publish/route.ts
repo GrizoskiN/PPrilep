@@ -107,7 +107,12 @@ export async function POST(req: Request) {
     const caption = buildCaption(post);
     const imageUrl =
       ev.coverImage && ev.coverImage.asset
-        ? urlForImage(ev.coverImage).width(1080).height(1080).fit("crop").url()
+        ? urlForImage(ev.coverImage)
+            .width(1080)
+            .height(1080)
+            .fit("crop")
+            .format("jpg") // Instagram requires JPEG; FB photo posts prefer it too.
+            .url()
         : null;
 
     // Post to each network independently — one failing shouldn't block the other.
@@ -117,7 +122,7 @@ export async function POST(req: Request) {
 
     if (facebookConfigured()) {
       try {
-        fbId = await postToFacebook(caption, url);
+        fbId = await postToFacebook(caption, url, imageUrl);
       } catch (e) {
         errors.push(`fb: ${e instanceof Error ? e.message : String(e)}`);
       }

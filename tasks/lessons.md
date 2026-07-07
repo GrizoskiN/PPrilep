@@ -5,6 +5,36 @@ the start of every session so we don't repeat past mistakes.
 
 ---
 
+## Meta (FB/IG) auto-posting (July 2026)
+
+Context: an approved event with `autoPost:true` didn't post. Diagnosis facts:
+
+- **The pipeline works; the webhook was the gap.** `/api/social/publish` is
+  deployed and the Meta creds are valid, but the event left *no* `social_posts`
+  row → the endpoint was never called → the **second Sanity webhook** (Create/
+  Update, filter `_type == "cityEvent"`, → `/api/social/publish?secret=…`) is
+  NOT configured. Only the user can add it (our SANITY_WRITE_TOKEN lacks the
+  `sanity.project.webhooks` scope, so we can't even list hooks). Every prior
+  "successful" post was a manual trigger. **First check for a `social_posts`
+  row** — its absence means "never reached the endpoint," not "code bug."
+- **FB link posts show no image.** `/{page}/feed` with `link:` relies on OG
+  scraping and often renders imageless. Post a **photo** (`/{page}/photos` with
+  `url:imageUrl` + `caption`) to guarantee the image. The caption already
+  contains the event URL as text, so the link survives.
+- **`/{page}/photos` needs the PAGE access token**, not the system-user token.
+  Using the user/system token → `(#200) publish_actions … deprecated`. Derive
+  the page token first (`GET /{PAGE_ID}?fields=access_token`).
+- **IG "Media ID is not available"** = you published the container before Meta
+  finished ingesting it. Poll `GET /{creation_id}?fields=status_code` until
+  `FINISHED` (bail on ERROR/EXPIRED) before `media_publish`.
+- **IG requires JPEG.** A PNG cover can fail ingestion — force `.format("jpg")`
+  on the Sanity image URL (or `?fm=jpg`).
+- Dedupe is per-`event_id` (row existence), NOT per-network. If FB succeeds but
+  IG fails, the row stays with `ig_post_id:null` and **won't auto-retry IG** —
+  a re-trigger returns "already posted." Backfill IG manually if needed.
+
+---
+
 ## PostgREST / Supabase joins (May 2026)
 
 ### Always use `profiles:user_id(...)` not `profiles(...)`

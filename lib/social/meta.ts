@@ -90,13 +90,28 @@ async function getPageAccessToken(): Promise<string> {
 }
 
 /**
- * Publish a link post to the Facebook Page. Facebook scrapes the URL's OG tags
- * to render the card, so the cover image comes from the event page's metadata.
+ * Publish to the Facebook Page. When a cover image is available we post it as a
+ * *photo* (the image is guaranteed to render); otherwise we fall back to a link
+ * post whose card is scraped from the event page's OG tags. The caption already
+ * contains the event URL as text, so the link is present either way.
  * Returns the created post id.
  */
-export async function postToFacebook(caption: string, url: string): Promise<string> {
+export async function postToFacebook(
+  caption: string,
+  url: string,
+  imageUrl?: string | null,
+): Promise<string> {
   if (!facebookConfigured()) throw new Error("Facebook not configured");
   const pageToken = await getPageAccessToken();
+  if (imageUrl) {
+    const data = await graph(
+      `${PAGE_ID}/photos`,
+      { url: imageUrl, caption },
+      pageToken,
+    );
+    // /photos returns the photo id + the feed story id (post_id).
+    return String(data.post_id ?? data.id ?? "");
+  }
   const data = await graph(
     `${PAGE_ID}/feed`,
     { message: caption, link: url },
@@ -106,7 +121,30 @@ export async function postToFacebook(caption: string, url: string): Promise<stri
 }
 
 /**
- * Publish a single-image post to Instagram (container → publish).
+ * Poll a media container until Instagram has finished ingesting the image.
+ * Publishing before the container reports FINISHED fails with
+ * "Media ID is not available", so we wait (up to ~10s) for readiness.
+ */
+async function waitForContainer(creationId: string): Promise<void> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const res = await fetch(
+      `${GRAPH}/${creationId}?fields=status_code&access_token=${TOKEN}`,
+    );
+    const data = (await res.json().catch(() => ({}))) as {
+      status_code?: string;
+    };
+    const status = data.status_code;
+    if (status === "FINISHED") return;
+    if (status === "ERROR" || status === "EXPIRED") {
+      throw new Error(`IG container ${status}`);
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error("IG container not ready (timed out)");
+}
+
+/**
+ * Publish a single-image post to Instagram (container → wait → publish).
  * `imageUrl` must be a public JPEG. Returns the published media id.
  */
 export async function postToInstagram(caption: string, imageUrl: string): Promise<string> {
@@ -117,6 +155,7 @@ export async function postToInstagram(caption: string, imageUrl: string): Promis
   });
   const creationId = String(container.id ?? "");
   if (!creationId) throw new Error("No creation id returned");
+  await waitForContainer(creationId);
   const published = await graph(`${IG_USER_ID}/media_publish`, {
     creation_id: creationId,
   });
