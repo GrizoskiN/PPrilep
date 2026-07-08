@@ -133,8 +133,9 @@ function aroundStops(
   return forward ? { prev: lower, next: upper } : { prev: upper, next: lower };
 }
 
-const POLL_MS = 15_000; // trackers only report every ~30s, so 15s (cache s-maxage 15)
-// loses no real freshness while halving edge requests / function invocations.
+const POLL_MS = 20_000; // trackers only report every ~30s, so polling much faster
+// just multiplies origin invocations for no fresher data. 20s keeps the map feeling
+// live while cutting request volume ~a third. Matches the endpoint's s-maxage=20.
 
 // Bus service window (local time). Outside it no bus runs, so the public map
 // stops polling entirely — nothing to show and no reason to spend requests.

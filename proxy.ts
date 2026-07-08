@@ -59,5 +59,12 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // Only run on real page navigations. API routes do their own auth, and the
+  // live bus map polls /api/buses/positions every ~30s per viewer — letting the
+  // middleware (which makes a Supabase getUser() network call) run on those polls
+  // and on the analytics beacon was burning Edge Requests + Function Invocations
+  // for nothing. Static assets, _next, and _vercel (analytics) are excluded too.
+  matcher: [
+    '/((?!api|_next/static|_next/image|_vercel|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?|ttf|map)$).*)',
+  ],
 }
