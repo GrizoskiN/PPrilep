@@ -24,6 +24,10 @@ import { lastFix, num, type FleetRow } from "../../../../lib/buses/flespi";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// Our audience is entirely in Macedonia, but Cloudflare-in-front can make Vercel
+// route this to a US region (iad1). Pin it to Frankfurt — the closest region to
+// both our users and our Supabase — so it never runs across the Atlantic.
+export const preferredRegion = "fra1";
 
 const TOKEN = process.env.FLESPI_TOKEN;
 const MAX_AGE_S = 10 * 60; // hide a bus with no valid fix in 10 min (out of service).
@@ -31,7 +35,9 @@ const MAX_AGE_S = 10 * 60; // hide a bus with no valid fix in 10 min (out of ser
 // endpoint (/api/buses/positions/admin), never to the public.
 
 const CACHE_HEADERS = {
-  "Cache-Control": "public, s-maxage=20, stale-while-revalidate=30",
+  // Matches the client's active poll (30s): many viewers collapse into one origin
+  // hit per window; stale-while-revalidate serves instantly while refreshing.
+  "Cache-Control": "public, s-maxage=30, stale-while-revalidate=30",
 };
 
 export async function GET() {

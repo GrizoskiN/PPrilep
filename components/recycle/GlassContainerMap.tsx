@@ -103,6 +103,45 @@ export default function GlassContainerMap() {
     });
   }, []);
 
+  const popupCard = selected && (
+    <>
+      {selected.photos && selected.photos.length > 0 && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={selected.photos[0]}
+          alt={selected.name}
+          className="h-32 w-full object-cover"
+        />
+      )}
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex items-center gap-1.5">
+              <span
+                className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{
+                  background: selected.kind === "iglu" ? IGLU_BLUE : GLASS_BLUE,
+                }}
+              />
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-500">
+                ♻️ Стакло{selected.kind === "iglu" ? " · Иглу" : ""}
+              </p>
+            </div>
+            <p className="text-sm font-semibold leading-snug text-zinc-800">
+              {selected.name}
+            </p>
+          </div>
+          <button
+            onClick={() => setSelected(null)}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100"
+            aria-label="Затвори">
+            <X size={13} />
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex flex-col gap-3">
       {/* Legend */}
@@ -131,47 +170,24 @@ export default function GlassContainerMap() {
           onClick={() => setSelected(null)}
         />
 
-        {/* Container popup */}
+        {/* Container popup — left-docked & vertically centered on desktop
+            (soft slide-in from the left), bottom drawer on mobile.
+            Mirrors the bus map's pp-panel-left / pp-panel-up behavior. */}
         {selected && (
-          <div
-            className="absolute bottom-6 left-1/2 z-20 w-72 -translate-x-1/2 overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}>
-            {selected.photos && selected.photos.length > 0 && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={selected.photos[0]}
-                alt={selected.name}
-                className="h-32 w-full object-cover"
-              />
-            )}
-            <div className="p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex items-center gap-1.5">
-                    <span
-                      className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{
-                        background:
-                          selected.kind === "iglu" ? IGLU_BLUE : GLASS_BLUE,
-                      }}
-                    />
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-500">
-                      ♻️ Стакло{selected.kind === "iglu" ? " · Иглу" : ""}
-                    </p>
-                  </div>
-                  <p className="text-sm font-semibold leading-snug text-zinc-800">
-                    {selected.name}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSelected(null)}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100"
-                  aria-label="Затвори">
-                  <X size={13} />
-                </button>
-              </div>
+          <>
+            {/* Desktop: left middle */}
+            <div
+              className="pp-panel-left absolute top-0 bottom-0 left-3 z-20 my-auto hidden h-fit w-72 max-w-[calc(100%-1.5rem)] overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-2xl lg:block"
+              onClick={(e) => e.stopPropagation()}>
+              {popupCard}
             </div>
-          </div>
+            {/* Mobile: bottom drawer */}
+            <div
+              className="pp-panel-up absolute right-4 bottom-4 left-4 z-20 overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-2xl lg:hidden"
+              onClick={(e) => e.stopPropagation()}>
+              {popupCard}
+            </div>
+          </>
         )}
       </div>
     </div>

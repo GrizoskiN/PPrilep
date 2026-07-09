@@ -134,9 +134,21 @@ function aroundStops(
   return forward ? { prev: lower, next: upper } : { prev: upper, next: lower };
 }
 
-const POLL_MS = 20_000; // trackers only report every ~30s, so polling much faster
-// just multiplies origin invocations for no fresher data. 20s keeps the map feeling
-// live while cutting request volume ~a third. Matches the endpoint's s-maxage=20.
+// Trackers only report every ~30s, so polling faster just multiplies origin
+// requests for no fresher data. When buses are on the map we poll at ACTIVE_POLL_MS
+// (matches the endpoint's s-maxage=30); when the city is quiet (zero buses in the
+// last fetch, or off-hours) we back off to QUIET_POLL_MS so an open tab isn't
+// fetching "no buses" every half-minute. Off-hours fetches are skipped entirely,
+// so those ticks cost nothing on the network.
+const ACTIVE_POLL_MS = 30_000;
+const QUIET_POLL_MS = 60_000;
+
+// Auto-pause polling after this long with zero interaction. A tab left open and
+// visible (a pinned tab, a second monitor, or a forgotten owner window) otherwise
+// keeps firing a request every poll around the clock; this caps that waste.
+// 3 min is short enough to matter but long enough that someone quietly watching
+// their bus approach isn't paused mid-wait — and any move/tap resumes instantly.
+const IDLE_MS = 3 * 60_000;
 
 // Bus service window (local time). Outside it no bus runs, so the public map
 // stops polling entirely — nothing to show and no reason to spend requests.
@@ -430,6 +442,10 @@ export default function BusRouteMap() {
   }, [activeRoutes]);
   const [mapReady, setMapReady] = useState(false);
   const [liveBuses, setLiveBuses] = useState<LiveBus[]>([]);
+  // Live polling pauses itself after a stretch of no interaction, so a tab left
+  // open on a desk (or a forgotten owner window) stops spending requests. Any
+  // interaction resumes it.
+  const [idlePaused, setIdlePaused] = useState(false);
 
   // Basemap choice (blue Fiord ↔ light Positron), remembered per browser. Starts at the default
   // for SSR parity, then the saved choice is applied after mount (the map itself
@@ -766,7 +782,11 @@ export default function BusRouteMap() {
   // ── Poll live bus positions (only while the tab is visible) ─────────────────
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let polling = false; // guards against overlapping self-scheduled loops
+    let idlePausedLocal = false; // paused specifically for inactivity
+    let lastActivity = Date.now();
+    let lastCount = 0; // buses seen in the last successful fetch
 
     // The owner gets the authenticated endpoint, which also returns offline
     // buses (parked at their last fix); everyone else gets the public, cached one.
@@ -774,50 +794,109 @@ export default function BusRouteMap() {
 
     async function load() {
       // Off-hours: no bus is running, so skip the request entirely and clear the
-      // map. The timer keeps ticking (free) and resumes fetching once service
+      // map. The loop keeps ticking (free) and resumes fetching once service
       // opens. The owner is exempt so parked buses stay watchable any time.
       if (!isOwner && !inServiceHours()) {
         if (!cancelled) setLiveBuses((prev) => (prev.length ? [] : prev));
+        lastCount = 0;
         return;
       }
       try {
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) return;
         const json = await res.json();
-        if (!cancelled) setLiveBuses((json.buses ?? []) as LiveBus[]);
+        const buses = (json.buses ?? []) as LiveBus[];
+        if (!cancelled) setLiveBuses(buses);
+        lastCount = buses.length;
       } catch {
         /* keep last known positions on a transient error */
       }
     }
+
+    // Poll briskly while buses are on the map; back off when the city's quiet
+    // (no buses last fetch, or off-hours) so an idle-but-open tab spends far
+    // fewer requests.
+    function nextDelay() {
+      if (!isOwner && !inServiceHours()) return QUIET_POLL_MS;
+      return lastCount > 0 ? ACTIVE_POLL_MS : QUIET_POLL_MS;
+    }
+    async function tick() {
+      timer = null;
+      await load();
+      if (cancelled || !polling || idlePausedLocal || document.hidden) return;
+      timer = setTimeout(tick, nextDelay());
+    }
     function start() {
-      if (timer) return;
-      load();
-      timer = setInterval(load, POLL_MS);
+      if (polling) return;
+      polling = true;
+      tick(); // immediate fetch, then self-schedules
     }
     function stop() {
+      polling = false;
       if (timer) {
-        clearInterval(timer);
+        clearTimeout(timer);
         timer = null;
       }
+    }
+    function goIdle() {
+      if (idlePausedLocal) return;
+      idlePausedLocal = true;
+      stop();
+      if (!cancelled) setIdlePaused(true);
+    }
+    function resumeFromIdle() {
+      if (!idlePausedLocal) return;
+      idlePausedLocal = false;
+      if (!cancelled) setIdlePaused(false);
+      // Stale animation state after any pause — drop it so buses snap to their
+      // real spot instead of tweening across the map.
+      busStateRef.current.clear();
+      start();
+    }
+    function onActivity() {
+      lastActivity = Date.now();
+      if (idlePausedLocal && !document.hidden) resumeFromIdle();
     }
     function onVisibility() {
       if (document.hidden) {
         stop();
-      } else {
+      } else if (!idlePausedLocal) {
         // Returning after the tab/app was hidden: rAF was paused, so the
         // animation state is stale. Drop it so the next fix places each bus
         // instantly at its real spot instead of "catching up" with a long,
         // wrong tween across the map.
+        lastActivity = Date.now();
         busStateRef.current.clear();
         start();
       }
     }
+
+    // Inactivity watchdog — client-only, no network. Trips the pause once the
+    // tab has been visible but untouched for IDLE_MS.
+    const idleCheck = setInterval(() => {
+      if (document.hidden || idlePausedLocal) return;
+      if (Date.now() - lastActivity >= IDLE_MS) goIdle();
+    }, 15_000);
+
+    const activityEvents = [
+      "pointerdown",
+      "keydown",
+      "wheel",
+      "touchstart",
+      "mousemove",
+      "scroll",
+    ] as const;
+    activityEvents.forEach((e) =>
+      window.addEventListener(e, onActivity, { passive: true }),
+    );
 
     if (!document.hidden) start();
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
       stop();
+      clearInterval(idleCheck);
+      activityEvents.forEach((e) => window.removeEventListener(e, onActivity));
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [isOwner]);
@@ -1493,6 +1572,21 @@ export default function BusRouteMap() {
               <div style={{ zoom: 0.9 }}>{selectedBus ? panelInner : stopPanelInner}</div>
             </div>
           </>
+        )}
+
+        {/* Idle pause — polling stopped after inactivity to save requests.
+            Any interaction already resumes it; this is the visible cue + a tap
+            target. Sits above the map, below the detail panel. */}
+        {idlePaused && (
+          <button
+            type="button"
+            onClick={() => setIdlePaused(false)}
+            className="absolute inset-x-0 bottom-3 z-30 mx-auto flex w-fit items-center gap-2 rounded-full border border-zinc-200 bg-white/90 px-4 py-2 text-xs font-medium text-zinc-600 shadow-lg backdrop-blur-sm transition-colors hover:bg-white">
+            <span className="relative flex h-2 w-2">
+              <span className="inline-flex h-2 w-2 rounded-full bg-amber-400" />
+            </span>
+            Ажурирањето е паузирано — допри за да продолжи
+          </button>
         )}
 
         {/* Top-left controls: basemap switch (everyone) + speed toggle (owner) */}
