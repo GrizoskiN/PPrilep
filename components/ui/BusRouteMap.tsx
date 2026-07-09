@@ -148,7 +148,10 @@ const QUIET_POLL_MS = 60_000;
 // keeps firing a request every poll around the clock; this caps that waste.
 // 3 min is short enough to matter but long enough that someone quietly watching
 // their bus approach isn't paused mid-wait — and any move/tap resumes instantly.
-const IDLE_MS = 3 * 60_000;
+// In dev it drops to 30s: a forgotten `next dev` tab is the most common way to
+// quietly burn requests while working, so pause it fast locally.
+const IDLE_MS =
+  process.env.NODE_ENV === "production" ? 3 * 60_000 : 30_000;
 
 // Bus service window (local time). Outside it no bus runs, so the public map
 // stops polling entirely — nothing to show and no reason to spend requests.
