@@ -149,6 +149,20 @@ export default async function UtilityPage({ params }: Props) {
         {p === "garbage" && (
           <>
             <KomunalecQuickActions />
+            <Link
+              href="/recycle"
+              className="flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 transition-colors hover:bg-blue-100">
+              <span className="text-2xl">♻️</span>
+              <span className="flex-1">
+                <span className="block text-sm font-semibold text-blue-900">
+                  Рециклирање на стакло
+                </span>
+                <span className="block text-xs text-blue-700">
+                  Мапа со сите локации на контејнери за стаклена амбалажа
+                </span>
+              </span>
+              <span className="text-blue-400">→</span>
+            </Link>
             <KomunalecInfoAccordion />
             <div className="space-y-3">
               <h2 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-700">

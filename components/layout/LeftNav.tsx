@@ -20,6 +20,7 @@ import {
   faSquareParking,
   faCalendarDays,
   faChildren,
+  faRecycle,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Map } from "lucide-react";
@@ -312,6 +313,12 @@ export default function LeftNav() {
               <FontAwesomeIcon icon={faCalendarDays} className="h-4 w-4" />
             }
             iconTone="cyan"
+          />
+          <LeftNavItem
+            href="/recycle"
+            label="Рециклирање"
+            iconNode={<FontAwesomeIcon icon={faRecycle} className="h-4 w-4" />}
+            iconTone="green"
           />
         </div>
       </section>

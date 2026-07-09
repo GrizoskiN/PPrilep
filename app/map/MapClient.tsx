@@ -10,6 +10,7 @@ import type { Category, District, IssueStatus } from "../../lib/types/database";
 import StatusPill from "../../components/ui/StatusPill";
 import StatusTimelinePopup from "../../components/ui/StatusTimelinePopup";
 import FilterSelect from "../../components/ui/FilterSelect";
+import { COOPERATIVE_MAP_OPTIONS } from "../../lib/map/cooperative";
 
 export type PinnedIssue = {
   id: number;
@@ -120,6 +121,7 @@ export default function MapClient({ issues }: { issues: PinnedIssue[] }) {
       maxZoom: 19,
       maxBounds: PRILEP_BOUNDS,
       attributionControl: { compact: true },
+      ...COOPERATIVE_MAP_OPTIONS,
     });
     map.addControl(new maplibregl.NavigationControl(), "top-right");
     mapRef.current = map;

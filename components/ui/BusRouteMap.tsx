@@ -24,6 +24,7 @@ import {
   type RouteGeom,
   type LngLat,
 } from "../../lib/geo/lineFollow";
+import { COOPERATIVE_MAP_OPTIONS } from "../../lib/map/cooperative";
 
 // Tight extent covering every route, so the map can't be panned or zoomed out
 // beyond the area the buses actually serve. Derived from the route geometry so
@@ -511,6 +512,7 @@ export default function BusRouteMap() {
       maxZoom: 18,
       maxBounds: MAX_BOUNDS,
       attributionControl: { compact: true },
+      ...COOPERATIVE_MAP_OPTIONS,
     });
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
