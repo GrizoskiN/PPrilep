@@ -135,13 +135,21 @@ function aroundStops(
 }
 
 // Trackers only report every ~30s, so polling faster just multiplies origin
-// requests for no fresher data. When buses are on the map we poll at ACTIVE_POLL_MS
-// (matches the endpoint's s-maxage=30); when the city is quiet (zero buses in the
-// last fetch, or off-hours) we back off to QUIET_POLL_MS so an open tab isn't
-// fetching "no buses" every half-minute. Off-hours fetches are skipped entirely,
-// so those ticks cost nothing on the network.
+// requests for no fresher data. Cadence adapts to what's actually happening:
+//  • ACTIVE  — buses on the map: 30s (matches the endpoint's s-maxage=30).
+//  • QUIET   — no buses, but within ENGINE_OFF_GRACE of the last one going
+//              offline: 60s, staying attentive in case one's still finishing up.
+//  • DORMANT — engines have been off for >15 min (end of service), or none seen
+//              yet: a slow 5-min heartbeat, just enough to notice buses returning
+//              (or the first one of the day) without spending requests all evening.
+// Off-hours fetches are skipped entirely, so those ticks cost nothing.
 const ACTIVE_POLL_MS = 30_000;
 const QUIET_POLL_MS = 60_000;
+const DORMANT_POLL_MS = 5 * 60_000;
+// End active fetching this long after the last bus turns off its engine (goes
+// offline). Driven by the live signal rather than a fixed clock time, so it
+// auto-adjusts to the seasonal end of service instead of hardcoding e.g. 16:30.
+const ENGINE_OFF_GRACE_MS = 15 * 60_000;
 
 // Auto-pause polling after this long with zero interaction. A tab left open and
 // visible (a pinned tab, a second monitor, or a forgotten owner window) otherwise
@@ -153,11 +161,13 @@ const QUIET_POLL_MS = 60_000;
 const IDLE_MS =
   process.env.NODE_ENV === "production" ? 3 * 60_000 : 30_000;
 
-// Bus service window (local time). Outside it no bus runs, so the public map
-// stops polling entirely — nothing to show and no reason to spend requests.
-// The owner is exempt (keeps watching parked buses via the admin endpoint).
+// Outer safety window (local time). Outside it the public map skips fetching
+// entirely — a backstop against a stuck tracker reporting overnight. The real
+// end of service is dynamic (ENGINE_OFF_GRACE after the last engine goes off),
+// so this stays wide enough to cover any season's schedule. The owner is exempt
+// (keeps watching parked buses via the admin endpoint).
 const SERVICE_START_MIN = 5 * 60 + 30; // 05:30 — margin before the 06:30 first bus
-const SERVICE_END_MIN = 21 * 60 + 30; // 21:30 — margin after the last bus (~20:30) clears its route
+const SERVICE_END_MIN = 21 * 60 + 30; // 21:30 — generous backstop; dynamic stop kicks in earlier
 function inServiceHours(now: Date = new Date()): boolean {
   const m = now.getHours() * 60 + now.getMinutes();
   return m >= SERVICE_START_MIN && m <= SERVICE_END_MIN;
@@ -790,6 +800,7 @@ export default function BusRouteMap() {
     let idlePausedLocal = false; // paused specifically for inactivity
     let lastActivity = Date.now();
     let lastCount = 0; // buses seen in the last successful fetch
+    let lastBusesSeenAt = 0; // ms of the last fetch that had ≥1 bus (engine on)
 
     // The owner gets the authenticated endpoint, which also returns offline
     // buses (parked at their last fix); everyone else gets the public, cached one.
@@ -811,17 +822,26 @@ export default function BusRouteMap() {
         const buses = (json.buses ?? []) as LiveBus[];
         if (!cancelled) setLiveBuses(buses);
         lastCount = buses.length;
+        if (buses.length > 0) lastBusesSeenAt = Date.now();
       } catch {
         /* keep last known positions on a transient error */
       }
     }
 
-    // Poll briskly while buses are on the map; back off when the city's quiet
-    // (no buses last fetch, or off-hours) so an idle-but-open tab spends far
-    // fewer requests.
+    // Cadence follows the fleet: brisk while buses run, attentive for 15 min
+    // after the last engine goes off, then a slow heartbeat. Off-hours ticks are
+    // free (load skips the network), so their cadence only sets how fast we'd
+    // notice service resuming.
     function nextDelay() {
-      if (!isOwner && !inServiceHours()) return QUIET_POLL_MS;
-      return lastCount > 0 ? ACTIVE_POLL_MS : QUIET_POLL_MS;
+      if (!isOwner && !inServiceHours()) return DORMANT_POLL_MS;
+      if (lastCount > 0) return ACTIVE_POLL_MS;
+      // Engines currently off. Stay attentive only within the grace window after
+      // the last bus we saw; beyond that (end of service, or none seen yet) drop
+      // to the heartbeat so an open tab doesn't fetch all evening.
+      if (lastBusesSeenAt && Date.now() - lastBusesSeenAt < ENGINE_OFF_GRACE_MS) {
+        return QUIET_POLL_MS;
+      }
+      return DORMANT_POLL_MS;
     }
     async function tick() {
       timer = null;
