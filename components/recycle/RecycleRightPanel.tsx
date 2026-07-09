@@ -8,7 +8,6 @@ import {
   ExternalLink,
 } from "lucide-react";
 import ShareSheet from "../ui/ShareSheet";
-import { cn } from "../../lib/utils";
 import {
   GLASS_CONTAINER_COUNT,
   IGLU_CONTAINERS,
@@ -102,7 +101,9 @@ export default function RecycleRightPanel() {
       </Link>
 
       {/* Closer */}
-      <div className="rounded-2xl border border-theme border-l-4 border-l-primary bg-theme-surface px-4 py-4">
+      <div
+        style={{ borderLeftColor: "var(--color-primary)" }}
+        className="rounded-2xl border border-theme border-l-4 bg-theme-surface px-4 py-4">
         <p className="text-sm font-bold tracking-wide text-primary">
           ЧИСТО Е УБАВО!
         </p>
@@ -137,11 +138,12 @@ function PanelCard({
   accent: "teal" | "green" | "yellow" | "alert";
   children: React.ReactNode;
 }) {
-  const border = {
-    teal: "border-l-primary",
-    green: "border-l-emerald-400",
-    yellow: "border-l-yellow-400",
-    alert: "border-l-red-500",
+  // Inline color so it wins over `.border-theme { border-color }` in the cascade.
+  const borderLeftColor = {
+    teal: "var(--color-primary)",
+    green: "#34d399",
+    yellow: "#facc15",
+    alert: "#ef4444",
   }[accent];
   const iconColor = {
     teal: "text-primary",
@@ -151,10 +153,8 @@ function PanelCard({
   }[accent];
   return (
     <div
-      className={cn(
-        "rounded-2xl border border-theme border-l-4 bg-theme-surface p-4",
-        border,
-      )}>
+      style={{ borderLeftColor }}
+      className="rounded-2xl border border-theme border-l-4 bg-theme-surface p-4">
       <p className="flex items-center gap-1.5 text-xs font-semibold text-theme-heading">
         <span className={iconColor}>{icon}</span>
         {title}
