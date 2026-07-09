@@ -10,10 +10,8 @@ import {
 } from "../../lib/data/glassContainers";
 import { COOPERATIVE_MAP_OPTIONS } from "../../lib/map/cooperative";
 
-// Glass = blue. New July-2026 Iglu units get a slightly stronger blue + a ring
-// so they read as "new", but stay in the same blue family per the brief.
+// Glass containers are all one type — shown as blue dots.
 const GLASS_BLUE = "#3b82f6";
-const IGLU_BLUE = "#2563eb";
 
 // Prilep bounding box — users can't pan outside the city (same lock the issue map
 // and bus map use).
@@ -22,10 +20,7 @@ const PRILEP_BOUNDS: [[number, number], [number, number]] = [
   [21.67, 41.42], // NE
 ];
 
-function createMarkerEl(isIglu: boolean) {
-  const color = isIglu ? IGLU_BLUE : GLASS_BLUE;
-  const size = isIglu ? 15 : 12;
-
+function createMarkerEl() {
   // Fixed 28px hit area so hover never flickers when the inner dot scales up.
   const wrapper = document.createElement("div");
   wrapper.style.cssText = `
@@ -36,10 +31,10 @@ function createMarkerEl(isIglu: boolean) {
 
   const dot = document.createElement("div");
   dot.style.cssText = `
-    width:${size}px;height:${size}px;border-radius:50%;
-    background:${color};
-    border:${isIglu ? "2.5px solid #fff" : "2px solid #fff"};
-    box-shadow:0 1px 6px rgba(0,0,0,0.3)${isIglu ? `,0 0 0 2px ${IGLU_BLUE}` : ""};
+    width:12px;height:12px;border-radius:50%;
+    background:${GLASS_BLUE};
+    border:2px solid #fff;
+    box-shadow:0 1px 6px rgba(0,0,0,0.3);
     transition:transform 0.12s ease, box-shadow 0.12s ease;
     pointer-events:none;
   `;
@@ -91,7 +86,7 @@ export default function GlassContainerMap() {
     markersRef.current = [];
 
     GLASS_CONTAINERS.forEach((c) => {
-      const el = createMarkerEl(c.kind === "iglu");
+      const el = createMarkerEl();
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([c.lng, c.lat])
         .addTo(map);
@@ -119,12 +114,10 @@ export default function GlassContainerMap() {
             <div className="mb-1 flex items-center gap-1.5">
               <span
                 className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{
-                  background: selected.kind === "iglu" ? IGLU_BLUE : GLASS_BLUE,
-                }}
+                style={{ background: GLASS_BLUE }}
               />
               <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-500">
-                ♻️ Стакло{selected.kind === "iglu" ? " · Иглу" : ""}
+                ♻️ Стакло
               </p>
             </div>
             <p className="text-sm font-semibold leading-snug text-zinc-800">
@@ -151,14 +144,7 @@ export default function GlassContainerMap() {
             className="inline-block h-3 w-3 rounded-full border-2 border-white shadow"
             style={{ background: GLASS_BLUE }}
           />
-          Стакло — постоен контејнер
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className="inline-block h-3.5 w-3.5 rounded-full border-2 border-white shadow"
-            style={{ background: IGLU_BLUE, boxShadow: `0 0 0 2px ${IGLU_BLUE}` }}
-          />
-          Нов „Иглу“ контејнер (јули 2026)
+          Контејнер за стакло
         </span>
       </div>
 

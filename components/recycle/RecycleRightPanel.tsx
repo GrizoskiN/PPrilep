@@ -8,10 +8,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import ShareSheet from "../ui/ShareSheet";
-import {
-  GLASS_CONTAINER_COUNT,
-  IGLU_CONTAINERS,
-} from "../../lib/data/glassContainers";
+import { GLASS_CONTAINER_COUNT } from "../../lib/data/glassContainers";
 
 const SHARE_URL = "https://mojprilep.mk/recycle";
 
@@ -29,7 +26,7 @@ export default function RecycleRightPanel() {
       {/* Numbers — each a full-width row */}
       <div className="flex flex-col gap-2">
         <StatRow value={`${GLASS_CONTAINER_COUNT}`} label="локации во градот" />
-        <StatRow value={`${IGLU_CONTAINERS.length}`} label="нови „Иглу“ контејнери" />
+        <StatRow value="100%" label="стаклото е рециклабилно" />
         <StatRow value="1 000 000+" label="години се распаѓа стаклото" />
       </div>
 
@@ -49,8 +46,7 @@ export default function RecycleRightPanel() {
           <Check size={15} className="mt-0.5 shrink-0 text-emerald-600" />
           <p className="text-xs leading-relaxed text-theme-muted">
             <strong className="text-theme-body">Селектирај</strong> стаклени
-            шишиња и тегли — во „Иглу“ контејнерите и контејнерите за стакло низ
-            градот.
+            шишиња и тегли — во контејнерите за стакло низ градот.
           </p>
         </div>
         <div className="flex items-start gap-2.5">
@@ -77,8 +73,8 @@ export default function RecycleRightPanel() {
         title="Апел до угостителите"
         accent="yellow"
         icon={<AlertTriangle size={14} />}>
-        Стаклената амбалажа <strong>задолжително</strong> одложувајте ја во „Иглу“
-        контејнерите или преку HoReCa системот.
+        Стаклената амбалажа <strong>задолжително</strong> одложувајте ја во
+        контејнерите за стакло или преку HoReCa системот.
       </PanelCard>
 
       {/* Komunalec link */}

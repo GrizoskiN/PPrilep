@@ -2,20 +2,19 @@ import type { Metadata } from "next";
 import GlassContainerMap from "../../../components/recycle/GlassContainerMap";
 import CollapsibleList from "../../../components/recycle/CollapsibleList";
 import {
-  IGLU_CONTAINERS,
-  STANDARD_CONTAINERS,
+  GLASS_CONTAINERS,
   GLASS_CONTAINER_COUNT,
 } from "../../../lib/data/glassContainers";
 
 export const metadata: Metadata = {
   title: "Рециклирање — Стаклена амбалажа | Мој Прилеп",
   description:
-    "Каде да ја одложиш стаклената амбалажа во Прилеп — мапа со сите 54 локации на контејнери за стакло, вклучувајќи ги новите „Иглу“ контејнери. Собирај, селектирај, рециклирај.",
+    "Каде да ја одложиш стаклената амбалажа во Прилеп — мапа со сите локации на контејнери за стакло. Собирај, селектирај, рециклирај.",
   alternates: { canonical: "/recycle" },
   openGraph: {
     title: "Рециклирање на стакло во Прилеп",
     description:
-      "Мапа со сите 54 локации на контејнери за стаклена амбалажа во Прилеп. Стаклото не смее да завршува на депонија — селектирај го.",
+      "Мапа со сите локации на контејнери за стаклена амбалажа во Прилеп. Стаклото не смее да завршува на депонија — селектирај го.",
     url: "/recycle",
     type: "article",
   },
@@ -42,11 +41,11 @@ export default function RecyclePage() {
         </h2>
         <div className="space-y-3 text-sm leading-relaxed text-zinc-600">
           <p>
-            Покрај постојните 44 локации, <strong>Пакомак</strong> и ЈКП{" "}
-            <strong>„Комуналец“</strong> поставија дополнителни 10 „Иглу“
-            контејнери за селектирање стаклена амбалажа. Со тоа во градот сега има{" "}
-            <strong>{GLASS_CONTAINER_COUNT} локации</strong> — скоро на секоја
-            фреквентна улица може да се одложи овој неразградлив отпад.
+            <strong>Пакомак</strong> и ЈКП <strong>„Комуналец“</strong>{" "}
+            поставија контејнери за селектирање стаклена амбалажа низ целиот град.
+            Сега во Прилеп има <strong>{GLASS_CONTAINER_COUNT} локации</strong> —
+            скоро на секоја фреквентна улица може да се одложи овој неразградлив
+            отпад.
           </p>
           <p>
             Стаклената амбалажа не смее повеќе да завршува на депонија или
@@ -63,27 +62,21 @@ export default function RecyclePage() {
             📍 Мапа на контејнери за стакло
           </h2>
           <p className="text-xs text-zinc-500">
-            Кликни на сина точка за да ја видиш локацијата. Позициите се
-            приближни — најди го најблискиот контејнер до тебе.
+            Кликни на сина точка за да ја видиш локацијата и најди го најблискиот
+            контејнер до тебе.
           </p>
         </div>
         <GlassContainerMap />
       </section>
 
-      {/* Location lists — collapsible */}
+      {/* Location list — collapsible */}
       <div className="space-y-3">
         <CollapsibleList
-          title="Нови „Иглу“ контејнери"
-          subtitle="Поставени во јули 2026"
-          items={IGLU_CONTAINERS}
+          title="Сите локации за стакло"
+          subtitle="Контејнери за стаклена амбалажа низ градот"
+          items={GLASS_CONTAINERS}
           accent="blue"
           defaultOpen
-        />
-        <CollapsibleList
-          title="Постојни локации"
-          subtitle="Веќе добро познати локации за стакло"
-          items={STANDARD_CONTAINERS}
-          accent="zinc"
         />
       </div>
     </div>
