@@ -346,3 +346,25 @@ a Page feed requires the **Page** access token. Derive it once via
 `GET /{page-id}?fields=access_token&access_token=<user-token>` and use that for
 `/{page-id}/feed`. Page tokens minted from a never-expiring System User token
 also don't expire, so cache it.
+
+## A dead IG media id in the ledger may mean "deleted", not "never posted"
+Context: after auto-posting an event, its `social_posts.ig_post_id` returned
+"Object does not exist" (subcode 33) and the post wasn't in the account's
+`/media` list. I concluded the IG auto-publish had silently failed — but the
+user had actually deleted the post; it *did* publish.
+Rule: `media_publish` only returns an id on success, so a non-resolving IG id +
+absence from the feed most likely means the post was **published then deleted**,
+not that posting failed. Reconcile with the user (ask for the post link / whether
+they deleted it) before assuming a code bug.
+
+## An "idle/save-cost" pause must not freeze a view whose purpose is monitoring
+Context: I added an idle auto-pause (3 min untouched → stop polling) to the bus
+map to cap request cost on forgotten tabs. But the owner's admin view exists to
+*watch the fleet*: when Line 1 came back online while the owner's tab sat
+untouched, the map stayed frozen on the stale (offline) frame — a greyed bus
+looks identical to "my map stopped checking," so the owner never noticed.
+Rule: before adding a "pause when idle" optimization, ask *what breaks if this
+view goes stale*. For a live-monitoring surface, degrade to a **slow heartbeat**,
+never a hard stop — the loop must always eventually pick up state changes without
+user interaction. Reserve the full stop for views where staleness is harmless
+(and where the request cost actually justifies it, e.g. anonymous/cached tabs).

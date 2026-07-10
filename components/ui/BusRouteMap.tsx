@@ -172,6 +172,20 @@ function inServiceHours(now: Date = new Date()): boolean {
   const m = now.getHours() * 60 + now.getMinutes();
   return m >= SERVICE_START_MIN && m <= SERVICE_END_MIN;
 }
+
+// Operating hours: during the day the live map must stay live no matter what, so
+// a brief stop (a tire change, a layover, heavy traffic) can never let the
+// viewer's tab quietly auto-pause and freeze on a stale frame. Between 06:00 and
+// 17:00 the inactivity pause is disabled outright. Only applies in production —
+// dev keeps the fast pause so a forgotten `next dev` tab still stops. Outside
+// these hours the normal idle-pause returns to cap request cost.
+const NO_IDLE_START_MIN = 6 * 60; // 06:00
+const NO_IDLE_END_MIN = 17 * 60; // 17:00
+function inNoIdleHours(now: Date = new Date()): boolean {
+  if (process.env.NODE_ENV !== "production") return false;
+  const m = now.getHours() * 60 + now.getMinutes();
+  return m >= NO_IDLE_START_MIN && m < NO_IDLE_END_MIN;
+}
 const STALE_MS = 5 * 60_000; // no fix in 5 min → grey out
 const SNAP_MAX_M = 75; // snap to the line within this gap (route polyline is coarse
 // + GPS jitters, so 45m detached the bus too eagerly); else show raw point
@@ -834,6 +848,10 @@ export default function BusRouteMap() {
     // notice service resuming.
     function nextDelay() {
       if (!isOwner && !inServiceHours()) return DORMANT_POLL_MS;
+      // Owner idle: never freeze the fleet view — drop to the slow heartbeat so a
+      // bus coming back online is still picked up within a few minutes untouched,
+      // instead of the map silently stalling on a stale (offline) frame.
+      if (isOwner && idlePausedLocal) return DORMANT_POLL_MS;
       if (lastCount > 0) return ACTIVE_POLL_MS;
       // Engines currently off. Stay attentive only within the grace window after
       // the last bus we saw; beyond that (end of service, or none seen yet) drop
@@ -846,7 +864,10 @@ export default function BusRouteMap() {
     async function tick() {
       timer = null;
       await load();
-      if (cancelled || !polling || idlePausedLocal || document.hidden) return;
+      if (cancelled || !polling || document.hidden) return;
+      // Non-owner idle fully stops (caps request cost on forgotten tabs); the
+      // owner keeps looping at the heartbeat cadence set by nextDelay().
+      if (idlePausedLocal && !isOwner) return;
       timer = setTimeout(tick, nextDelay());
     }
     function start() {
@@ -864,6 +885,10 @@ export default function BusRouteMap() {
     function goIdle() {
       if (idlePausedLocal) return;
       idlePausedLocal = true;
+      // Owner: keep polling — the already-scheduled loop downshifts to the
+      // heartbeat via nextDelay(), so the fleet view never freezes and no
+      // "paused" pill is shown. Everyone else fully stops (and shows the pill).
+      if (isOwner) return;
       stop();
       if (!cancelled) setIdlePaused(true);
     }
@@ -874,7 +899,14 @@ export default function BusRouteMap() {
       // Stale animation state after any pause — drop it so buses snap to their
       // real spot instead of tweening across the map.
       busStateRef.current.clear();
-      start();
+      if (!polling) {
+        start(); // non-owner was fully stopped — restart the loop
+      } else if (timer) {
+        // Owner kept the heartbeat — pull the next tick to now so the active
+        // cadence resumes immediately on interaction.
+        clearTimeout(timer);
+        timer = setTimeout(tick, 0);
+      }
     }
     function onActivity() {
       lastActivity = Date.now();
@@ -883,12 +915,14 @@ export default function BusRouteMap() {
     function onVisibility() {
       if (document.hidden) {
         stop();
-      } else if (!idlePausedLocal) {
+      } else if (!idlePausedLocal || isOwner) {
         // Returning after the tab/app was hidden: rAF was paused, so the
         // animation state is stale. Drop it so the next fix places each bus
         // instantly at its real spot instead of "catching up" with a long,
-        // wrong tween across the map.
-        lastActivity = Date.now();
+        // wrong tween across the map. The owner resumes even while idle (at the
+        // heartbeat cadence nextDelay picks) so their fleet view is never left
+        // frozen; a non-owner idle tab stays paused until it's touched.
+        if (!idlePausedLocal) lastActivity = Date.now();
         busStateRef.current.clear();
         start();
       }
@@ -897,7 +931,14 @@ export default function BusRouteMap() {
     // Inactivity watchdog — client-only, no network. Trips the pause once the
     // tab has been visible but untouched for IDLE_MS.
     const idleCheck = setInterval(() => {
-      if (document.hidden || idlePausedLocal) return;
+      if (document.hidden) return;
+      // Operating hours (06:00–17:00): never auto-pause — and if a pause carried
+      // over from before 06:00, lift it now so the map is live for the day.
+      if (inNoIdleHours()) {
+        if (idlePausedLocal) resumeFromIdle();
+        return;
+      }
+      if (idlePausedLocal) return;
       if (Date.now() - lastActivity >= IDLE_MS) goIdle();
     }, 15_000);
 
@@ -984,6 +1025,10 @@ export default function BusRouteMap() {
       // (km/h → m/s); fall back to distance/time between the last two fixes;
       // 0 (parked) so a stopped bus doesn't drift ahead of its fix.
       const speedMps = (() => {
+        // Stale/offline: the last fix is old, so its speed is meaningless — pin
+        // the marker to that fix instead of dead-reckoning a ghost forward (which
+        // makes a bus that's stopped reporting look like it's still driving).
+        if (stale) return 0;
         if (bus.speed != null && bus.speed > 0)
           return Math.min(bus.speed / 3.6, MAX_SPEED_MPS);
         if (prev && prev.onRoute && onRoute && prev.lastSeen && bus.lastSeen) {
@@ -1050,6 +1095,14 @@ export default function BusRouteMap() {
         prev.routeId = bus.routeId;
         prev.label = bus.label;
         prev.color = color;
+        // If the bus has since gone stale (tracker stopped reporting), halt the
+        // projection and snap it back onto its last real fix so an offline bus
+        // sits still instead of coasting away on its final speed.
+        if (stale && prev.speedMps !== 0) {
+          prev.speedMps = 0;
+          if (prev.onRoute) prev.renderAlong = prev.fixAlong;
+          else prev.renderLngLat = prev.fixLngLat;
+        }
       }
     }
 
