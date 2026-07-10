@@ -67,6 +67,7 @@ export const GLASS_CONTAINERS: GlassContainer[] = [
   { id: "glass-46", name: "Цар Самоил — Могила", lat: 41.3331071, lng: 21.5553329 },
   { id: "glass-47", name: "Цар Самоил — Могила 2", lat: 41.3331506, lng: 21.555302 },
   { id: "glass-48", name: "Трајко Николоски", lat: 41.3372175, lng: 21.5405091 },
+  { id: "glass-49", name: "Жабино маало", lat: 41.341, lng: 21.5327222 },
 ];
 
 export const GLASS_CONTAINER_COUNT = GLASS_CONTAINERS.length;
