@@ -10,7 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "next-sanity";
-import { createClient as createServerClient } from "../../../../lib/supabase/server";
+import { getRequestUser } from "../../../../lib/supabase/request-user";
 import { slugify } from "../../../../lib/utils";
 
 const PROJECT_ID  = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!;
@@ -63,10 +63,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── Require an authenticated user ─────────────────────────────────────────
-    const supabaseAuth = await createServerClient();
-    const { data: { user }, error: authErr } = await supabaseAuth.auth.getUser();
-    if (authErr || !user) {
+    // ── Require an authenticated user (web cookie OR mobile Bearer token) ──────
+    const user = await getRequestUser(req);
+    if (!user) {
       return NextResponse.json(
         { error: "Мора да сте најавени за да испратите приказна." },
         { status: 401 },

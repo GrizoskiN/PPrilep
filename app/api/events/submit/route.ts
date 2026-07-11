@@ -15,7 +15,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "next-sanity";
-import { createClient as createServerClient } from "../../../../lib/supabase/server";
+import { getRequestUser } from "../../../../lib/supabase/request-user";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { slugify } from "../../../../lib/utils";
 
@@ -98,10 +98,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── Require an authenticated user ─────────────────────────────────────────
-    const supabaseAuth = await createServerClient();
-    const { data: { user }, error: authErr } = await supabaseAuth.auth.getUser();
-    if (authErr || !user) {
+    // ── Require an authenticated user (web cookie OR mobile Bearer token) ──────
+    const user = await getRequestUser(req);
+    if (!user) {
       return NextResponse.json(
         { error: "Мора да сте најавени за да пријавите настан." },
         { status: 401 },
