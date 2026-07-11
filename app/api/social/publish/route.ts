@@ -38,6 +38,12 @@ export const dynamic = "force-dynamic";
 const SECRET = process.env.SANITY_SOCIAL_SECRET;
 const BASE_URL = "https://mojprilep.mk";
 
+// Facebook auto-posting stays OFF until `pages_manage_posts` gets Advanced
+// Access via App Review — until then API-published Page posts are visible only
+// to app-role users (admin-only), so we post FB by hand and let IG auto-post.
+// Flip FB_AUTOPOST_ENABLED=true in Vercel once App Review is approved.
+const FB_AUTOPOST = process.env.FB_AUTOPOST_ENABLED === "true";
+
 // ── Macedonian date range (no Intl → deterministic) ──────────────────────────
 const MK_MONTHS = [
   "јануари", "февруари", "март", "април", "мај", "јуни",
@@ -120,7 +126,9 @@ export async function POST(req: Request) {
     let fbId: string | null = null;
     let igId: string | null = null;
 
-    if (facebookConfigured()) {
+    if (!FB_AUTOPOST) {
+      errors.push("fb: auto-post disabled (post manually until App Review)");
+    } else if (facebookConfigured()) {
       try {
         fbId = await postToFacebook(caption, url, imageUrl);
       } catch (e) {
