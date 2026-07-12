@@ -10,25 +10,26 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient } from "../../../../../lib/supabase/server";
 import { createAdminClient } from "../../../../../lib/supabase/admin";
+import { getRequestUser } from "../../../../../lib/supabase/request-user";
 import { lastFix, num, type FleetRow } from "../../../../../lib/buses/flespi";
 import { OWNER_EMAIL } from "../../../../../lib/config/owner";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// Pin to Frankfurt (closest region to our Macedonian audience + Supabase) so
+// Cloudflare-in-front can't route this to a US region. See the public endpoint.
+export const preferredRegion = "fra1";
 
 const TOKEN = process.env.FLESPI_TOKEN;
 const OFFLINE_S = 30 * 60; // no valid fix in 30 min → treat as offline (out of service)
 
 const NO_CACHE = { "Cache-Control": "private, no-store" };
 
-export async function GET() {
+export async function GET(req: Request) {
   // Owner gate — this exposes offline buses, so it's restricted to the owner.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Accepts either the web cookie session or the mobile app's Bearer token.
+  const user = await getRequestUser(req).catch(() => null);
   if (!user || user.email !== OWNER_EMAIL) {
     return NextResponse.json({ buses: [] }, { status: 403, headers: NO_CACHE });
   }
