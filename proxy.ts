@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PROTECTED_ROUTES = ['/fund/propose', '/ideas/new']
+const PROTECTED_ROUTES = ['/initiatives/new']
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -59,12 +59,11 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Only run on real page navigations. API routes do their own auth, and the
-  // live bus map polls /api/buses/positions every ~30s per viewer — letting the
-  // middleware (which makes a Supabase getUser() network call) run on those polls
-  // and on the analytics beacon was burning Edge Requests + Function Invocations
-  // for nothing. Static assets, _next, and _vercel (analytics) are excluded too.
-  matcher: [
-    '/((?!api|_next/static|_next/image|_vercel|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?|ttf|map)$).*)',
-  ],
+  // Run ONLY on the gated route(s). Previously this matched every page
+  // navigation, so the Supabase getUser() network call above fired on each one —
+  // the bulk of the Vercel "Proxy/Middleware" CPU. Every other page either needs
+  // no auth or (like /initiatives/new) enforces its own in the server component,
+  // so there's nothing for the proxy to do there. Keep this list in sync with
+  // PROTECTED_ROUTES.
+  matcher: ['/initiatives/new'],
 }
