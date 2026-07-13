@@ -161,13 +161,13 @@ const ENGINE_OFF_GRACE_MS = 15 * 60_000;
 const IDLE_MS =
   process.env.NODE_ENV === "production" ? 3 * 60_000 : 30_000;
 
-// Outer safety window (local time). Outside it the public map skips fetching
-// entirely — a backstop against a stuck tracker reporting overnight. The real
-// end of service is dynamic (ENGINE_OFF_GRACE after the last engine goes off),
-// so this stays wide enough to cover any season's schedule. The owner is exempt
-// (keeps watching parked buses via the admin endpoint).
-const SERVICE_START_MIN = 5 * 60 + 30; // 05:30 — margin before the 06:30 first bus
-const SERVICE_END_MIN = 21 * 60 + 30; // 21:30 — generous backstop; dynamic stop kicks in earlier
+// Service window (local time). Outside it the public map skips fetching entirely
+// — no bus runs and the server also short-circuits the endpoint off-hours, so
+// this keeps the client from even asking. Keep in sync with OPEN_MIN/CLOSE_MIN in
+// app/api/buses/positions/route.ts. The owner is exempt (keeps watching parked
+// buses via the admin endpoint).
+const SERVICE_START_MIN = 6 * 60; // 06:00
+const SERVICE_END_MIN = 17 * 60; // 17:00
 function inServiceHours(now: Date = new Date()): boolean {
   const m = now.getHours() * 60 + now.getMinutes();
   return m >= SERVICE_START_MIN && m <= SERVICE_END_MIN;

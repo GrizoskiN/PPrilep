@@ -40,7 +40,47 @@ const CACHE_HEADERS = {
   "Cache-Control": "public, s-maxage=30, stale-while-revalidate=30",
 };
 
+// ── Service window (Europe/Skopje) ───────────────────────────────────────────
+// Buses run ~06:00–17:00 local. Outside that nothing is on the road, so we
+// short-circuit BEFORE touching Supabase or Flespi and hand the CDN a cache that
+// lasts until service reopens — overnight the function is barely invoked and
+// makes zero upstream calls. The owner endpoint (/admin) is exempt so parked
+// buses stay watchable 24/7. Change these two numbers if the schedule changes.
+const OPEN_MIN = 6 * 60; // 06:00
+const CLOSE_MIN = 17 * 60; // 17:00
+
+/** Minutes-into-day in Europe/Skopje (DST-correct); the server itself runs UTC. */
+function skopjeMinutes(d = new Date()): number {
+  const p = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Skopje",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const h = Number(p.find((x) => x.type === "hour")?.value ?? 0);
+  const m = Number(p.find((x) => x.type === "minute")?.value ?? 0);
+  return h * 60 + m;
+}
+
+/** Seconds until service reopens when currently closed, else null (open now). */
+function secondsUntilOpen(d = new Date()): number | null {
+  const m = skopjeMinutes(d);
+  if (m >= OPEN_MIN && m < CLOSE_MIN) return null; // open
+  const untilMin = m < OPEN_MIN ? OPEN_MIN - m : 1440 - m + OPEN_MIN;
+  return Math.max(60, untilMin * 60);
+}
+
 export async function GET() {
+  // Off-hours: no bus runs. Skip all work and let the CDN hold this empty
+  // response until service reopens — near-zero invocations, zero Supabase/Flespi.
+  const closedFor = secondsUntilOpen();
+  if (closedFor !== null) {
+    return NextResponse.json(
+      { buses: [], updatedAt: new Date().toISOString(), closed: true },
+      { headers: { "Cache-Control": `public, s-maxage=${closedFor}, stale-while-revalidate=60` } },
+    );
+  }
+
   const empty = NextResponse.json(
     { buses: [], updatedAt: new Date().toISOString() },
     { headers: CACHE_HEADERS },
