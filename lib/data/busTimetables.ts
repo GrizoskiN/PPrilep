@@ -72,6 +72,12 @@ const LINE1: Record<string, StopSchedule[]> = {
     { direction: DIR_GROBISTA, times: ["06:34", "07:34", "08:34", "09:34", "10:45", "12:05", "13:34", "14:34", "15:34", "16:34", "17:34", "18:34", "19:34"] },
     { direction: DIR_SALIDA, times: ["07:24", "08:24", "09:24", "10:32", "11:52", "13:22", "14:24", "15:24", "16:22", "17:22", "18:22", "19:22"] },
   ],
+  // Not a named row in the operator sheet; sits between Театар and Болница on
+  // the line (~1 min apart), so its times are interpolated from those neighbours.
+  "gradski stadion": [
+    { direction: DIR_GROBISTA, times: ["06:35", "07:35", "08:35", "09:35", "10:46", "12:06", "13:35", "14:35", "15:35", "16:35", "17:35", "18:35", "19:35"] },
+    { direction: DIR_SALIDA, times: ["07:23", "08:23", "09:23", "10:31", "11:51", "13:21", "14:23", "15:23", "16:21", "17:21", "18:21", "19:21"] },
+  ],
   "bolnica": [
     { direction: DIR_GROBISTA, times: ["06:36", "07:36", "08:36", "09:36", "10:48", "12:08", "13:36", "14:36", "15:36", "16:36", "17:36", "18:36", "19:36"] },
     { direction: DIR_SALIDA, times: ["07:22", "08:22", "09:22", "10:30", "11:50", "13:20", "14:22", "15:22", "16:20", "17:20", "18:20", "19:20"] },
@@ -167,7 +173,7 @@ const LINE2: Record<string, StopSchedule[]> = {
   ],
   // L2 outbound stops at Палма Шоп; on the way back it stops at Мое Пазарче.
   "palmashop": [{ direction: DIR_RID, times: hourly("06:41", 14) }],
-  "moepazarche": [{ direction: DIR_FAKULTET, times: hourly("07:16", 13) }],
+  "lpazarche": [{ direction: DIR_FAKULTET, times: hourly("07:16", 13) }],
   "komercijalna": [
     { direction: DIR_RID, times: hourly("06:43", 14) }, // "Реклами" in the sheet
     { direction: DIR_FAKULTET, times: hourly("07:15", 13) },
@@ -228,7 +234,7 @@ const LINE3: Record<string, StopSchedule[]> = {
   ],
   // Мое Пазарче is the АМФОРА-direction counterpart of Палма Шоп at this spot
   // (same street, opposite side) — only the westbound leg stops here.
-  "moepazarche": [{ direction: DIR_AMFORA, times: hourly("06:39", 14) }],
+  "lpazarche": [{ direction: DIR_AMFORA, times: hourly("06:39", 14) }],
   "hotel lipa": [
     { direction: DIR_AMFORA, times: hourly("06:40", 14) }, // "под Суд"
     { direction: DIR_AMSM, times: hourly("07:13", 13) }, // "под Липа"
@@ -403,13 +409,42 @@ const HOLIDAYS_FIXED = [
 export const HOLIDAY_DATES: string[] = [];
 
 const pad = (n: number) => String(n).padStart(2, "0");
+const ymdOf = (d: Date) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-// True when the Недела timetable applies (Sunday or a public holiday).
+// One-off service overrides — an inclusive date range (local "YYYY-MM-DD") when
+// only the Недела line runs, e.g. a festival closes the town centre. A single
+// entry drives BOTH the Sunday-service switch below AND the banner shown on the
+// bus map (activeServiceNotice). Remove an entry once its dates have passed.
+type ServiceOverride = { from: string; to: string; message: string };
+export const SERVICE_OVERRIDES: ServiceOverride[] = [
+  {
+    // Пиво Фест 2026 — само неделната линија, 16–20 јули.
+    from: "2026-07-16",
+    to: "2026-07-20",
+    message: "Поради Пиво Фест, возиме само по неделната линија.",
+  },
+];
+
+// The service override in effect on `d`, if any.
+function activeOverride(d: Date): ServiceOverride | undefined {
+  const ymd = ymdOf(d);
+  return SERVICE_OVERRIDES.find((o) => ymd >= o.from && ymd <= o.to);
+}
+
+// Short banner to show on the bus map while an override is active, else null.
+export function activeServiceNotice(d: Date = new Date()): string | null {
+  return activeOverride(d)?.message ?? null;
+}
+
+// True when the Недела timetable applies (Sunday, a public holiday, or a
+// festival override).
 export function isSundayService(d: Date = new Date()): boolean {
   if (d.getDay() === 0) return true;
   const mmdd = `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const ymd = `${d.getFullYear()}-${mmdd}`;
-  return HOLIDAYS_FIXED.includes(mmdd) || HOLIDAY_DATES.includes(ymd);
+  if (HOLIDAYS_FIXED.includes(mmdd) || HOLIDAY_DATES.includes(ymd)) return true;
+  return activeOverride(d) !== undefined;
 }
 
 // Timetable direction a bus serves when travelling the route path forward

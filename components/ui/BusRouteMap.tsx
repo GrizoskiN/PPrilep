@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Bus, ChevronDown, Check, Gauge, Clock, X, Sun, Moon } from "lucide-react";
+import { Bus, ChevronDown, Check, Gauge, Clock, X, Sun, Moon, Info } from "lucide-react";
 import { BUS_ROUTES, BUS_STOPS } from "../../lib/data/busRoutes";
 import {
   timetableForStop,
@@ -11,6 +11,7 @@ import {
   GRACE_MIN,
   hhmmToMin,
   isSundayService,
+  activeServiceNotice,
   SUNDAY_ROUTE_ID,
 } from "../../lib/data/busTimetables";
 import { useAuthContext } from "../../lib/context/AuthContext";
@@ -449,16 +450,20 @@ export default function BusRouteMap() {
   // (re-)registered with the map after every basemap swap (setStyle wipes images).
   const stopImgRef = useRef<HTMLImageElement | null>(null);
   // Default line selection follows the day: Sundays/holidays show only the
-  // Недела line, the rest of the week only the regular lines. Users can still
-  // toggle any line on/off.
+  // Недела line, the rest of the week only the regular lines. During a service
+  // override (e.g. Пиво Фест) the Недела line is selected by default but the
+  // regular lines stay visible too — we don't hide them. Users can still toggle
+  // any line on/off.
   const [activeRoutes, setActiveRoutes] = useState<Set<string>>(
     () =>
       new Set(
-        isSundayService()
-          ? [SUNDAY_ROUTE_ID]
-          : BUS_ROUTES.filter((r) => r.id !== SUNDAY_ROUTE_ID).map(
-              (r) => r.id,
-            ),
+        activeServiceNotice()
+          ? BUS_ROUTES.map((r) => r.id)
+          : isSundayService()
+            ? [SUNDAY_ROUTE_ID]
+            : BUS_ROUTES.filter((r) => r.id !== SUNDAY_ROUTE_ID).map(
+                (r) => r.id,
+              ),
       ),
   );
   // Mirror of activeRoutes for the map callbacks (which live outside React and
@@ -1526,6 +1531,16 @@ export default function BusRouteMap() {
 
   return (
     <div className="space-y-3">
+      {/* Temporary service notice (e.g. festival) — shown only while an override
+          is active; drives, and is driven by, the same SERVICE_OVERRIDES that
+          force the Недела line. */}
+      {activeServiceNotice() && (
+        <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-[13px] font-semibold text-amber-900">
+          <Info size={16} className="shrink-0" />
+          <span>{activeServiceNotice()}</span>
+        </div>
+      )}
+
       {/* Quick bus picker — one button per active bus; flies the map to it.
           Mobile: a single row of quarter-width buttons; ≥sm: natural wrap. */}
       {liveBuses.length > 0 && (
