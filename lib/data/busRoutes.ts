@@ -203,7 +203,7 @@ export const BUS_STOPS: BusStop[] = [
     routeIds: ["line2", "line4"],
   },
   {
-    id: "moepazarche",
+    id: "lpazarche",
     name: "Мое Пазарче",
     coordinates: [21.5489025, 41.3439115],
     routeIds: ["line2", "line3"],

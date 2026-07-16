@@ -159,13 +159,6 @@ export default function IssueDetail({
 
   function redirectToAuth() {
     if (typeof window === "undefined") return;
-    const isLocal =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
-    if (isLocal) {
-      toast.info("Најавете се за да продолжите");
-      return;
-    }
     const next = `${window.location.pathname}${window.location.search}`;
     window.location.assign(`/auth/login?next=${encodeURIComponent(next)}`);
   }
@@ -1053,6 +1046,21 @@ export default function IssueDetail({
     setReportReason("");
   }
 
+  async function deleteComment(commentId: number) {
+    if (!userId) return;
+    const { error } = await supabase
+      .from("issue_comments")
+      .delete()
+      .eq("id", commentId);
+    if (error) {
+      toast.error("Грешка при бришење: " + error.message);
+      return;
+    }
+    toast.success("Коментарот е избришан");
+    setOpenCommentMenu(null);
+    await loadComments();
+  }
+
   const commentsSection = (
     <div className="border-t border-zinc-100 pt-3">
       {commentsUnavailable && (
@@ -1196,12 +1204,11 @@ export default function IssueDetail({
           </div>
         </div>
       ) : (
-        <button
-          onClick={redirectToAuth}
-          className="mb-3 flex w-full items-center gap-2 rounded-2xl bg-zinc-100 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-200 transition-colors text-left">
-          <MessageCircle size={14} />
-          Најавете се за да коментирате…
-        </button>
+        <div className="mb-3 text-center text-sm">
+          <button onClick={redirectToAuth} className="font-medium text-[#427FFF] hover:underline">
+            Најавете се за да коментирате…
+          </button>
+        </div>
       )}
 
       <div className="space-y-2">
@@ -1352,6 +1359,14 @@ export default function IssueDetail({
                               <AlertTriangle size={12} />
                               Пријави коментар
                             </button>
+                            {(isAdmin || comment.user_id === userId) && (
+                              <button
+                                onClick={() => deleteComment(cid)}
+                                className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">
+                                <Trash2 size={12} />
+                                Избриши коментар
+                              </button>
+                            )}
                           </div>
                         </>
                       )}

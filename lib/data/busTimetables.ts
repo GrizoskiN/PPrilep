@@ -498,3 +498,31 @@ export function timetableForStop(
   }
   return out;
 }
+
+export interface StopDeparture {
+  routeId: string;
+  direction: string;
+  time: string; // "HH:MM"
+}
+
+// Every upcoming departure (≥ now, within the grace window) at a stop TODAY,
+// across each route + direction that serves it, soonest first. Powers the
+// "nearest stop → next bus" suggestion. Empty when the day's runs are done or
+// the stop has no timetable. Honours the service-day switch: only routes that
+// actually run today (Недела on Sundays/holidays, lines 1–3 otherwise) count.
+export function nextDeparturesAtStop(
+  stopId: string,
+  now: Date = new Date(),
+): StopDeparture[] {
+  const sunday = isSundayService(now);
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const out: StopDeparture[] = [];
+  for (const { routeId, schedules } of timetableForStop(stopId)) {
+    if (sunday !== (routeId === SUNDAY_ROUTE_ID)) continue;
+    for (const sched of schedules) {
+      const time = sched.times.find((t) => hhmmToMin(t) >= nowMin - GRACE_MIN);
+      if (time) out.push({ routeId, direction: sched.direction, time });
+    }
+  }
+  return out.sort((a, b) => hhmmToMin(a.time) - hhmmToMin(b.time));
+}

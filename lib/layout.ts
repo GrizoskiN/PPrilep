@@ -25,6 +25,10 @@ export const THREE_COLUMN_ROUTES: readonly string[] = [
   "/utility/water",    // Водовод
   "/utility/garbage",  // Комуналец
   "/recycle",          // Рециклирање
+  "/privacy",          // Политика на приватност
+  "/terms",            // Услови за користење
+  "/data-deletion",    // Бришење на податоци
+  "/support",          // Поддршка
 ];
 
 /**

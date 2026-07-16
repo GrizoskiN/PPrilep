@@ -1,6 +1,6 @@
 
 export const metadata = {
-  title: "Политика на приватност — Подобар Прилеп",
+  title: "Политика на приватност — Мој Прилеп",
 };
 
 export default function PrivacyPage() {
@@ -14,7 +14,7 @@ export default function PrivacyPage() {
         <section className="space-y-2">
           <h2 className="font-semibold text-zinc-800">1. За апликацијата</h2>
           <p>
-            Подобар Прилеп е граѓанска платформа за пријавување и следење на
+            Мој Прилеп е граѓанска платформа за пријавување и следење на
             комунални проблеми во градот Прилеп. Апликацијата им овозможува на
             граѓаните да пријавуваат проблеми, да гласаат за постоечки пријави и
             да следат информации од јавните комунални претпријатија.
@@ -25,7 +25,7 @@ export default function PrivacyPage() {
           <h2 className="font-semibold text-zinc-800">2. Кои податоци ги собираме</h2>
           <p>При регистрација и користење на апликацијата може да собираме:</p>
           <ul className="list-disc pl-5 space-y-1 text-zinc-600">
-            <li>Е-маил адреса и корисничко ime (при регистрација)</li>
+            <li>Е-маил адреса и корисничко име (при регистрација)</li>
             <li>Фотографии и описи на пријавени проблеми</li>
             <li>Локациски информации (улица/населба) поврзани со пријавите</li>
             <li>Коментари и интеракции со пријави</li>
@@ -55,8 +55,8 @@ export default function PrivacyPage() {
         <section className="space-y-2">
           <h2 className="font-semibold text-zinc-800">5. Податоци од Facebook</h2>
           <p>
-            Апликацијата прикажува јавни објави од официјалната Facebook
-            страница на ЈКП ВИК Прилеп исклучиво за информативни цели.
+            Апликацијата прикажува јавни објави од официјалните Facebook
+            страници на локалните јавни претпријатија и институции (како ЈКП Комуналец, ЈКП Водовод и канализација, Општина Прилеп и сл.) исклучиво за информативни цели.
             Не собираме никакви лични податоци од Facebook корисници.
           </p>
         </section>
@@ -73,12 +73,13 @@ export default function PrivacyPage() {
         <section className="space-y-2">
           <h2 className="font-semibold text-zinc-800">7. Бришење на профил</h2>
           <p>
-            Можете да побарате бришење на вашиот профил и сите поврзани
-            податоци со испраќање на барање на:{" "}
+            Можете сами да го избришете вашиот профил и сите поврзани податоци
+            директно преку мобилната апликација или веб-страницата (во делот &quot;Мој Профил&quot;).
+            Алтернативно, можете да побарате бришење со испраќање на е-маил од адресата со која сте регистрирани на:{" "}
             <a
-              href="mailto:contact@podobarprilep.mk"
+              href="mailto:hello@mojprilep.mk"
               className="text-primary hover:underline">
-              contact@podobarprilep.mk
+              hello@mojprilep.mk
             </a>
           </p>
         </section>
@@ -88,9 +89,9 @@ export default function PrivacyPage() {
           <p>
             За прашања поврзани со приватноста:{" "}
             <a
-              href="mailto:contact@podobarprilep.mk"
+              href="mailto:hello@mojprilep.mk"
               className="text-primary hover:underline">
-              contact@podobarprilep.mk
+              hello@mojprilep.mk
             </a>
           </p>
         </section>

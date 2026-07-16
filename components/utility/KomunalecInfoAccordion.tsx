@@ -97,9 +97,9 @@ export default function KomunalecInfoAccordion() {
         </div>
         <div className="px-4 py-3 border-t border-zinc-50">
           <a
-            href="mailto:komunalecprilep@yahoo.com"
+            href="mailto:presskomunalec@yahoo.com"
             className="inline-flex items-center gap-1.5 text-[11px] text-blue-500 hover:underline">
-            komunalecprilep@yahoo.com
+            presskomunalec@yahoo.com
             <ExternalLink size={10} />
           </a>
         </div>

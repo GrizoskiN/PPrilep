@@ -16,15 +16,15 @@ export default function KomunalecRightPanel() {
           <div className="flex items-start gap-2.5">
             <MapPin size={13} className="shrink-0 mt-0.5 text-zinc-400" />
             <p className="text-xs text-zinc-600 leading-snug">
-              ул. „Питу Гули" бр. 2А, 7500 Прилеп
+              ул. „Питу Гули&quot; бр. 2А, 7500 Прилеп
             </p>
           </div>
           <div className="flex items-start gap-2.5">
             <Mail size={13} className="shrink-0 mt-0.5 text-zinc-400" />
             <a
-              href="mailto:komunalecprilep@yahoo.com"
+              href="mailto:presskomunalec@yahoo.com"
               className="text-xs text-blue-500 hover:underline break-all">
-              komunalecprilep@yahoo.com
+              presskomunalec@yahoo.com
             </a>
           </div>
         </div>

@@ -15,6 +15,15 @@ export default function RightPanel() {
       <PromiseTracker />
       <EventSpotlight />
       <PublicSponsorPanel />
+      
+      {/* Footer / Legal Links */}
+      <div className="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-xs text-zinc-400 px-1 pb-8">
+        <a href="/privacy" className="hover:text-zinc-600 transition-colors">Политика за приватност</a>
+        <a href="/terms" className="hover:text-zinc-600 transition-colors">Услови за користење</a>
+        <a href="/data-deletion" className="hover:text-zinc-600 transition-colors">Бришење податоци</a>
+        <a href="/support" className="hover:text-zinc-600 transition-colors">Поддршка</a>
+        <span className="w-full mt-2">&copy; {new Date().getFullYear()} Мој Прилеп</span>
+      </div>
     </aside>
   );
 }

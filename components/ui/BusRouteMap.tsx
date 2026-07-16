@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Bus, ChevronDown, Check, Gauge, Clock, X, Sun, Moon, Info } from "lucide-react";
+import { Bus, ChevronDown, Check, Gauge, Clock, X, Sun, Moon, Info, MapPin } from "lucide-react";
 import { BUS_ROUTES, BUS_STOPS } from "../../lib/data/busRoutes";
 import {
   timetableForStop,
   nextDepartureAt,
+  nextDeparturesAtStop,
   GRACE_MIN,
   hhmmToMin,
   isSundayService,
@@ -56,6 +57,69 @@ const MAX_BOUNDS: [[number, number], [number, number]] = [
   [ROUTE_EXTENT.minLng - 0.03, ROUTE_EXTENT.minLat - 0.03],
   [ROUTE_EXTENT.maxLng + 0.03, ROUTE_EXTENT.maxLat + 0.03],
 ];
+
+// Town centre (mid-point of the served extent) + default zoom levels. The map
+// opens zoomed IN here rather than fitting the whole network; if the visitor
+// grants location we ease to them.
+const TOWN_CENTER: [number, number] = [
+  (ROUTE_EXTENT.minLng + ROUTE_EXTENT.maxLng) / 2,
+  (ROUTE_EXTENT.minLat + ROUTE_EXTENT.maxLat) / 2,
+];
+const DEFAULT_VIEW_ZOOM = 14;
+const USER_VIEW_ZOOM = 15;
+// Only recentre on the visitor when they're within the served area — someone
+// browsing from another city shouldn't have the map yanked off the network.
+function withinExtent(ll: [number, number]): boolean {
+  return (
+    ll[0] >= ROUTE_EXTENT.minLng - 0.03 &&
+    ll[0] <= ROUTE_EXTENT.maxLng + 0.03 &&
+    ll[1] >= ROUTE_EXTENT.minLat - 0.03 &&
+    ll[1] <= ROUTE_EXTENT.maxLat + 0.03
+  );
+}
+
+// Metres between two [lng, lat] points (haversine) — for finding the stop
+// closest to the visitor. Only suggest a stop within this radius; beyond it the
+// visitor isn't really "at" a stop and the hint would be noise.
+const NEAREST_MAX_M = 1500;
+function distMeters(a: [number, number], b: [number, number]): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b[1] - a[1]);
+  const dLng = toRad(b[0] - a[0]);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a[1])) * Math.cos(toRad(b[1])) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+// "240 м" under a km, "1.2 км" above.
+function fmtDist(m: number): string {
+  return m < 1000 ? `${Math.round(m / 10) * 10} м` : `${(m / 1000).toFixed(1)} км`;
+}
+
+// The visitor's own location marker: a solid blue core with a white ring and a
+// soft pulse that expands and fades on a loop (via the Web Animations API — no
+// extra CSS). Bigger and livelier than a plain dot.
+function makeUserEl(): HTMLDivElement {
+  const root = document.createElement("div");
+  root.style.cssText = "position:relative;width:22px;height:22px;pointer-events:none;";
+  const ring = document.createElement("div");
+  ring.style.cssText = "position:absolute;inset:0;border-radius:999px;background:#2563eb;";
+  ring.animate(
+    [
+      { transform: "scale(1)", opacity: "0.45" },
+      { transform: "scale(3)", opacity: "0" },
+    ],
+    { duration: 1800, iterations: Infinity, easing: "ease-out" },
+  );
+  const core = document.createElement("div");
+  core.style.cssText =
+    "position:absolute;inset:0;border-radius:999px;background:#2563eb;" +
+    "border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.35);";
+  root.appendChild(ring);
+  root.appendChild(core);
+  return root;
+}
 
 // Switchable basemaps (OpenFreeMap). Users pick between the blue ("fiord") and
 // the light ("positron") basemaps.
@@ -449,6 +513,19 @@ export default function BusRouteMap() {
   // Loaded stop-pin image (public/bus-stop.svg). Held in a ref so it can be
   // (re-)registered with the map after every basemap swap (setStyle wipes images).
   const stopImgRef = useRef<HTMLImageElement | null>(null);
+  // The visitor's own pulsing location marker + the geolocation watch id, so we
+  // can keep the dot in sync as they move and clean the watch up on unmount.
+  const userMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const geoWatchRef = useRef<number | null>(null);
+  // The visitor's location in React state (mirrors the marker) so the
+  // nearest-stop suggestion can react to it. `nowTick` bumps every 30s so the
+  // "next bus" time rolls over even when the visitor stands still.
+  const [userLoc, setUserLoc] = useState<[number, number] | null>(null);
+  const [nowTick, setNowTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setNowTick((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
   // Default line selection follows the day: Sundays/holidays (and festival
   // overrides like Пиво Фест, via isSundayService) pre-select only the Недела
   // line; the rest of the week the regular lines. The other lines still appear
@@ -696,6 +773,42 @@ export default function BusRouteMap() {
       });
     };
 
+    // Place / move the visitor's pulsing location dot.
+    const updateUserMarker = (ll: [number, number]) => {
+      setUserLoc(ll);
+      if (!userMarkerRef.current) {
+        userMarkerRef.current = new maplibregl.Marker({
+          element: makeUserEl(),
+          anchor: "center",
+        })
+          .setLngLat(ll)
+          .addTo(map);
+      } else {
+        userMarkerRef.current.setLngLat(ll);
+      }
+    };
+    // Ask the browser for location. If granted, drop the dot, ease onto it (when
+    // in the served area), and keep it in sync as they move. Denied → stay put.
+    const locateUser = () => {
+      if (typeof navigator === "undefined" || !navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const ll: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+          updateUserMarker(ll);
+          if (withinExtent(ll)) {
+            map.easeTo({ center: ll, zoom: USER_VIEW_ZOOM, duration: 800 });
+          }
+          geoWatchRef.current = navigator.geolocation.watchPosition(
+            (p) => updateUserMarker([p.coords.longitude, p.coords.latitude]),
+            undefined,
+            { enableHighAccuracy: false, maximumAge: 10_000 },
+          );
+        },
+        undefined,
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
+      );
+    };
+
     // 'style.load' fires on the initial style and again after every setStyle, so
     // re-add our overlays each time. One-time setup (framing, zoom floor, event
     // handlers) runs only on the first style load.
@@ -716,11 +829,18 @@ export default function BusRouteMap() {
           const colors = id.slice(STOP_IMG_PREFIX.length).split("|");
           map.addImage(id, recolorIcon(src, colors, STOP_ICON_PX), { pixelRatio: 2 });
         });
-        // Frame the whole network and make that the zoom-out floor.
+        // Frame the whole network once to derive the zoom-out floor…
         map.fitBounds(FIT_BOUNDS, { padding: 24, duration: 0 });
         // Floor a bit tighter than the full-network fit so the map can't be
         // zoomed out into empty surroundings past where the buses run.
         map.setMinZoom(map.getZoom() + 0.7);
+        // …then open zoomed IN on the town centre (not the whole-network fit),
+        // and try to recentre on the visitor's own location if they allow it.
+        map.jumpTo({
+          center: TOWN_CENTER,
+          zoom: Math.max(DEFAULT_VIEW_ZOOM, map.getMinZoom()),
+        });
+        locateUser();
         registerInteractions();
         // Scale every marker with the zoom level (small when out, larger when in).
         map.on("zoom", () => {
@@ -736,6 +856,12 @@ export default function BusRouteMap() {
     const els = busElsRef.current;
     const states = busStateRef.current;
     return () => {
+      if (geoWatchRef.current != null && typeof navigator !== "undefined" && navigator.geolocation) {
+        navigator.geolocation.clearWatch(geoWatchRef.current);
+        geoWatchRef.current = null;
+      }
+      userMarkerRef.current?.remove();
+      userMarkerRef.current = null;
       map.remove();
       mapRef.current = null;
       els.clear();
@@ -1226,6 +1352,43 @@ export default function BusRouteMap() {
     map.flyTo({ center, zoom: Math.max(map.getZoom(), 15.5), duration: 900, essential: true });
   }
 
+  // Center the map on a stop and open its timetable panel — from the
+  // nearest-stop suggestion.
+  function flyToStop(stop: (typeof BUS_STOPS)[number]) {
+    const map = mapRef.current;
+    if (map) {
+      map.flyTo({
+        center: stop.coordinates,
+        zoom: Math.max(map.getZoom(), 16),
+        duration: 800,
+        essential: true,
+      });
+    }
+    setSelectedBusId(null);
+    setSelectedStopId(stop.id);
+  }
+
+  // The visible stop closest to the visitor (within NEAREST_MAX_M) + the next
+  // departures there today, powering the nearest-stop suggestion. Recomputes as
+  // they move (userLoc), when lines are toggled (activeRoutes), and every 30s
+  // (nowTick) so the "next bus" time stays current.
+  const nearest = useMemo(() => {
+    if (!userLoc) return null;
+    let best: { stop: (typeof BUS_STOPS)[number]; dist: number } | null = null;
+    for (const s of BUS_STOPS) {
+      if (!s.routeIds.some((rid) => activeRoutes.has(rid))) continue;
+      const d = distMeters(userLoc, s.coordinates);
+      if (!best || d < best.dist) best = { stop: s, dist: d };
+    }
+    if (!best || best.dist > NEAREST_MAX_M) return null;
+    return best;
+  }, [userLoc, activeRoutes]);
+  const nearestDepartures = useMemo(
+    () => (nearest ? nextDeparturesAtStop(nearest.stop.id) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nowTick drives the refresh
+    [nearest, nowTick],
+  );
+
   // ── Detail panel ────────────────────────────────────────────────────────────
   // The bus the panel is showing (drops out if the bus disappears between polls).
   const selectedBus =
@@ -1641,6 +1804,54 @@ export default function BusRouteMap() {
           })}
         </div>
       </details>
+
+      {/* Nearest-stop suggestion — appears once the visitor shares location.
+          Names the closest stop + next departure; click to fly there and open
+          its timetable. */}
+      {nearest && (
+        <button
+          onClick={() => flyToStop(nearest.stop)}
+          className="flex w-full items-center gap-3 rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-left transition-colors hover:bg-zinc-50">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <MapPin size={18} />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-primary">
+              Најблиска постојка
+              <span className="font-mono text-[11px] font-semibold text-zinc-400">
+                {fmtDist(nearest.dist)}
+              </span>
+            </span>
+            <span className="truncate text-sm font-bold text-zinc-800">
+              {nearest.stop.name}
+            </span>
+          </span>
+          {nearestDepartures.length > 0 ? (
+            <span className="flex shrink-0 flex-col items-end gap-0.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                Следен
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{
+                    background:
+                      BUS_ROUTES.find((r) => r.id === nearestDepartures[0].routeId)
+                        ?.color ?? "#3b82f6",
+                  }}
+                />
+                <span className="font-mono text-sm font-bold text-zinc-800">
+                  {nearestDepartures[0].time}
+                </span>
+              </span>
+            </span>
+          ) : (
+            <span className="shrink-0 text-[11px] font-medium text-zinc-400">
+              Нема повеќе денес
+            </span>
+          )}
+        </button>
+      )}
 
       {/* Map frame */}
       <div className="relative rounded-2xl overflow-hidden border border-zinc-200 h-115 lg:h-153">

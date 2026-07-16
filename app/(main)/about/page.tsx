@@ -277,9 +277,9 @@ export default function AboutPage() {
             За прашања, соработка, медиуми или само за да кажеш здраво.
           </p>
           <a
-            href="mailto:mojpprilep@gmail.com"
+            href="mailto:hello@mojprilep.mk"
             className="mt-1 text-sm font-semibold text-primary hover:underline">
-            mojpprilep@gmail.com
+            hello@mojprilep.mk
           </a>
           <span className="text-[12px] text-theme-muted">Прилеп, Северна Македонија</span>
         </div>
@@ -287,6 +287,14 @@ export default function AboutPage() {
         <div className="p-5">
           <ContactForm />
         </div>
+      </section>
+
+      {/* Policies */}
+      <section className="flex flex-wrap justify-center gap-x-6 gap-y-2 py-4 text-sm font-medium text-theme-muted">
+        <Link href="/privacy" className="hover:text-primary transition-colors">Политика за приватност</Link>
+        <Link href="/terms" className="hover:text-primary transition-colors">Услови за користење</Link>
+        <Link href="/data-deletion" className="hover:text-primary transition-colors">Бришење податоци</Link>
+        <Link href="/support" className="hover:text-primary transition-colors">Поддршка</Link>
       </section>
     </div>
   );
