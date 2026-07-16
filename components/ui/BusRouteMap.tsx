@@ -449,21 +449,18 @@ export default function BusRouteMap() {
   // Loaded stop-pin image (public/bus-stop.svg). Held in a ref so it can be
   // (re-)registered with the map after every basemap swap (setStyle wipes images).
   const stopImgRef = useRef<HTMLImageElement | null>(null);
-  // Default line selection follows the day: Sundays/holidays show only the
-  // Недела line, the rest of the week only the regular lines. During a service
-  // override (e.g. Пиво Фест) the Недела line is selected by default but the
-  // regular lines stay visible too — we don't hide them. Users can still toggle
-  // any line on/off.
+  // Default line selection follows the day: Sundays/holidays (and festival
+  // overrides like Пиво Фест, via isSundayService) pre-select only the Недела
+  // line; the rest of the week the regular lines. The other lines still appear
+  // in the filter — users can toggle any line on/off.
   const [activeRoutes, setActiveRoutes] = useState<Set<string>>(
     () =>
       new Set(
-        activeServiceNotice()
-          ? BUS_ROUTES.map((r) => r.id)
-          : isSundayService()
-            ? [SUNDAY_ROUTE_ID]
-            : BUS_ROUTES.filter((r) => r.id !== SUNDAY_ROUTE_ID).map(
-                (r) => r.id,
-              ),
+        isSundayService()
+          ? [SUNDAY_ROUTE_ID]
+          : BUS_ROUTES.filter((r) => r.id !== SUNDAY_ROUTE_ID).map(
+              (r) => r.id,
+            ),
       ),
   );
   // Mirror of activeRoutes for the map callbacks (which live outside React and
