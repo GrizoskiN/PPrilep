@@ -102,7 +102,7 @@ function fmtDist(m: number): string {
 // extra CSS). Bigger and livelier than a plain dot.
 function makeUserEl(): HTMLDivElement {
   const root = document.createElement("div");
-  root.style.cssText = "position:relative;width:22px;height:22px;pointer-events:none;";
+  root.style.cssText = "position:relative;width:22px;height:22px;pointer-events:none;z-index:9999;";
   const ring = document.createElement("div");
   ring.style.cssText = "position:absolute;inset:0;border-radius:999px;background:#2563eb;";
   ring.animate(
