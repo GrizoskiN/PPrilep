@@ -58,8 +58,15 @@ export default function TermsPage() {
         </p>
       </section>
 
+      <section id="child-safety" className="space-y-2">
+        <h2 className="font-semibold text-zinc-800 text-lg">6. Безбедност на деца (Child Safety Standards)</h2>
+        <p>
+          Мој Прилеп има нулта толеранција за содржина која вклучува сексуална злоупотреба и искористување на деца (CSAE). Доколку корисник објави ваква содржина, неговиот профил ќе биде веднаш и трајно избришан, а содржината отстранета и пријавена до надлежните органи. Корисниците можат да пријават несоодветна содржина директно во апликацијата или преку нашиот е-маил за контакт.
+        </p>
+      </section>
+
       <section className="space-y-2">
-        <h2 className="font-semibold text-zinc-800 text-lg">6. Промени на условите</h2>
+        <h2 className="font-semibold text-zinc-800 text-lg">7. Промени на условите</h2>
         <p>
           Го задржуваме правото да ги промениме овие Услови за користење во било кое време. 
           Промените стапуваат на сила веднаш по нивното објавување на оваа страница.
@@ -67,7 +74,7 @@ export default function TermsPage() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-zinc-800 text-lg">7. Контакт</h2>
+        <h2 className="font-semibold text-zinc-800 text-lg">8. Контакт</h2>
         <p>
           Доколку имате прашања околу Условите за користење, контактирајте нè на:{" "}
           <a
