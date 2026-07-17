@@ -286,7 +286,7 @@ export default function LeftNav() {
           />
           <LeftNavItem
             href="/sponsors"
-            label="Партнери"
+            label="Стани Член"
             iconNode={
               <FontAwesomeIcon icon={faHandshake} className="h-4 w-4" />
             }
