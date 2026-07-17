@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { submitMembershipRequest, type MembershipTier } from "../../actions/membership";
-import { getRequestUser } from "../../../../lib/supabase/request-user";
+import { getRequestUser } from "../../../lib/supabase/request-user";
 
 export async function POST(request: Request) {
   try {

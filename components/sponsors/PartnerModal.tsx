@@ -115,35 +115,49 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
     if (!notifyConsent) { toast.error("Мора да се согласите за известувања за да продолжите."); return; }
     setSubmitting(true);
     const finalMessage = notifyConsent ? (memberForm.message + (memberForm.message ? "\n\n" : "") + "[Согласен/а за известувања]") : memberForm.message;
-    const res = await submitMembershipRequest({
-      tier:      memberForm.membership as "volunteer" | "monthly" | "yearly",
-      full_name: finalName,
-      email:     finalEmail,
-      phone:     memberForm.phone || undefined,
-      message:   finalMessage || undefined,
-    });
-    setSubmitting(false);
-    if ("error" in res && res.error) { toast.error(res.error); return; }
-    setAutoApproved("approved" in res && !!res.approved);
-    setDone(true);
+    try {
+      const res = await submitMembershipRequest({
+        tier:      memberForm.membership as "volunteer" | "monthly" | "yearly",
+        full_name: finalName,
+        email:     finalEmail,
+        phone:     memberForm.phone || undefined,
+        message:   finalMessage || undefined,
+      });
+      if ("error" in res && res.error) { toast.error(res.error); return; }
+      setAutoApproved("approved" in res && !!res.approved);
+      setDone(true);
+    } catch (err) {
+      // Network drop / server error — without this the button would hang in its
+      // submitting state with no feedback (the original bug).
+      console.error("membership submit failed:", err);
+      toast.error("Не успеавме да ја испратиме апликацијата. Проверете ја интернет врската и обидете се повторно.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function submitCompany(e: React.FormEvent) {
     e.preventDefault();
     if (!companyForm.company || !companyForm.email) return;
     setSubmitting(true);
-    const res = await submitMembershipRequest({
-      tier:      `company_${companyForm.tier}` as "company_basic" | "company_preferred" | "company_premium",
-      full_name: companyForm.contact || companyForm.company,
-      company:   companyForm.company,
-      email:     companyForm.email,
-      phone:     companyForm.phone || undefined,
-      message:   companyForm.message || undefined,
-    });
-    setSubmitting(false);
-    if ("error" in res && res.error) { toast.error(res.error); return; }
-    setAutoApproved(false);
-    setDone(true);
+    try {
+      const res = await submitMembershipRequest({
+        tier:      `company_${companyForm.tier}` as "company_basic" | "company_preferred" | "company_premium",
+        full_name: companyForm.contact || companyForm.company,
+        company:   companyForm.company,
+        email:     companyForm.email,
+        phone:     companyForm.phone || undefined,
+        message:   companyForm.message || undefined,
+      });
+      if ("error" in res && res.error) { toast.error(res.error); return; }
+      setAutoApproved(false);
+      setDone(true);
+    } catch (err) {
+      console.error("partner submit failed:", err);
+      toast.error("Не успеавме да ја испратиме апликацијата. Проверете ја интернет врската и обидете се повторно.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const stepTitle =

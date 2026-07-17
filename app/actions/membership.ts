@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { createClient } from "../../lib/supabase/server";
 import { createAdminClient } from "../../lib/supabase/admin";
 import {
@@ -35,6 +36,24 @@ function tierPatch(tier: MembershipTier | null) {
   return patch;
 }
 
+// Deliver a transactional email without ever blocking the caller. Resend's SDK
+// has no request timeout, so a slow send used to hang the whole request until
+// the platform killed it — surfacing to the user as a network timeout. These
+// run inside `after()` (below), so failures only reach the logs, never the user.
+// Resend also reports API failures as a resolved `{ error }` rather than a
+// throw, so we check both — a plain `.catch()` would miss an unverified domain
+// or a bad key and let the send fail silently.
+async function deliver(label: string, send: Promise<{ error: unknown } | unknown>) {
+  try {
+    const res = (await send) as { error?: unknown } | null;
+    if (res && typeof res === "object" && "error" in res && res.error) {
+      console.error(`[membership email] ${label} rejected:`, res.error);
+    }
+  } catch (e) {
+    console.error(`[membership email] ${label} threw:`, e);
+  }
+}
+
 // ── Submit a membership request ───────────────────────────────────────────────
 
 import { type User } from "@supabase/supabase-js";
@@ -66,7 +85,7 @@ export async function submitMembershipRequest(
         .update(tierPatch("volunteer"))
         .eq("id", user.id);
     }
-    await sendVolunteerWelcome(data.email, displayName).catch(console.error);
+    after(() => deliver("volunteer welcome", sendVolunteerWelcome(data.email, displayName)));
     return { ok: true, approved: true };
   }
 
@@ -89,14 +108,21 @@ export async function submitMembershipRequest(
 
   if (error) return { error: error.message };
 
-  // Send confirmation to user + notification to admin (in parallel, non-blocking)
-  await Promise.all([
-    sendRequestReceived(data.email, displayName, data.tier).catch(console.error),
-    sendAdminNotification(
-      displayName, data.email, data.phone ?? null,
-      data.tier, data.message ?? null, req.id,
-    ).catch(console.error),
-  ]);
+  // The request is already saved — the user's application has succeeded. Send the
+  // confirmation + admin notification AFTER the response so email latency (or an
+  // outage) can't turn a saved application into a timeout on the user's screen.
+  after(() =>
+    Promise.all([
+      deliver("request received", sendRequestReceived(data.email, displayName, data.tier)),
+      deliver(
+        "admin notification",
+        sendAdminNotification(
+          displayName, data.email, data.phone ?? null,
+          data.tier, data.message ?? null, req.id,
+        ),
+      ),
+    ]),
+  );
 
   return { ok: true, approved: false };
 }
@@ -130,8 +156,11 @@ export async function adminApproveMembership(requestId: number) {
       .eq("id", req.user_id);
   }
 
-  // Send approval email
-  await sendApprovalConfirmation(req.email, req.full_name, req.tier).catch(console.error);
+  // Send approval email after the response — the request is already marked
+  // approved, so the admin action shouldn't wait on (or fail with) email.
+  after(() =>
+    deliver("approval", sendApprovalConfirmation(req.email, req.full_name, req.tier)),
+  );
 
   return { ok: true };
 }
@@ -155,7 +184,7 @@ export async function adminRejectMembership(requestId: number) {
     .update({ status: "rejected" })
     .eq("id", requestId);
 
-  await sendRejectionNotice(req.email, req.full_name).catch(console.error);
+  after(() => deliver("rejection", sendRejectionNotice(req.email, req.full_name)));
 
   return { ok: true };
 }
