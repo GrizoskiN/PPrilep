@@ -112,6 +112,7 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
     const finalEmail = memberForm.email || prefillEmail || "";
     const finalName = memberForm.name || prefillName || (finalEmail ? finalEmail.split('@')[0] : "");
     if (!finalName || !finalEmail) return;
+    if (!notifyConsent) { toast.error("Мора да се согласите за известувања за да продолжите."); return; }
     setSubmitting(true);
     const finalMessage = notifyConsent ? (memberForm.message + (memberForm.message ? "\n\n" : "") + "[Согласен/а за известувања]") : memberForm.message;
     const res = await submitMembershipRequest({
