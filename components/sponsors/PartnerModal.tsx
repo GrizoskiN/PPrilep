@@ -91,6 +91,7 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [autoApproved, setAutoApproved] = useState(false);
+  const [notifyConsent, setNotifyConsent] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
@@ -112,12 +113,13 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
     const finalName = memberForm.name || prefillName || (finalEmail ? finalEmail.split('@')[0] : "");
     if (!finalName || !finalEmail) return;
     setSubmitting(true);
+    const finalMessage = notifyConsent ? (memberForm.message + (memberForm.message ? "\n\n" : "") + "[Согласен/а за известувања]") : memberForm.message;
     const res = await submitMembershipRequest({
       tier:      memberForm.membership as "volunteer" | "monthly" | "yearly",
       full_name: finalName,
       email:     finalEmail,
       phone:     memberForm.phone || undefined,
-      message:   memberForm.message || undefined,
+      message:   finalMessage || undefined,
     });
     setSubmitting(false);
     if ("error" in res && res.error) { toast.error(res.error); return; }
@@ -273,6 +275,20 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
                   </div>
                 )}
               </div>
+
+              <button
+                type="button"
+                onClick={() => setNotifyConsent(!notifyConsent)}
+                className="mt-2 mb-4 flex w-full items-start gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-left transition-colors hover:border-zinc-300"
+              >
+                <span className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
+                  notifyConsent ? "border-primary bg-primary" : "border-zinc-300 bg-white")}>
+                  {notifyConsent && <Check size={11} className="text-white" strokeWidth={3} />}
+                </span>
+                <p className="text-[13px] leading-relaxed text-zinc-700">
+                  Се согласувам да добивам известувања за новости и акции на е-пошта или преку апликацијата.
+                </p>
+              </button>
 
               <div>
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-600">
