@@ -7,14 +7,15 @@
  * Hybrid identity: a logged-in user is deduped by user_id, an anonymous
  * visitor by a client-generated visitor_id. All access goes through the
  * service-role admin client here — the table has RLS on with no public
- * policies, so the client can never read/write it directly.
+ * policies, so the client can never read/write it directly. Serves both the
+ * website (cookie session) and the mobile app (Bearer token).
  *
  *   GET  → { counts: { [eventId]: number } }   (edge-cached; fail-soft to {})
  *   POST { eventId, action: "add"|"remove", visitorId } → { eventId, count }
  */
 
 import { NextResponse } from "next/server";
-import { createClient as createServerClient } from "../../../../lib/supabase/server";
+import { getRequestUser } from "../../../../lib/supabase/request-user";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -72,11 +73,9 @@ export async function POST(req: Request) {
   }
 
   // Logged-in user (if any) is the primary identity; visitorId is the anon
-  // fallback. At least one must be present to key a row.
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // fallback. At least one must be present to key a row. Accepts the web cookie
+  // session OR a mobile Bearer token — the native app has no cookies.
+  const user = await getRequestUser(req);
 
   if (!user && !visitorId) {
     return NextResponse.json({ error: "No identity" }, { status: 400 });

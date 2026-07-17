@@ -108,12 +108,14 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
 
   async function submitMember(e: React.FormEvent) {
     e.preventDefault();
-    if (!memberForm.name || !memberForm.email) return;
+    const finalEmail = memberForm.email || prefillEmail || "";
+    const finalName = memberForm.name || prefillName || (finalEmail ? finalEmail.split('@')[0] : "");
+    if (!finalName || !finalEmail) return;
     setSubmitting(true);
     const res = await submitMembershipRequest({
       tier:      memberForm.membership as "volunteer" | "monthly" | "yearly",
-      full_name: memberForm.name,
-      email:     memberForm.email,
+      full_name: finalName,
+      email:     finalEmail,
       phone:     memberForm.phone || undefined,
       message:   memberForm.message || undefined,
     });
@@ -232,8 +234,7 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
           {/* Member form */}
           {step === "member" && !done && !!userId && (
             <form id="member-form" onSubmit={submitMember} className="px-5 py-5 space-y-5">
-              <Field label="Полно Име *" icon={<User size={14} />} placeholder="Вашето Име и Презиме" value={memberForm.name} onChange={(v) => setMemberForm((f) => ({ ...f, name: v }))} required />
-              <Field label="Е-пошта *" icon={<Mail size={14} />} type="email" placeholder="вашата@епошта.com" value={memberForm.email} onChange={(v) => setMemberForm((f) => ({ ...f, email: v }))} required />
+
               <Field label="Телефон" icon={<Phone size={14} />} type="tel" placeholder="+389 7X XXX XXX" value={memberForm.phone} onChange={(v) => setMemberForm((f) => ({ ...f, phone: v }))} />
 
               <div className="space-y-2">
@@ -320,10 +321,7 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
                     </button>
                   ))}
                 </div>
-                <PaymentDetails purpose="Партнерство — Мој Прилеп" />
-                <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 leading-relaxed">
-                  Деталите за уплата ќе ги добиете и на е-пошта. Членарината се активира по евидентирана уплата.
-                </p>
+
                 {!userId && (
                   <p className="text-xs text-zinc-500 px-1">
                     Имате сметка?{" "}

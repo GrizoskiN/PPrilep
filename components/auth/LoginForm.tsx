@@ -7,6 +7,7 @@ import { z } from "zod";
 import { Mail, Lock, Eye, EyeOff, MailCheck } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
 import GoogleIcon from "./GoogleIcon";
+import FacebookIcon from "./FacebookIcon";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTurnstile } from "../../lib/hooks/useTurnstile";
@@ -32,7 +33,8 @@ export default function LoginForm() {
   const [magicSent, setMagicSent] = useState(false);
   const [magicEmail, setMagicEmail] = useState("");
   const [magicLoading, setMagicLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState(false);
+  // Which provider is mid-redirect, so only that button reads as busy.
+  const [oauthLoading, setOauthLoading] = useState<"google" | "facebook" | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const captcha = useTurnstile();
 
@@ -94,17 +96,17 @@ export default function LoginForm() {
     toast.success("Магичниот линк е испратен!");
   }
 
-  async function signInWithGoogle() {
-    setOauthLoading(true);
+  async function signInWithProvider(provider: "google" | "facebook") {
+    setOauthLoading(provider);
     const authOrigin = getAuthRedirectOrigin();
     const redirectTo = `${authOrigin}/auth/callback?next=${encodeURIComponent(next)}`;
 
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
+      provider,
       options: { redirectTo },
     });
     if (error) {
-      setOauthLoading(false);
+      setOauthLoading(null);
       toast.error(error.message);
     }
   }
@@ -217,10 +219,18 @@ export default function LoginForm() {
       <button
         type="button"
         className={outlineBtn}
-        onClick={signInWithGoogle}
-        disabled={isSubmitting || oauthLoading}>
+        onClick={() => signInWithProvider("google")}
+        disabled={isSubmitting || oauthLoading !== null}>
         <GoogleIcon size={18} />
-        {oauthLoading ? "Се пренасочува…" : "Најава со Google"}
+        {oauthLoading === "google" ? "Се пренасочува…" : "Најава со Google"}
+      </button>
+      <button
+        type="button"
+        className={outlineBtn}
+        onClick={() => signInWithProvider("facebook")}
+        disabled={isSubmitting || oauthLoading !== null}>
+        <FacebookIcon size={18} />
+        {oauthLoading === "facebook" ? "Се пренасочува…" : "Најава со Facebook"}
       </button>
     </form>
   );

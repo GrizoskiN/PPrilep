@@ -17,6 +17,7 @@ import {
 } from "../../../lib/utils";
 import { TIER_CONFIG } from "../../../components/ui/AvatarInitials";
 import Button from "../../../components/ui/Button";
+import { passwordError } from "../../../lib/auth/password";
 import { toast } from "sonner";
 import { MoreVertical } from "lucide-react";
 import type { Issue } from "../../../lib/types/database";
@@ -101,7 +102,11 @@ function SecuritySection({
   }
 
   async function changePassword() {
-    if (newPassword.length < 6) { toast.error("Лозинката мора да има барем 6 знаци"); return; }
+    // Supabase applies its password requirements to updateUser as well as signUp,
+    // so this has to match them — a stale "barem 6 znaci" check would wave through
+    // a password the server then rejects in English.
+    const pwError = passwordError(newPassword);
+    if (pwError) { toast.error(pwError); return; }
     if (newPassword !== confirmPassword) { toast.error("Лозинките не се совпаѓаат"); return; }
 
     setSavingPw(true);

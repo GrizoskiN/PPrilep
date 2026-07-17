@@ -37,18 +37,24 @@ function tierPatch(tier: MembershipTier | null) {
 
 // ── Submit a membership request ───────────────────────────────────────────────
 
-export async function submitMembershipRequest(data: {
-  tier: MembershipTier;
-  full_name: string;
-  email: string;
-  phone?: string;
-  message?: string;
-  // company-only
-  company?: string;
-  contact?: string;
-}) {
+import { type User } from "@supabase/supabase-js";
+
+export async function submitMembershipRequest(
+  data: {
+    tier: MembershipTier;
+    full_name: string;
+    email: string;
+    phone?: string;
+    message?: string;
+    // company-only
+    company?: string;
+    contact?: string;
+  },
+  overrideUser?: User | null
+) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user: sessionUser } } = await supabase.auth.getUser();
+  const user = overrideUser !== undefined ? overrideUser : sessionUser;
 
   const displayName = data.company ?? data.full_name;
   const isVolunteer = data.tier === "volunteer";

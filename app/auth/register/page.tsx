@@ -7,14 +7,16 @@ import { z } from "zod";
 import { User, Mail, Lock, Eye, EyeOff, MailCheck, AlertCircle } from "lucide-react";
 import { createClient } from "../../../lib/supabase/client";
 import GoogleIcon from "../../../components/auth/GoogleIcon";
+import FacebookIcon from "../../../components/auth/FacebookIcon";
 import { toast } from "sonner";
 import { useMemo, useState } from "react";
 import { useTurnstile } from "../../../lib/hooks/useTurnstile";
+import { PASSWORD_MIN, passwordSchema } from "../../../lib/auth/password";
 
 const schema = z.object({
   full_name: z.string().min(2, "Внесете го вашето целосно име"),
   email: z.string().email("Внесете валидна е-пошта"),
-  password: z.string().min(6, "Барем 6 знаци"),
+  password: passwordSchema,
 });
 type Fields = z.infer<typeof schema>;
 
@@ -46,7 +48,8 @@ function Card({ children }: { children: React.ReactNode }) {
 export default function RegisterPage() {
   const supabase = useMemo(() => createClient(), []);
   const [done, setDone] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState(false);
+  // Which provider is mid-redirect, so only that button reads as busy.
+  const [oauthLoading, setOauthLoading] = useState<"google" | "facebook" | null>(null);
   const [existingEmail, setExistingEmail] = useState<string | null>(null);
   const [sendingLink, setSendingLink] = useState(false);
   const [linkSentTo, setLinkSentTo] = useState<string | null>(null);
@@ -111,8 +114,8 @@ export default function RegisterPage() {
     setLinkSentTo(email);
   }
 
-  async function signUpWithGoogle() {
-    setOauthLoading(true);
+  async function signUpWithProvider(provider: "google" | "facebook") {
+    setOauthLoading(provider);
     // Survives the OAuth round-trip; PostAuthRedirect sends them to /account
     // even if Supabase drops the `next` param.
     try {
@@ -121,11 +124,11 @@ export default function RegisterPage() {
       /* ignore */
     }
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
+      provider,
       options: { redirectTo: `${location.origin}/auth/callback?next=/account` },
     });
     if (error) {
-      setOauthLoading(false);
+      setOauthLoading(null);
       toast.error(error.message);
     }
   }
@@ -292,7 +295,7 @@ export default function RegisterPage() {
               {...register("password")}
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
-              placeholder="Барем 6 знаци"
+              placeholder={`Барем ${PASSWORD_MIN} знаци`}
               className={`${inputCls} pr-10`}
             />
             <button
@@ -333,10 +336,19 @@ export default function RegisterPage() {
         <button
           type="button"
           className={outlineBtn}
-          onClick={signUpWithGoogle}
-          disabled={isSubmitting || oauthLoading}>
+          onClick={() => signUpWithProvider("google")}
+          disabled={isSubmitting || oauthLoading !== null}>
           <GoogleIcon size={18} />
-          {oauthLoading ? "Се пренасочува…" : "Продолжи со Google"}
+          {oauthLoading === "google" ? "Се пренасочува…" : "Продолжи со Google"}
+        </button>
+
+        <button
+          type="button"
+          className={outlineBtn}
+          onClick={() => signUpWithProvider("facebook")}
+          disabled={isSubmitting || oauthLoading !== null}>
+          <FacebookIcon size={18} />
+          {oauthLoading === "facebook" ? "Се пренасочува…" : "Продолжи со Facebook"}
         </button>
       </form>
 
