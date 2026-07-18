@@ -14,6 +14,7 @@ import {
   isSundayService,
   activeServiceNotice,
   SUNDAY_ROUTE_ID,
+  type StopSchedule,
 } from "../../lib/data/busTimetables";
 import { useAuthContext } from "../../lib/context/AuthContext";
 import { OWNER_EMAIL, FLEET_OPERATOR_EMAIL } from "../../lib/config/owner";
@@ -496,6 +497,99 @@ function makeBusEl(short: string, color: string): BusEls {
   pill.appendChild(img);
   root.appendChild(pill);
   return { marker: null as unknown as maplibregl.Marker, root, pill, numEl };
+}
+
+// One collapsible timetable section in the stop panel (Редовна линија / Недела).
+// React-controlled open state — the panel re-renders on every bus poll and on a
+// 30s clock tick, so relying on a native <details>'s DOM-only open flag left the
+// dropdown wedged after a re-render; explicit state keeps toggling deterministic.
+// `active` = this timetable runs today, so past times grey out and the next
+// departure is highlighted; the off-day one renders neutral.
+function TimetableSection({
+  label,
+  entries,
+  active,
+  color,
+  nowMin,
+}: {
+  label: string;
+  entries: { routeId: string; schedules: StopSchedule[] }[];
+  active: boolean;
+  color: string;
+  nowMin: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const toMin = hhmmToMin;
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg bg-white/60 px-2.5 py-2 text-[12px] font-bold text-zinc-600">
+        <span className="flex items-center gap-1.5">
+          <Clock size={13} className="text-zinc-400" />
+          {label}
+        </span>
+        <ChevronDown
+          size={15}
+          className={`shrink-0 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="flex flex-col gap-3 pt-2.5 pb-1">
+          {entries.map(({ routeId, schedules }) => {
+            const route = BUS_ROUTES.find((r) => r.id === routeId);
+            return (
+              <div key={routeId} className="flex flex-col gap-2">
+                {schedules.map((sched) => {
+                  // First departure still ahead of us today (if any).
+                  const nextIdx = active
+                    ? sched.times.findIndex((t) => toMin(t) >= nowMin)
+                    : -1;
+                  return (
+                    <div key={sched.direction} className="flex flex-col gap-1.5">
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                        <span
+                          className="inline-block h-1.5 w-4 rounded-full"
+                          style={{ background: route?.color ?? color }}
+                        />
+                        {sched.direction}
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {sched.times.map((t, i) => {
+                          const past = active && toMin(t) < nowMin;
+                          const isNext = i === nextIdx;
+                          return (
+                            <span
+                              key={t + i}
+                              className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold ${
+                                isNext
+                                  ? "text-white"
+                                  : past
+                                    ? "bg-white/50 text-zinc-400"
+                                    : "bg-white/70 text-zinc-700"
+                              }`}
+                              style={
+                                isNext
+                                  ? { background: route?.color ?? color }
+                                  : undefined
+                              }>
+                              {t}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function BusRouteMap() {
@@ -1571,80 +1665,6 @@ export default function BusRouteMap() {
     // shouldn't skip the panel to the next hour).
     const d = new Date();
     const nowMin = d.getHours() * 60 + d.getMinutes() - GRACE_MIN;
-    const toMin = hhmmToMin;
-
-    // One collapsible timetable dropdown. `active` = this timetable runs
-    // today, so past times grey out and the next departure is highlighted;
-    // the off-day one renders neutral.
-    const timetableBlock = (
-      entries: typeof allTimetables,
-      label: string,
-      active: boolean,
-    ) => (
-      // keyed by stop id so switching stops always starts collapsed
-      <details key={selectedStop.id + label} className="group">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg bg-white/60 px-2.5 py-2 text-[12px] font-bold text-zinc-600 [&::-webkit-details-marker]:hidden">
-          <span className="flex items-center gap-1.5">
-            <Clock size={13} className="text-zinc-400" />
-            {label}
-          </span>
-          <ChevronDown
-            size={15}
-            className="shrink-0 text-zinc-400 transition-transform group-open:rotate-180"
-          />
-        </summary>
-        <div className="flex flex-col gap-3 pt-2.5 pb-1">
-          {entries.map(({ routeId, schedules }) => {
-            const route = BUS_ROUTES.find((r) => r.id === routeId);
-            return (
-              <div key={routeId} className="flex flex-col gap-2">
-                {schedules.map((sched) => {
-                  // First departure still ahead of us today (if any).
-                  const nextIdx = active
-                    ? sched.times.findIndex((t) => toMin(t) >= nowMin)
-                    : -1;
-                  return (
-                    <div key={sched.direction} className="flex flex-col gap-1.5">
-                      <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                        <span
-                          className="inline-block h-1.5 w-4 rounded-full"
-                          style={{ background: route?.color ?? color }}
-                        />
-                        {sched.direction}
-                      </span>
-                      <div className="flex flex-wrap gap-1">
-                        {sched.times.map((t, i) => {
-                          const past = active && toMin(t) < nowMin;
-                          const isNext = i === nextIdx;
-                          return (
-                            <span
-                              key={t + i}
-                              className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold ${
-                                isNext
-                                  ? "text-white"
-                                  : past
-                                    ? "bg-white/50 text-zinc-400"
-                                    : "bg-white/70 text-zinc-700"
-                              }`}
-                              style={
-                                isNext
-                                  ? { background: route?.color ?? color }
-                                  : undefined
-                              }>
-                              {t}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
-      </details>
-    );
 
     return (
       <div className="flex flex-col">
@@ -1677,10 +1697,27 @@ export default function BusRouteMap() {
 
         {weekdayTimetables.length > 0 || sundayTimetables.length > 0 ? (
           <div className="flex flex-col gap-1.5 px-4 pb-3.5 pt-1">
-            {weekdayTimetables.length > 0 &&
-              timetableBlock(weekdayTimetables, "Редовна линија", !sundayToday)}
-            {sundayTimetables.length > 0 &&
-              timetableBlock(sundayTimetables, "Недела", sundayToday)}
+            {weekdayTimetables.length > 0 && (
+              // keyed by stop id so switching stops always starts collapsed
+              <TimetableSection
+                key={selectedStop.id + "wk"}
+                label="Редовна линија"
+                entries={weekdayTimetables}
+                active={!sundayToday}
+                color={color}
+                nowMin={nowMin}
+              />
+            )}
+            {sundayTimetables.length > 0 && (
+              <TimetableSection
+                key={selectedStop.id + "su"}
+                label="Недела"
+                entries={sundayTimetables}
+                active={sundayToday}
+                color={color}
+                nowMin={nowMin}
+              />
+            )}
           </div>
         ) : (
           <div className="pb-3.5" />

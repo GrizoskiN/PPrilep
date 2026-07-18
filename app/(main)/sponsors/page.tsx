@@ -201,10 +201,13 @@ export default function SponsorsPage() {
         )}
 
         {/* Open slot */}
-        <div className="flex min-h-18 items-center justify-center gap-2 rounded-2xl border border-dashed p-5 text-sm" style={{ borderColor: "#2aa99d", color: "#2aa99d", background: "#d8f4ef33" }}>
+        <button 
+          onClick={() => window.dispatchEvent(new Event("open-partner-modal"))}
+          className="flex w-full min-h-18 items-center justify-center gap-2 rounded-2xl border border-dashed p-5 text-sm transition-colors hover:bg-[#d8f4ef80]" 
+          style={{ borderColor: "#2aa99d", color: "#2aa99d", background: "#d8f4ef33" }}>
           <Building2 size={16} />
           Слободно место за нов партнер — контактирајте нè
-        </div>
+        </button>
       </section>
 
       {/* ── Admin panel ── */}

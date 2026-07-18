@@ -224,14 +224,14 @@ export default function LoginForm() {
         <GoogleIcon size={18} />
         {oauthLoading === "google" ? "Се пренасочува…" : "Најава со Google"}
       </button>
-      <button
+      {/* <button
         type="button"
         className={outlineBtn}
         onClick={() => signInWithProvider("facebook")}
         disabled={isSubmitting || oauthLoading !== null}>
         <FacebookIcon size={18} />
         {oauthLoading === "facebook" ? "Се пренасочува…" : "Најава со Facebook"}
-      </button>
+      </button> */}
     </form>
   );
 }

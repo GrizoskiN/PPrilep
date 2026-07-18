@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useLayoutEffect, useCallback } from "react";
+import { useState, useLayoutEffect, useCallback, useEffect } from "react";
 import { Heart } from "lucide-react";
 import { useRightPanel } from "../../../lib/context/RightPanelContext";
 import { useAuth } from "../../../lib/hooks/useAuth";
@@ -25,6 +25,12 @@ export default function SponsorsLayout({ children }: { children: React.ReactNode
     setOverridePanel(<SponsorsPanelContent onJoin={openModal} />, "/sponsors");
     return () => setOverridePanel(null, "/sponsors");
   }, [openModal, setOverridePanel]);
+
+  useEffect(() => {
+    const handleOpenModal = () => setModalOpen(true);
+    window.addEventListener("open-partner-modal", handleOpenModal);
+    return () => window.removeEventListener("open-partner-modal", handleOpenModal);
+  }, []);
 
   return (
     <>
