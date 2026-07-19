@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -27,6 +28,8 @@ import AvatarInitials from "../ui/AvatarInitials";
 import ShareSheet from "../ui/ShareSheet";
 import SegmentedProgressBar from "./SegmentedProgressBar";
 import InitiativeSupporters from "./InitiativeSupporters";
+import InitiativeManagePanel from "./InitiativeManagePanel";
+import InitiativeGallery from "./InitiativeGallery";
 import type { InitiativeWithDetails } from "../../lib/types/database";
 
 interface Props {
@@ -55,12 +58,14 @@ export default function InitiativeDetailModal({
   isAdmin = false,
   onDeleted,
 }: Props) {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const isOwner = !!currentUserId && currentUserId === initiative.user_id;
   const canEdit = isOwner;
   const canDelete = isOwner || isAdmin;
+  const canManage = isOwner || isAdmin;
 
   async function handleDelete() {
     if (
@@ -243,6 +248,17 @@ export default function InitiativeDetailModal({
             </div>
           </div>
 
+          {/* Owner/admin management: change stage + progress photos */}
+          {canManage && (
+            <InitiativeManagePanel
+              initiativeId={initiative.id}
+              stage={stage}
+              completionNote={initiative.completion_note}
+              completionImages={initiative.completion_images ?? []}
+              onChanged={() => router.refresh()}
+            />
+          )}
+
           {/* Vote progress for idea/voting */}
           {(stage === "idea" || stage === "voting") && (
             <SegmentedProgressBar votes={voteCount} />
@@ -265,20 +281,31 @@ export default function InitiativeDetailModal({
             />
           )}
 
-          {/* Completed */}
-          {stage === "completed" && (
-            <CompletedBlock initiative={initiative} />
-          )}
-
-          {/* Description */}
-          <section>
-            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1">
-              Опис
-            </h3>
-            <p className="text-sm text-slate-900 whitespace-pre-wrap leading-relaxed">
-              {initiative.description}
-            </p>
-          </section>
+          {/*
+            When there's a manager update (note or photos), that becomes the
+            body — the story people came to see is "what's happening now",
+            not the original pitch. The original description gets collapsed
+            further down under „Оригинален опис".
+          */}
+          {(() => {
+            const hasUpdate =
+              !!initiative.completion_note ||
+              initiative.completion_images?.length > 0 ||
+              stage === "completed";
+            if (hasUpdate) {
+              return <CompletedBlock initiative={initiative} />;
+            }
+            return (
+              <section>
+                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1">
+                  Опис
+                </h3>
+                <p className="text-sm text-slate-900 whitespace-pre-wrap leading-relaxed">
+                  {initiative.description}
+                </p>
+              </section>
+            );
+          })()}
 
           {initiative.problem_statement && (
             <section>
@@ -300,6 +327,24 @@ export default function InitiativeDetailModal({
                 {initiative.expected_impact}
               </p>
             </section>
+          )}
+
+          {/* Original description — collapsed at the bottom when a manager
+              update has taken over the main body (so the pitch isn't lost). */}
+          {(!!initiative.completion_note ||
+            initiative.completion_images?.length > 0 ||
+            stage === "completed") && (
+            <details className="group rounded-lg border border-zinc-200 bg-zinc-50">
+              <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold text-zinc-600 flex items-center justify-between">
+                <span>Оригинален опис</span>
+                <span className="text-zinc-400 transition-transform group-open:rotate-180">
+                  ▾
+                </span>
+              </summary>
+              <p className="px-3 pb-3 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                {initiative.description}
+              </p>
+            </details>
           )}
         </div>
       </div>
@@ -364,13 +409,24 @@ function FundBlock({
 }
 
 function CompletedBlock({ initiative }: { initiative: InitiativeWithDetails }) {
+  const done = initiative.stage === "completed";
   return (
-    <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-3">
-      <div className="flex items-center gap-1.5 text-emerald-700">
+    <div
+      className={cn(
+        "rounded-xl border p-4 space-y-3",
+        done ? "border-emerald-200 bg-emerald-50/40" : "border-zinc-200 bg-zinc-50",
+      )}>
+      <div
+        className={cn(
+          "flex items-center gap-1.5",
+          done ? "text-emerald-700" : "text-zinc-700",
+        )}>
         <CircleCheck size={16} />
         <span className="text-sm font-semibold">
-          Реализирано
-          {initiative.completed_at ? ` · ${formatDays(initiative.completed_at)}` : ""}
+          {done ? "Реализирано" : "Напредок"}
+          {done && initiative.completed_at
+            ? ` · ${formatDays(initiative.completed_at)}`
+            : ""}
         </span>
       </div>
       {initiative.completion_note && (
@@ -379,13 +435,10 @@ function CompletedBlock({ initiative }: { initiative: InitiativeWithDetails }) {
         </p>
       )}
       {initiative.completion_images?.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
-          {initiative.completion_images.slice(0, 4).map((src) => (
-            <div key={src} className="relative w-full h-32 rounded-lg overflow-hidden bg-zinc-100">
-              <Image src={src} alt="" fill sizes="320px" className="object-cover" />
-            </div>
-          ))}
-        </div>
+        <InitiativeGallery
+          images={initiative.completion_images}
+          alt={initiative.title}
+        />
       )}
     </div>
   );

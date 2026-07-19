@@ -9,7 +9,7 @@ create table if not exists public.membership_requests (
   phone        text,
   message      text,
   tier         text not null check (tier in (
-    'volunteer','monthly','yearly',
+    'volunteer','monthly','yearly','mega_donor','mega_donator',
     'company_basic','company_preferred','company_premium'
   )),
   status       text not null default 'pending'

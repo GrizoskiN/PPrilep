@@ -193,7 +193,7 @@ export default function GlassContainerMap() {
           onClick={() => openDirections(selected, userLoc)}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700">
           <Navigation size={15} />
-          Наведи ме
+          Однеси ме
         </button>
       </div>
     </>

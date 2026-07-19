@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useOptimistic, useState, useTransition, useCallback } from "react";
 import { Coins, CircleCheck, Users } from "lucide-react";
@@ -129,7 +130,28 @@ export default function InitiativeCard({
             setOpen(true);
           }
         }}
-        className="bg-white border border-zinc-200 rounded-xl p-4 space-y-3 cursor-pointer hover:border-zinc-300 hover:shadow-sm transition-all">
+        className="bg-white border border-zinc-200 rounded-xl overflow-hidden cursor-pointer hover:border-zinc-300 hover:shadow-sm transition-all">
+        {(() => {
+          // Prefer the "after" photo when the initiative is fixed — that's the
+          // story people want to see in the feed. Falls back to the cover.
+          const headerUrl =
+            (stage === "completed" && initiative.completion_images?.[0]) ||
+            initiative.cover_image_url ||
+            null;
+          if (!headerUrl) return null;
+          return (
+            <div className="relative w-full h-40 bg-zinc-100">
+              <Image
+                src={headerUrl}
+                alt={initiative.title}
+                fill
+                sizes="(max-width: 640px) 100vw, 400px"
+                className="object-cover"
+              />
+            </div>
+          );
+        })()}
+        <div className="p-4 space-y-3">
         <header className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
@@ -222,6 +244,7 @@ export default function InitiativeCard({
             </span>
           ) : null}
         </footer>
+        </div>
       </article>
 
       {open && (

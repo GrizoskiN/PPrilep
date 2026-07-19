@@ -205,6 +205,91 @@ export async function deleteInitiative(id: string): Promise<DeleteResult> {
   return { success: true };
 }
 
+// ── Manage: stage + progress/completion log (owner or admin; RLS enforces) ──
+type ManageResult = { success: true } | { success: false; error: string };
+
+const STAGES = [
+  "idea",
+  "voting",
+  "funding",
+  "completed",
+  "rejected",
+] as const;
+type Stage = (typeof STAGES)[number];
+
+/**
+ * Move an initiative to a different stage. Sets `completed_at` on entering the
+ * `completed` stage and clears it on leaving, so the timestamp tracks the
+ * current state. RLS ("Own or admin update initiative") gates authorization.
+ */
+export async function setInitiativeStage(
+  id: string,
+  stage: Stage,
+): Promise<ManageResult> {
+  if (!STAGES.includes(stage)) {
+    return { success: false, error: "Непознат стадиум" };
+  }
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "NOT_AUTHENTICATED" };
+
+  const { error } = await supabase
+    .from("initiatives")
+    .update({
+      stage,
+      completed_at: stage === "completed" ? new Date().toISOString() : null,
+    })
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/initiatives");
+  revalidatePath(`/initiatives/${id}`);
+  return { success: true };
+}
+
+const progressSchema = z.object({
+  note: z.string().trim().max(2000, "Максимум 2000 знаци").nullable().optional(),
+  images: z.array(z.string().url()).max(5, "Најмногу 5 слики"),
+});
+
+/**
+ * Save the progress/completion note and gallery. Images are uploaded
+ * client-side to the `initiative-images` bucket (same as the cover) and their
+ * URLs passed here. Does NOT change the stage — completing is a separate,
+ * explicit action via {@link setInitiativeStage}. RLS gates authorization.
+ */
+export async function saveInitiativeProgress(
+  id: string,
+  input: { note: string | null; images: string[] },
+): Promise<ManageResult> {
+  const parsed = progressSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Проверете ги полињата" };
+  }
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "NOT_AUTHENTICATED" };
+
+  const { error } = await supabase
+    .from("initiatives")
+    .update({
+      completion_note: parsed.data.note?.trim() || null,
+      completion_images: parsed.data.images,
+    })
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/initiatives");
+  revalidatePath(`/initiatives/${id}`);
+  return { success: true };
+}
+
 // ── Vote toggle ─────────────────────────────────────────────────────
 type VoteResult =
   | { success: true; voted: boolean; count: number }
