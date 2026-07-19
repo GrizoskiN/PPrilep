@@ -1039,8 +1039,16 @@ export default function BusRouteMap() {
     let lastBusesSeenAt = 0; // ms of the last fetch that had ≥1 bus (engine on)
 
     // The owner gets the authenticated endpoint, which also returns offline
-    // buses (parked at their last fix); everyone else gets the public, cached one.
-    const url = isOwner ? "/api/buses/positions/admin" : "/api/buses/positions";
+    // buses (parked at their last fix); everyone else gets the public one.
+    // In production the public fetch goes to the Cloudflare-cached twin host
+    // (buses.mojprilep.mk, ~10s edge cache) instead of same-origin www — so every
+    // web viewer's poll is a free CDN hit and Vercel is touched ~once per 10s, the
+    // same saving the mobile app gets. Dev stays same-origin against next dev.
+    const publicUrl =
+      process.env.NODE_ENV === "production"
+        ? "https://buses.mojprilep.mk/api/buses/positions"
+        : "/api/buses/positions";
+    const url = isOwner ? "/api/buses/positions/admin" : publicUrl;
 
     async function load() {
       // Off-hours: no bus is running, so skip the request entirely and clear the

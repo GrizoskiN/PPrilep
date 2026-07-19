@@ -35,9 +35,18 @@ const MAX_AGE_S = 10 * 60; // hide a bus with no valid fix in 10 min (out of ser
 // endpoint (/api/buses/positions/admin), never to the public.
 
 const CACHE_HEADERS = {
-  // Matches the client's active poll (30s): many viewers collapse into one origin
-  // hit per window; stale-while-revalidate serves instantly while refreshing.
-  "Cache-Control": "public, s-maxage=30, stale-while-revalidate=30",
+  // 10s shared cache: the fleet's fastest tracker emits a new fix every ~2-3s, so
+  // a 10s window keeps positions fresh (the old 30s throttled the fast bus ~10x)
+  // while still collapsing all viewers into ~one origin run per window. BOTH the
+  // web map and the mobile app poll this through the Cloudflare-proxied host
+  // buses.mojprilep.mk, whose Cache Rule mirrors this 10s edge TTL; keeping the
+  // origin at 10s means CF never serves data older than the origin window.
+  // stale-while-revalidate hides refills.
+  "Cache-Control": "public, s-maxage=10, stale-while-revalidate=20",
+  // Public, non-sensitive data. The web map runs on www.mojprilep.mk but fetches
+  // this from the buses.mojprilep.mk cache host — a cross-origin GET — so the
+  // browser needs this to read the response. Simple GET, no preflight.
+  "Access-Control-Allow-Origin": "*",
 };
 
 // ── Service window (Europe/Skopje) ───────────────────────────────────────────
@@ -77,7 +86,12 @@ export async function GET() {
   if (closedFor !== null) {
     return NextResponse.json(
       { buses: [], updatedAt: new Date().toISOString(), closed: true },
-      { headers: { "Cache-Control": `public, s-maxage=${closedFor}, stale-while-revalidate=60` } },
+      {
+        headers: {
+          "Cache-Control": `public, s-maxage=${closedFor}, stale-while-revalidate=60`,
+          "Access-Control-Allow-Origin": "*",
+        },
+      },
     );
   }
 
