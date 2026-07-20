@@ -36,13 +36,18 @@ const MAX_AGE_S = 10 * 60; // hide a bus with no valid fix in 10 min (out of ser
 
 const CACHE_HEADERS = {
   // 10s shared cache: the fleet's fastest tracker emits a new fix every ~2-3s, so
-  // a 10s window keeps positions fresh (the old 30s throttled the fast bus ~10x)
-  // while still collapsing all viewers into ~one origin run per window. BOTH the
-  // web map and the mobile app poll this through the Cloudflare-proxied host
-  // buses.mojprilep.mk, whose Cache Rule mirrors this 10s edge TTL; keeping the
-  // origin at 10s means CF never serves data older than the origin window.
-  // stale-while-revalidate hides refills.
-  "Cache-Control": "public, s-maxage=10, stale-while-revalidate=20",
+  // a 10s window keeps positions fresh while still collapsing all viewers into
+  // ~one origin run per window. BOTH the web map and the mobile app poll this
+  // through the Cloudflare-proxied host buses.mojprilep.mk.
+  //
+  // `max-age=10` on top of s-maxage is a defence-in-depth against Cloudflare's
+  // default Browser Cache TTL (4h) rewriting the wire response to
+  // `max-age=14400` when a Cache Rule isn't in place — that once left the mobile
+  // app showing frozen bus positions for 4h at a time. Also emit
+  // `CDN-Cache-Control` (Cloudflare-specific; overrides Cache-Control at the
+  // edge) so the 10s edge TTL is enforced regardless of dashboard config.
+  "Cache-Control": "public, max-age=10, s-maxage=10, stale-while-revalidate=20",
+  "CDN-Cache-Control": "public, s-maxage=10, stale-while-revalidate=20",
   // Public, non-sensitive data. The web map runs on www.mojprilep.mk but fetches
   // this from the buses.mojprilep.mk cache host — a cross-origin GET — so the
   // browser needs this to read the response. Simple GET, no preflight.
@@ -88,7 +93,10 @@ export async function GET() {
       { buses: [], updatedAt: new Date().toISOString(), closed: true },
       {
         headers: {
-          "Cache-Control": `public, s-maxage=${closedFor}, stale-while-revalidate=60`,
+          // Same defence-in-depth as CACHE_HEADERS: explicit max-age so CF's
+          // Browser TTL can't rewrite, and CDN-Cache-Control for the edge.
+          "Cache-Control": `public, max-age=${closedFor}, s-maxage=${closedFor}, stale-while-revalidate=60`,
+          "CDN-Cache-Control": `public, s-maxage=${closedFor}, stale-while-revalidate=60`,
           "Access-Control-Allow-Origin": "*",
         },
       },
