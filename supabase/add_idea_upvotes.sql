@@ -36,6 +36,8 @@ create policy "idea_upvotes_delete_own"
 create or replace function public.sync_idea_upvotes()
 returns trigger
 language plpgsql
+security definer
+set search_path = public, pg_temp
 as $$
 begin
   if (tg_op = 'INSERT') then

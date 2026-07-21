@@ -76,6 +76,8 @@ create index if not exists initiative_votes_user_idx on public.initiative_votes(
 create or replace function public.sync_initiative_votes()
 returns trigger
 language plpgsql
+security definer
+set search_path = public, pg_temp
 as $$
 declare
   v_count     integer;
