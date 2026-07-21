@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PPrilep (for scripts/backup.mjs)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           sparse-checkout: |
             scripts
@@ -24,15 +24,15 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Checkout backups repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: mojprilep/pprilep-backups
           token: ${{ secrets.BACKUP_REPO_TOKEN }}
           path: pprilep-backups
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install deps (supabase-js only)
         run: npm install @supabase/supabase-js
