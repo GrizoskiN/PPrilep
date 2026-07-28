@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   MapPin,
+  Clock,
   Droplet,
   Trash2,
   Lightbulb,
@@ -61,6 +62,48 @@ function audienceLabel(post: AgencyPost): string {
   return `Улици: ${(post.target_streets ?? []).join(", ")}`;
 }
 
+/** ISO timestamp → value for an <input type="datetime-local"> (local time). */
+function toLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * Human-readable active window ("до 27.07 14:45" / "од … до …"), or null.
+ *
+ * Formatted via Intl with an explicit Prilep timezone and numeric parts so the
+ * output is byte-identical on the server and the client. Two traps this avoids:
+ * a locale like "mk-MK" inserts "во 11:00" in the browser but not in Node, and
+ * a bare Date.getHours() uses the runtime's own zone (UTC on the server, local
+ * on the client) — both break hydration. Numeric en-GB parts + a fixed
+ * timeZone sidestep both.
+ */
+const WINDOW_FMT = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Skopje",
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+function fmtWindow(iso: string): string {
+  const p = Object.fromEntries(
+    WINDOW_FMT.formatToParts(new Date(iso)).map((x) => [x.type, x.value]),
+  );
+  return `${p.day}.${p.month} ${p.hour}:${p.minute}`;
+}
+
+function windowLabel(post: AgencyPost): string | null {
+  if (!post.starts_at && !post.ends_at) return null;
+  if (post.starts_at && post.ends_at)
+    return `${fmtWindow(post.starts_at)} – ${fmtWindow(post.ends_at)}`;
+  if (post.ends_at) return `до ${fmtWindow(post.ends_at)}`;
+  return `од ${fmtWindow(post.starts_at!)}`;
+}
+
 export default function AgencyPostCard({
   post,
   showAgency = false,
@@ -77,6 +120,8 @@ export default function AgencyPostCard({
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(post.title);
   const [editBody, setEditBody] = useState(post.body ?? "");
+  const [editStarts, setEditStarts] = useState(toLocalInput(post.starts_at));
+  const [editEnds, setEditEnds] = useState(toLocalInput(post.ends_at));
   const [busy, setBusy] = useState(false);
   const red = post.is_red_alert;
   const agencyName =
@@ -93,11 +138,19 @@ export default function AgencyPostCard({
       toast.error("Внеси наслов");
       return;
     }
+    const startsIso = editStarts ? new Date(editStarts).toISOString() : null;
+    const endsIso = editEnds ? new Date(editEnds).toISOString() : null;
+    if (startsIso && endsIso && new Date(endsIso) <= new Date(startsIso)) {
+      toast.error("Крајот мора да е по почетокот");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.rpc("update_agency_post", {
       p_id: post.id,
       p_title: editTitle.trim(),
       p_body: editBody.trim() || null,
+      p_starts_at: startsIso,
+      p_ends_at: endsIso,
     });
     setBusy(false);
     if (error) {
@@ -140,12 +193,34 @@ export default function AgencyPostCard({
           placeholder="Детали (опционално)"
           className="mb-3 w-full resize-none rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-primary"
         />
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          <label className="flex flex-col gap-1 text-[11px] font-semibold text-zinc-500">
+            Прикажи од
+            <input
+              type="datetime-local"
+              value={editStarts}
+              onChange={(e) => setEditStarts(e.target.value)}
+              className="rounded-lg border border-zinc-200 px-2.5 py-2 text-sm font-normal text-zinc-700 outline-none focus:border-primary"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[11px] font-semibold text-zinc-500">
+            Скриј на
+            <input
+              type="datetime-local"
+              value={editEnds}
+              onChange={(e) => setEditEnds(e.target.value)}
+              className="rounded-lg border border-zinc-200 px-2.5 py-2 text-sm font-normal text-zinc-700 outline-none focus:border-primary"
+            />
+          </label>
+        </div>
         <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={() => {
               setEditTitle(post.title);
               setEditBody(post.body ?? "");
+              setEditStarts(toLocalInput(post.starts_at));
+              setEditEnds(toLocalInput(post.ends_at));
               setEditing(false);
             }}
             className="rounded-lg px-3 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-100">
@@ -246,10 +321,18 @@ export default function AgencyPostCard({
         </button>
       )}
 
-      <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
-        <MapPin size={11} />
-        {audienceLabel(post)}
-      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+          <MapPin size={11} />
+          {audienceLabel(post)}
+        </span>
+        {windowLabel(post) && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+            <Clock size={11} />
+            {windowLabel(post)}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

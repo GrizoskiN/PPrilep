@@ -28,6 +28,7 @@ export default async function AgencyPage({ params }: Props) {
 
   // Can the current user publish for this agency? (its operator, or an admin)
   let canPost = false;
+  let isAdmin = false;
   const user = authUser.user;
   if (user) {
     const { data: profile } = await supabase
@@ -35,11 +36,21 @@ export default async function AgencyPage({ params }: Props) {
       .select("agency_id, is_admin")
       .eq("id", user.id)
       .maybeSingle();
-    canPost =
-      profile?.is_admin === true || profile?.agency_id === agency.id;
+    isAdmin = profile?.is_admin === true;
+    canPost = isAdmin || profile?.agency_id === agency.id;
   }
 
-  const list = (posts as AgencyPost[] | null) ?? [];
+  let list = (posts as AgencyPost[] | null) ?? [];
+  // Public visitors see only currently-active posts; managers see everything
+  // (including scheduled/expired) so they can still edit or remove them.
+  if (!canPost) {
+    const now = Date.now();
+    list = list.filter(
+      (post) =>
+        (!post.starts_at || new Date(post.starts_at).getTime() <= now) &&
+        (!post.ends_at || new Date(post.ends_at).getTime() > now),
+    );
+  }
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -50,7 +61,9 @@ export default async function AgencyPage({ params }: Props) {
         </p>
       </div>
 
-      {canPost && <AgencyAlertComposer />}
+      {canPost && (
+        <AgencyAlertComposer asAgency={isAdmin ? agency.id : undefined} />
+      )}
 
       <div className="space-y-3">
         {list.length > 0 ? (

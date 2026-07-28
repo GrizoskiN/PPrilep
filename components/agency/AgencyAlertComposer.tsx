@@ -29,8 +29,11 @@ type Audience = "street" | "district" | "all";
  */
 export default function AgencyAlertComposer({
   onPublished,
+  asAgency,
 }: {
   onPublished?: () => void;
+  /** Admins only: publish as this agency instead of `municipality`. */
+  asAgency?: string;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -42,6 +45,9 @@ export default function AgencyAlertComposer({
   const [streets, setStreets] = useState<string[]>([]);
   const [streetInput, setStreetInput] = useState("");
   const [isRed, setIsRed] = useState(false);
+  // Optional active window (datetime-local strings). Empty = no limit.
+  const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   function addStreet(name?: string) {
@@ -58,6 +64,8 @@ export default function AgencyAlertComposer({
     setStreets([]);
     setStreetInput("");
     setIsRed(false);
+    setStartsAt("");
+    setEndsAt("");
   }
 
   async function publish() {
@@ -69,6 +77,13 @@ export default function AgencyAlertComposer({
       toast.error("Додади барем една улица");
       return;
     }
+    // datetime-local is local wall-clock; toISOString gives UTC for storage.
+    const startsIso = startsAt ? new Date(startsAt).toISOString() : null;
+    const endsIso = endsAt ? new Date(endsAt).toISOString() : null;
+    if (startsIso && endsIso && new Date(endsIso) <= new Date(startsIso)) {
+      toast.error("Крајот мора да е по почетокот");
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase.rpc("create_agency_post", {
       p_title: title.trim(),
@@ -77,6 +92,9 @@ export default function AgencyAlertComposer({
       p_target_district: audience === "district" ? district : null,
       p_target_streets: audience === "street" ? streets : null,
       p_is_red_alert: audience === "all" ? isRed : false,
+      p_as_agency: asAgency ?? null,
+      p_starts_at: startsIso,
+      p_ends_at: endsIso,
     });
     setSubmitting(false);
     if (error) {
@@ -215,6 +233,28 @@ export default function AgencyAlertComposer({
           </span>
         </label>
       )}
+
+      {/* Optional active window — auto-hides the post when it ends. */}
+      <div className="mb-3 grid grid-cols-2 gap-2">
+        <label className="flex flex-col gap-1 text-[11px] font-semibold text-zinc-500">
+          Прикажи од (незадолжително)
+          <input
+            type="datetime-local"
+            value={startsAt}
+            onChange={(e) => setStartsAt(e.target.value)}
+            className="rounded-lg border border-zinc-200 px-2.5 py-2 text-sm font-normal text-zinc-700 outline-none focus:border-primary"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-[11px] font-semibold text-zinc-500">
+          Скриј на (незадолжително)
+          <input
+            type="datetime-local"
+            value={endsAt}
+            onChange={(e) => setEndsAt(e.target.value)}
+            className="rounded-lg border border-zinc-200 px-2.5 py-2 text-sm font-normal text-zinc-700 outline-none focus:border-primary"
+          />
+        </label>
+      </div>
 
       <button
         onClick={publish}

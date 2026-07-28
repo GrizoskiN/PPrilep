@@ -83,6 +83,7 @@ export default async function UtilityPage({ params }: Props) {
   const p = provider as Provider;
 
   const supabase = await createClient();
+  const nowIso = new Date().toISOString();
   const [{ data: authUser }, { data: posts }, { data: agencyPosts }] =
     await Promise.all([
       supabase.auth.getUser(),
@@ -95,6 +96,8 @@ export default async function UtilityPage({ params }: Props) {
         .from("agency_posts")
         .select("*")
         .eq("agency_id", PROVIDER_AGENCY[p])
+        .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+        .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
         .order("created_at", { ascending: false })
         .limit(7),
     ]);

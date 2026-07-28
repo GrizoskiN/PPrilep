@@ -44,10 +44,13 @@ export default function MarqueeBanner() {
 
     async function load() {
       const since = new Date(Date.now() - WINDOW_MS).toISOString();
+      const nowIso = new Date().toISOString();
       const { data, error } = await supabase
         .from("agency_posts")
-        .select("id, agency_id, title, body, is_red_alert, created_at")
+        .select("id, agency_id, title, body, is_red_alert, created_at, starts_at, ends_at")
         .gte("created_at", since)
+        .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+        .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
         .order("is_red_alert", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(12);

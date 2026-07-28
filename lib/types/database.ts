@@ -121,6 +121,8 @@ export interface AgencyPost {
   target_district: string | null;
   target_streets: string[] | null;
   is_red_alert: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
   created_at: string;
 }
 

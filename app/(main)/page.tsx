@@ -35,6 +35,8 @@ type HelperRow = {
 
 export default async function HomePage() {
   const supabase = await createClient();
+  // Hide agency posts whose active window hasn't started or has ended.
+  const nowIso = new Date().toISOString();
 
   const [
     { data: authUser },
@@ -60,6 +62,8 @@ export default async function HomePage() {
     supabase
       .from("agency_posts")
       .select("*")
+      .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+      .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
       .order("created_at", { ascending: false })
       .limit(40),
   ]);
@@ -125,7 +129,7 @@ export default async function HomePage() {
         </p>
         <HomeAgencyFeed posts={posts} canManage={isAdmin} />
 
-        <div className="  grid gap-4  ">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <section className="rounded-xl border border-theme bg-theme-surface p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-theme-heading">
