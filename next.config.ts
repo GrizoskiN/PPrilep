@@ -38,6 +38,10 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 64, 96, 128, 160, 256, 384],
     // Cache optimized images for 30 days
     minimumCacheTTL: 60 * 60 * 24 * 30,
+    // Next 16 only serves qualities listed here (default is [75] alone) — any
+    // other `quality` prop is rejected by the optimizer. 50 = feed thumbnails,
+    // 80 = an image the user deliberately opened. See lib/imageQuality.ts.
+    qualities: [50, 75, 80],
   },
 };
 

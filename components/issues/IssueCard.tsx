@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import BlurImage from "../ui/BlurImage";
+import { IMAGE_QUALITY } from "../../lib/imageQuality";
 import Link from "next/link";
 import { Send, X, Link2 } from "lucide-react";
 import StatusPill from "../ui/StatusPill";
@@ -452,6 +453,7 @@ export default function IssueCard({
             <div className="relative grid grid-cols-2">
               <div className="relative">
                 <BlurImage
+                  quality={IMAGE_QUALITY.feed}
                   src={issue.photo_url}
                   alt="Пред"
                   width={1200}
@@ -468,6 +470,7 @@ export default function IssueCard({
               </div>
               <div className="relative">
                 <BlurImage
+                  quality={IMAGE_QUALITY.feed}
                   src={issue.after_photo_url}
                   alt="Потоа"
                   width={1200}
@@ -512,6 +515,7 @@ export default function IssueCard({
             </div>
           ) : (
             <BlurImage
+              quality={IMAGE_QUALITY.feed}
               src={(issue.photo_url ?? issue.after_photo_url)!}
               alt="Фотографија"
               width={1600}
@@ -556,7 +560,7 @@ export default function IssueCard({
                     : "text-zinc-500 hover:text-[#427FFF]",
                 )}>
                 <IstaMakaIcon className="h-4.5 w-4.5 lg:h-4 lg:w-4" />
-                <span>Иста мака</span>
+                <span className="hidden min-[380px]:inline">Иста мака</span>
               </button>
               {showAffectedPop && affectedUsers.length > 0 && (
                 <UserListPopup
@@ -587,7 +591,7 @@ export default function IssueCard({
                     : "text-zinc-500 hover:text-[#427FFF]",
                 )}>
                 <PomogniIcon className="h-4.5 w-4.5 lg:h-4 lg:w-4" />
-                <span>Помогни</span>
+                <span className="hidden min-[380px]:inline">Помогни</span>
               </button>
               {showHelperPop && helperUsers.length > 0 && (
                 <UserListPopup
@@ -615,7 +619,7 @@ export default function IssueCard({
                   {issue.comment_count ?? 0}
                 </span>
                 <KomentariIcon className="h-4.5 w-4.5 lg:h-4 lg:w-4" />
-                <span>Коментари</span>
+                <span className="hidden min-[380px]:inline">Коментари</span>
               </button>
 
               <button

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 
 const HelperModal = dynamic(() => import("./HelperModal"), { ssr: false });
 import BlurImage from "../ui/BlurImage";
+import { IMAGE_QUALITY } from "../../lib/imageQuality";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -2733,6 +2734,7 @@ export default function IssueDetail({
                   onClick={() => setLightboxSrc(currentIssue.photo_url!)}
                   className="block w-full cursor-zoom-in p-0">
                   <BlurImage
+                    quality={IMAGE_QUALITY.opened}
                     src={currentIssue.photo_url}
                     alt="Пред"
                     width={1200}
@@ -2753,6 +2755,7 @@ export default function IssueDetail({
                   onClick={() => setLightboxSrc(currentIssue.after_photo_url!)}
                   className="block w-full cursor-zoom-in p-0">
                   <BlurImage
+                    quality={IMAGE_QUALITY.opened}
                     src={currentIssue.after_photo_url}
                     alt="Потоа"
                     width={1200}
@@ -2775,6 +2778,7 @@ export default function IssueDetail({
               }
               className="block w-full cursor-zoom-in p-0">
               <BlurImage
+                quality={IMAGE_QUALITY.opened}
                 src={(currentIssue.photo_url ?? currentIssue.after_photo_url)!}
                 alt="Фотографија"
                 width={1600}
