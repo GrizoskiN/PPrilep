@@ -728,10 +728,17 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
                       <input
                         ref={reportFileRef}
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         onChange={(e) => {
                           const f = e.target.files?.[0];
                           if (!f) return;
+                          if (!/^image\/(jpeg|png|webp)$/i.test(f.type)) {
+                            toast.error(
+                              "Форматот не е поддржан. Ве молиме користете JPG, PNG или WebP (не HEIC).",
+                            );
+                            e.target.value = "";
+                            return;
+                          }
                           setReportFile(f);
                           setReportPreview(URL.createObjectURL(f));
                         }}
@@ -771,10 +778,17 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
                         <input
                           ref={reportAfterFileRef}
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/webp"
                           onChange={(e) => {
                             const f = e.target.files?.[0];
                             if (!f) return;
+                            if (!/^image\/(jpeg|png|webp)$/i.test(f.type)) {
+                              toast.error(
+                                "Форматот не е поддржан. Ве молиме користете JPG, PNG или WebP (не HEIC).",
+                              );
+                              e.target.value = "";
+                              return;
+                            }
                             setReportAfterFile(f);
                             setReportAfterPreview(URL.createObjectURL(f));
                           }}
