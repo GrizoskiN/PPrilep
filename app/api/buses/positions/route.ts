@@ -30,15 +30,16 @@ export const runtime = "nodejs";
 export const preferredRegion = "fra1";
 
 const TOKEN = process.env.FLESPI_TOKEN;
-// Hide a bus from the PUBLIC feed as soon as its tracker goes quiet for 2 min.
-// Trackers emit every ~30s while the engine is on, so 2 min = ~4 missed pings —
-// tight enough that a driver ending their shift disappears from the map almost
-// immediately (no leaking of the "parked at home / at depot" location), loose
-// enough that a brief GPS dead-zone doesn't blink the bus off. A parked-but-
-// engine-on bus keeps transmitting and stays visible for as long as the engine
-// runs, regardless of speed. The last-known/parked position of a truly-off bus
-// stays visible to the owner ONLY, via /api/buses/positions/admin.
-const MAX_AGE_S = 2 * 60;
+// Hide a bus from the PUBLIC feed once its tracker has gone quiet for 15 min.
+// Trackers emit every ~30s while the engine is on, so long silences only happen
+// when the engine is off (end of shift, extended break). 15 min tolerates a
+// generous coverage dip or a quick engine-off stop without blinking the bus off
+// the map mid-route, and hides the "parked at home / at depot" location once a
+// shift really ends. Engine-on but stationary buses (traffic, layover) keep
+// transmitting and stay visible indefinitely, regardless of speed. The last-
+// known position of a truly-off bus stays visible to the owner ONLY, via
+// /api/buses/positions/admin.
+const MAX_AGE_S = 15 * 60;
 
 const CACHE_HEADERS = {
   // 10s shared cache: the fleet's fastest tracker emits a new fix every ~2-3s, so
