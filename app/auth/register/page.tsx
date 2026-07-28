@@ -49,7 +49,7 @@ export default function RegisterPage() {
   const supabase = useMemo(() => createClient(), []);
   const [done, setDone] = useState(false);
   // Which provider is mid-redirect, so only that button reads as busy.
-  const [oauthLoading, setOauthLoading] = useState<"google" | "facebook" | null>(null);
+  const [oauthLoading, setOauthLoading] = useState<"google" | "facebook" | "apple" | null>(null);
   const [existingEmail, setExistingEmail] = useState<string | null>(null);
   const [sendingLink, setSendingLink] = useState(false);
   const [linkSentTo, setLinkSentTo] = useState<string | null>(null);
@@ -114,7 +114,7 @@ export default function RegisterPage() {
     setLinkSentTo(email);
   }
 
-  async function signUpWithProvider(provider: "google" | "facebook") {
+  async function signUpWithProvider(provider: "google" | "facebook" | "apple") {
     setOauthLoading(provider);
     // Survives the OAuth round-trip; PostAuthRedirect sends them to /account
     // even if Supabase drops the `next` param.
@@ -340,6 +340,17 @@ export default function RegisterPage() {
           disabled={isSubmitting || oauthLoading !== null}>
           <GoogleIcon size={18} />
           {oauthLoading === "google" ? "Се пренасочува…" : "Продолжи со Google"}
+        </button>
+
+        <button
+          type="button"
+          className={outlineBtn}
+          onClick={() => signUpWithProvider("apple")}
+          disabled={isSubmitting || oauthLoading !== null}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M17.05 12.04c-.03-2.86 2.34-4.23 2.44-4.3-1.33-1.95-3.4-2.22-4.14-2.25-1.76-.18-3.44 1.04-4.34 1.04-.9 0-2.28-1.02-3.75-.99-1.93.03-3.71 1.12-4.71 2.85-2.01 3.48-.51 8.63 1.44 11.46.96 1.38 2.1 2.93 3.57 2.87 1.43-.06 1.97-.93 3.7-.93 1.72 0 2.22.93 3.72.9 1.54-.03 2.51-1.4 3.45-2.79 1.09-1.6 1.54-3.15 1.56-3.23-.03-.02-2.99-1.15-3.02-4.54zM14.2 3.83c.79-.96 1.32-2.29 1.17-3.62-1.13.05-2.5.76-3.32 1.71-.73.84-1.37 2.19-1.2 3.49 1.26.1 2.55-.64 3.35-1.58z"/>
+          </svg>
+          {oauthLoading === "apple" ? "Се пренасочува…" : "Продолжи со Apple"}
         </button>
 
         <button
