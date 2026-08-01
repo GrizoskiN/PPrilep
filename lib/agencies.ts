@@ -96,6 +96,26 @@ export function companyForCategory(category: Category): string {
   return AGENCIES[AGENCY_BY_CATEGORY[category]].name;
 }
 
+/**
+ * Display name for an agency id, or null if it isn't one we know.
+ * `id` is `text` in the DB, so callers can pass anything.
+ */
+export function agencyName(id: string | null | undefined): string | null {
+  if (!id) return null;
+  return AGENCIES[id as AgencyId]?.name ?? null;
+}
+
+/**
+ * The agency an `/agency/<id>` link points at — used to attribute an
+ * announcement to the institution that published it rather than to the staff
+ * account that pressed the button.
+ */
+export function agencyNameFromLink(link: string | null | undefined): string | null {
+  if (!link) return null;
+  const m = /^\/agency\/([^/?#]+)/.exec(link);
+  return m ? agencyName(decodeURIComponent(m[1])) : null;
+}
+
 /** Does the given agency handle the given category? */
 export function agencyHandlesCategory(
   agencyId: string | null | undefined,

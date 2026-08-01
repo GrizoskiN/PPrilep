@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bell } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
 import { isMissingNotificationsTableError } from "../../lib/notifications";
+import { agencyNameFromLink } from "../../lib/agencies";
 import { cn } from "../../lib/utils";
 import {
   formatDays,
@@ -21,6 +22,23 @@ function resolveNotifLink(link: string, title: string): string {
   const id = parseIssueIdFromSegment(segment);
   if (!id) return link;
   return getIssuePath(id, title);
+}
+
+/**
+ * Who the notification is *from*, as a resident would understand it.
+ *
+ * An agency announcement is published by a staff member, so `actor_user_id` is
+ * that person — attributing "Водовод cut the water off" to their personal name
+ * is both confusing and a privacy leak. Those rows carry an `/agency/<id>` link,
+ * which is enough to name the institution instead. Everything else (comments,
+ * status changes) really is from a person.
+ */
+function notifSender(n: AppNotification): string {
+  const agency = agencyNameFromLink(n.link);
+  if (agency && (n.type === "agency_post" || n.type === "agency_alert")) {
+    return agency;
+  }
+  return n.actor?.full_name ?? n.actor?.username ?? "Некој";
 }
 
 interface Props {
@@ -206,7 +224,7 @@ export default function NotificationBell({
                       !n.read_at ? "bg-teal-50" : ""
                     }`}>
                     <p className="text-sm font-semibold text-zinc-800">
-                      {n.actor?.full_name ?? n.actor?.username ?? "Некој"}{" "}
+                      {notifSender(n)}{" "}
                       <span className="font-normal text-zinc-600">
                         {n.body}
                       </span>
