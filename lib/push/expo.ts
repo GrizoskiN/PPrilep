@@ -15,6 +15,7 @@ export type PushMessage = {
   data?: Record<string, unknown>;
   sound?: "default" | null;
   channelId?: string;
+  priority?: "default" | "normal" | "high";
 };
 
 export type PushTicket = { status: "ok" | "error"; id?: string; message?: string; details?: unknown };
@@ -31,7 +32,12 @@ export async function sendExpoPush(messages: PushMessage[]): Promise<PushTicket[
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(chunk.map((m) => ({ sound: "default", ...m }))),
+      // priority "high" → APNs priority 10 / FCM high. Without it Expo sends at
+      // normal priority (APNs 5), which lets iOS delay delivery to save power:
+      // the notification arrives minutes later with no banner at send time, and
+      // looks indistinguishable from a delivery failure. These are civic alerts
+      // — a water outage or an issue update is worth waking the radio for.
+      body: JSON.stringify(chunk.map((m) => ({ sound: "default", priority: "high", ...m }))),
     });
 
     const json = (await res.json().catch(() => ({}))) as { data?: PushTicket[] };

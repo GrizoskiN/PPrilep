@@ -5,7 +5,10 @@ import { paymentBlockHtml } from "./payment";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM = "Мој Прилеп <no-reply@mojprilep.mk>";
+/** Where admin alerts land. A private inbox — never print this in a user's email. */
 const ADMIN = process.env.ADMIN_EMAIL ?? "ngrizo@gmail.com";
+/** The public address users are told to write to, and where their replies go. */
+const CONTACT = "hello@mojprilep.mk";
 
 const TIER_LABELS: Record<string, string> = {
   volunteer:         "Волонтер",
@@ -61,14 +64,14 @@ export async function sendVolunteerWelcome(to: string, name: string) {
 
 export async function sendRequestReceived(to: string, name: string, tier: string) {
   return resend.emails.send({
-    from: FROM, to,
+    from: FROM, to, replyTo: CONTACT,
     subject: "Вашата апликација е примена — Мој Прилеп",
     html: base(`
       <p>Здраво <strong>${name}</strong>,</p>
       <p>Ја примивме вашата апликација за <strong>${TIER_LABELS[tier] ?? tier}</strong>.</p>
       <p>Можете да ја извршите уплатата на следнава сметка. По евидентирана уплата, вашата членарина ќе биде активирана.</p>
       ${paymentBlockHtml(`${TIER_LABELS[tier] ?? tier} — Мој Прилеп`)}
-      <p style="color:#64748b;font-size:13px">Ако имате прашања, одговорете на оваа порака или пишете на <a href="mailto:${ADMIN}" style="color:#2aa99d">${ADMIN}</a>.</p>
+      <p style="color:#64748b;font-size:13px">Ако имате прашања, одговорете на оваа порака или пишете на <a href="mailto:${CONTACT}" style="color:#2aa99d">${CONTACT}</a>.</p>
     `),
   });
 }
@@ -186,12 +189,12 @@ export async function sendKomunalecRequest(
 
 export async function sendRejectionNotice(to: string, name: string) {
   return resend.emails.send({
-    from: FROM, to,
+    from: FROM, to, replyTo: CONTACT,
     subject: "Мој Прилеп — Информација за вашата апликација",
     html: base(`
       <p>Здраво <strong>${name}</strong>,</p>
       <p>За жал, не успеавме да ја потврдиме вашата апликација во овој момент.</p>
-      <p>Доколку имате прашања или сакате да обновите, контактирајте нè на <a href="mailto:${ADMIN}" style="color:#2aa99d">${ADMIN}</a>.</p>
+      <p>Доколку имате прашања или сакате да обновите, контактирајте нè на <a href="mailto:${CONTACT}" style="color:#2aa99d">${CONTACT}</a>.</p>
     `),
   });
 }
