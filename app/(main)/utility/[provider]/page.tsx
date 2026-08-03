@@ -52,6 +52,17 @@ const PROVIDER_ICONS: Record<Provider, string> = {
   parking: "🅿️",
   kindergarten: "🌸",
 };
+// Who actually publishes here. This was one hardcoded line reading "комуналното
+// претпријатие" for every provider, which is wrong for most of them — паркинзите
+// are run by ЈП за ПУП, not by Комуналец.
+const PROVIDER_SUBTITLES: Record<Provider, string> = {
+  water: "Официјални соопштенија од ЈКП „Водовод и канализација“ Прилеп",
+  garbage: "Официјални соопштенија од ЈКП „Комуналец“ Прилеп",
+  power: "Официјални соопштенија од надлежната служба за улично осветлување",
+  transport: "Официјални соопштенија за градскиот превоз",
+  parking: "Официјални соопштенија од ЈП за ПУП Прилеп",
+  kindergarten: "Официјални соопштенија од градинките во Прилеп",
+};
 
 
 interface Props {
@@ -133,9 +144,7 @@ export default async function UtilityPage({ params }: Props) {
               <h1 className="text-base font-semibold">
                 {PROVIDER_ICONS[p]} {PROVIDER_LABELS[p]}
               </h1>
-              <p className="text-xs text-zinc-500">
-                Официјални соопштенија од комуналното претпријатие
-              </p>
+              <p className="text-xs text-zinc-500">{PROVIDER_SUBTITLES[p]}</p>
             </div>
           </div>
         )}
