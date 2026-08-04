@@ -34,43 +34,6 @@ const MEMBERSHIP_OPTIONS: { value: MembershipTier; label: string; price: string;
   { value: "yearly",    label: "Годишна членарина", price: "1.800 ден / год", desc: "Заштеда од 20% — уплатница на е-пошта" },
 ];
 
-const COMPANY_TIERS: { value: CompanyTier; label: string; price: string; perks: string[] }[] = [
-  {
-    value: "basic",
-    label: "Основно",
-    price: "5.000 ден / год",
-    perks: [
-      "Лого во директориумот на апликацијата",
-      "Еднократна благодарница на социјалните мрежи",
-      "Дигитален беџ „Пријател на Прилеп“ (сертификат/слика за вашиот сајт или социјални мрежи за општествена одговорност)",
-    ],
-  },
-  {
-    value: "preferred",
-    label: "Преферирано",
-    price: "15.000 ден / год",
-    perks: [
-      "Сè од Основно",
-      "Истакнато место на почетната страница во апликацијата",
-      "Месечен извештај за прегледи и кликови",
-      "1x месечна Push нотификација („Овој месец, Мој Прилеп е поддржан од [Име на фирма]“)",
-      "Простор за „Локална понуда“ (ексклузивен попуст или акција за корисниците на апликацијата)",
-    ],
-  },
-  {
-    value: "premium",
-    label: "Премиум",
-    price: "По договор",
-    perks: [
-      "Сè од Преферирано",
-      "Брендирани заеднички акции",
-      "Партнерски настани",
-      "Индустриска ексклузивност (гаранција дека ќе бидат единствен премиум партнер од нивната дејност, пр. само една пицерија или само еден маркет)",
-      "Главен спонзор на урбана/зелена акција (пр. „Обнова на паркови поддржана од [Име на фирма]“)",
-    ],
-  },
-];
-
 // Public-transparency notice shown under the free-text message field. Donations
 // and memberships are published openly from the bank statement, so contributors
 // who want to stay anonymous must say so here.
@@ -328,33 +291,6 @@ export default function PartnerModal({ onClose, userId, prefillName, prefillEmai
               <Field label="Телефон" icon={<Phone size={14} />} type="tel" placeholder="+389 2 XXX XXX" value={companyForm.phone} onChange={(v) => setCompanyForm((f) => ({ ...f, phone: v }))} />
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-zinc-600">Пакет на партнерство</label>
-                <div className="space-y-2">
-                  {COMPANY_TIERS.map((tier) => (
-                    <button key={tier.value} type="button" onClick={() => setCompanyForm((f) => ({ ...f, tier: tier.value }))}
-                      className={cn("flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition-colors",
-                        companyForm.tier === tier.value ? "border-primary bg-primary-light" : "border-zinc-200 bg-zinc-50 hover:border-zinc-300")}>
-                      <span className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                        companyForm.tier === tier.value ? "border-primary bg-primary" : "border-zinc-300 bg-white")}>
-                        {companyForm.tier === tier.value && <Check size={11} className="text-white" strokeWidth={3} />}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-zinc-900">{tier.label}</p>
-                          <span className="text-xs font-bold" style={{ color: "#2aa99d" }}>{tier.price}</span>
-                        </div>
-                        <ul className="mt-1 space-y-0.5">
-                          {tier.perks.map((p) => (
-                            <li key={p} className="flex items-center gap-1.5 text-xs text-zinc-500">
-                              <Check size={10} style={{ color: "#2aa99d" }} strokeWidth={3} /> {p}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
                 {!userId && (
                   <p className="text-xs text-zinc-500 px-1">
                     Имате сметка?{" "}

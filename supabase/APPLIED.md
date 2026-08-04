@@ -37,7 +37,9 @@ script not listed separately came back OK on that run.
 | Script | Status | Notes |
 | --- | --- | --- |
 | `schema.sql` | ✅ applied | Base schema. |
-| `add_evn_provider.sql` | ❓ unverified | Adds the `evn` agency + `electricity` provider. Not yet run. |
+| `add_evn_provider.sql` | ✅ applied | Applied 2026-08-04. Adds the `evn` agency + `electricity` provider. |
+| `add_manual_partners.sql` | ✅ applied | Applied 2026-08-04. Adds the `partners` table and fixes `admin_approve_membership` silently no-opping on requests with no account. |
+| `add_partner_logos.sql` | ❓ unverified | Creates the admin-only `partner-logos` storage bucket. Not yet run. |
 | `add_push_subscriptions.sql` | ✅ applied | Applied 2026-08-01, after the failure above. |
 | `add_notifications.sql` | ✅ applied | Feed + bell read from this. |
 | `add_agency_posts.sql` | ✅ applied | |

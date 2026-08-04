@@ -6,6 +6,16 @@ import { Lightbulb, Trophy, Building2, Users, HandHeart } from "lucide-react";
 import { createClient } from "../../../lib/supabase/client";
 import AvatarInitials, { type MembershipTier } from "../../../components/ui/AvatarInitials";
 import MembershipAdminPanel from "../../../components/sponsors/MembershipAdminPanel";
+import PartnersAdminPanel from "../../../components/sponsors/PartnersAdminPanel";
+import {
+  COMPANY_TIERS,
+  fetchManualPartners,
+  manualToCard,
+  profileToCard,
+  sortPartnerCards,
+  type ManualPartner,
+  type PartnerCard,
+} from "../../../lib/partners";
 
 // ── Impact items ─────────────────────────────────────────────────────────────
 
@@ -46,8 +56,11 @@ interface Member {
 export default function SponsorsPage() {
   const supabase = useMemo(() => createClient(), []);
   const [members, setMembers]   = useState<Member[]>([]);
+  const [manual, setManual]     = useState<ManualPartner[]>([]);
   const [isAdmin, setIsAdmin]   = useState(false);
   const [loading, setLoading]   = useState(true);
+  // Bumped by the admin panel so a newly added partner shows up immediately.
+  const [refresh, setRefresh]   = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -63,16 +76,25 @@ export default function SponsorsPage() {
         return supabase.from("profiles").select("is_admin").eq("id", user.id).single()
           .then(({ data }) => data?.is_admin ?? false);
       }),
-    ]).then(([membersRes, adminRes]) => {
+      fetchManualPartners(supabase),
+    ]).then(([membersRes, adminRes, manualRes]) => {
       setMembers((membersRes.data ?? []) as Member[]);
       setIsAdmin(adminRes as boolean);
+      setManual(manualRes);
       setLoading(false);
     });
-  }, [supabase]);
+  }, [supabase, refresh]);
 
-  const COMPANY_TIERS = ["company_basic", "company_preferred", "company_premium"];
-  const people    = members.filter((m) => !m.is_company && !COMPANY_TIERS.includes(m.membership_tier ?? ""));
-  const companies = members.filter((m) => m.is_company  ||  COMPANY_TIERS.includes(m.membership_tier ?? ""));
+  const people = members.filter(
+    (m) => !m.is_company && !COMPANY_TIERS.includes(m.membership_tier as typeof COMPANY_TIERS[number]),
+  );
+  // Applied-and-approved businesses and hand-entered ones share one list.
+  const companies: PartnerCard[] = sortPartnerCards([
+    ...members
+      .filter((m) => m.is_company || COMPANY_TIERS.includes(m.membership_tier as typeof COMPANY_TIERS[number]))
+      .map(profileToCard),
+    ...manual.map(manualToCard),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -166,37 +188,67 @@ export default function SponsorsPage() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {[1,2].map((i) => <div key={i} className="h-24 animate-pulse rounded-2xl bg-zinc-100" />)}
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {[1,2].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl bg-zinc-100" />)}
           </div>
         ) : companies.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-zinc-200 p-8 text-center text-sm text-zinc-400">
             Сè уште нема компании партнери.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {companies.map((c) => (
-              <Link
-                key={c.id}
-                href={`/${c.username ?? c.id}`}
-                className="flex items-center gap-4 rounded-2xl border border-zinc-200 bg-white p-5 transition-colors hover:border-zinc-300 hover:bg-zinc-50">
-                <AvatarInitials
-                  name={c.full_name}
-                  avatarUrl={c.avatar_url}
-                  size="lg"
-                  membershipTier={c.membership_tier as MembershipTier}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-zinc-900">{c.full_name ?? "Компанија"}</p>
-                  {c.username && <p className="text-xs text-zinc-400">@{c.username}</p>}
-                  {c.membership_tier && (
-                    <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ background: "#2aa99d" }}>
-                      {TIER_SHORT[c.membership_tier] ?? c.membership_tier}
-                    </span>
+          // Matches the Членови grid above: one column on phones, two from lg.
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {companies.map((c) => {
+              const inner = (
+                <>
+                  {/* A logo is not an avatar: AvatarInitials crops to a 40px
+                      circle with object-cover and stamps a tier badge on it,
+                      which mangled wordmarks. This is a plain contained box. */}
+                  {c.avatarUrl ? (
+                    <img
+                      src={c.avatarUrl}
+                      alt={c.name}
+                      className="h-16 w-16 shrink-0 rounded-xl bg-white object-contain"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-400">
+                      <Building2 size={22} />
+                    </div>
                   )}
-                </div>
-              </Link>
-            ))}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-zinc-900" title={c.name}>{c.name}</p>
+                    {c.username && <p className="truncate text-[11px] text-zinc-400">@{c.username}</p>}
+                    {/* One label for every company tier — the packages are no
+                        longer advertised, so "Партнер+" / "Премиум" would name
+                        a distinction the site no longer makes. */}
+                    {c.tier && (
+                      <span className="mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ background: "#2aa99d" }}>
+                        Партнер
+                      </span>
+                    )}
+                  </div>
+                </>
+              );
+              const cls =
+                "flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 transition-colors";
+              const hover = " hover:border-zinc-300 hover:bg-zinc-50";
+
+              // A hand-entered partner with no website links nowhere — rendering
+              // it as a link would send people to a profile page that does not
+              // exist for it.
+              if (!c.href) return <div key={c.key} className={cls}>{inner}</div>;
+              if (c.external)
+                return (
+                  <a key={c.key} href={c.href} target="_blank" rel="noopener noreferrer" className={cls + hover}>
+                    {inner}
+                  </a>
+                );
+              return (
+                <Link key={c.key} href={c.href} className={cls + hover}>
+                  {inner}
+                </Link>
+              );
+            })}
           </div>
         )}
 
@@ -211,6 +263,7 @@ export default function SponsorsPage() {
       </section>
 
       {/* ── Admin panel ── */}
+      {isAdmin && <PartnersAdminPanel onChange={() => setRefresh((n) => n + 1)} />}
       {isAdmin && <MembershipAdminPanel />}
     </div>
   );
