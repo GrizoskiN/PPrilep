@@ -8,6 +8,7 @@ const PROVIDERS: Provider[] = [
   "water",
   "garbage",
   "power",
+  "electricity",
   "transport",
   "parking",
 ];
@@ -15,6 +16,7 @@ const PROVIDER_LABELS: Record<Provider, string> = {
   water: "Водовод",
   garbage: "Комуналец",
   power: "Осветлување",
+  electricity: "Струја — ЕВН",
   transport: "Градски превоз",
   parking: "Паркинзи",
   kindergarten: "Градинки — Наша Иднина",
@@ -23,6 +25,7 @@ const PROVIDER_ICONS: Record<Provider, string> = {
   water: "💧",
   garbage: "🗑️",
   power: "💡",
+  electricity: "⚡",
   transport: "🚌",
   parking: "🅿️",
   kindergarten: "🌸",

@@ -10,6 +10,7 @@ import {
   Droplet,
   Trash2,
   Lightbulb,
+  Zap,
   Bus,
   Building2,
   Pencil,
@@ -38,6 +39,7 @@ const AGENCY_META: Record<
     color: "text-amber-500",
     href: "/utility/power",
   },
+  evn: { icon: Zap, color: "text-yellow-500", href: "/utility/electricity" },
   transport_parking: {
     icon: Bus,
     color: "text-indigo-600",

@@ -12,6 +12,7 @@ const AGENCY_ICON: Record<string, string> = {
   vodovod: "💧",
   komunalec: "🗑️",
   osvetluvanje: "💡",
+  evn: "⚡",
   transport_parking: "🚧",
   municipality: "🏛️",
 };

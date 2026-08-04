@@ -12,6 +12,7 @@ import {
   faDroplet,
   faTrashCan,
   faPlug,
+  faBolt,
   faSun,
   faAddressCard,
   faHandshake,
@@ -345,6 +346,12 @@ export default function LeftNav() {
             label="Осветлување"
             iconNode={<FontAwesomeIcon icon={faPlug} className="h-4 w-4" />}
             iconTone="amber"
+          />
+          <LeftNavItem
+            href="/utility/electricity"
+            label="Струја — ЕВН"
+            iconNode={<FontAwesomeIcon icon={faBolt} className="h-4 w-4" />}
+            iconTone="orange"
           />
           <LeftNavItem
             href="/prevoz"

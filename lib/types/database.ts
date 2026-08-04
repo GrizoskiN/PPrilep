@@ -38,7 +38,10 @@ export type Provider =
   | "power"
   | "transport"
   | "parking"
-  | "kindergarten";
+  | "kindergarten"
+  // Household electricity supply (EVN). Distinct from `power`, which is the
+  // municipal street-lighting service — different institution, different job.
+  | "electricity";
 
 export type KindergartenPostType =
   | "menu"

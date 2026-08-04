@@ -37,6 +37,7 @@ script not listed separately came back OK on that run.
 | Script | Status | Notes |
 | --- | --- | --- |
 | `schema.sql` | ✅ applied | Base schema. |
+| `add_evn_provider.sql` | ❓ unverified | Adds the `evn` agency + `electricity` provider. Not yet run. |
 | `add_push_subscriptions.sql` | ✅ applied | Applied 2026-08-01, after the failure above. |
 | `add_notifications.sql` | ✅ applied | Feed + bell read from this. |
 | `add_agency_posts.sql` | ✅ applied | |

@@ -9,6 +9,7 @@ export type AgencyId =
   | "vodovod"
   | "komunalec"
   | "osvetluvanje"
+  | "evn"
   | "transport_parking"
   | "municipality";
 
@@ -22,12 +23,16 @@ export const AGENCIES: Record<AgencyId, Agency> = {
   vodovod: { id: "vodovod", name: "Водовод", sort: 1 },
   komunalec: { id: "komunalec", name: "Комуналец", sort: 2 },
   osvetluvanje: { id: "osvetluvanje", name: "Јавно осветлување", sort: 3 },
+  // The national distributor — household supply, not street lighting. Unlike
+  // the others it has no operator account and handles no issue category; an
+  // admin republishes its outage notices by hand.
+  evn: { id: "evn", name: "ЕВН Македонија", sort: 4 },
   transport_parking: {
     id: "transport_parking",
     name: "Јавен превоз и паркинзи",
-    sort: 4,
+    sort: 5,
   },
-  municipality: { id: "municipality", name: "Општина Прилеп", sort: 5 },
+  municipality: { id: "municipality", name: "Општина Прилеп", sort: 6 },
 };
 
 export const AGENCY_LIST: Agency[] = Object.values(AGENCIES).sort(
@@ -57,6 +62,9 @@ export const AGENCY_EMAIL: Record<AgencyId, string> = {
   vodovod: "mojpprilep@gmail.com",
   komunalec: "mojpprilep@gmail.com",
   osvetluvanje: "mojpprilep@gmail.com",
+  // Not a typo: EVN handles no issue category, so nothing routes here. The key
+  // exists only because this map must cover every AgencyId.
+  evn: "mojpprilep@gmail.com",
   transport_parking: "mojpprilep@gmail.com",
   municipality: "mojpprilep@gmail.com",
 };
