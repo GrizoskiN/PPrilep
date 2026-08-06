@@ -19,11 +19,12 @@
 
 import { NextResponse } from "next/server";
 import { fetchEventFresh } from "@/lib/sanity/queries";
-import { socialImageUrls } from "@/lib/social/image";
+import { instagramCarouselUrls, socialImageUrls } from "@/lib/social/image";
 import { eventPath } from "@/lib/data/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   buildCaption,
+  postCarouselToInstagram,
   postToFacebook,
   postToInstagram,
   facebookConfigured,
@@ -114,6 +115,9 @@ export async function POST(req: Request) {
     // Per-network sizing: Facebook takes any ratio so it gets the whole image;
     // Instagram gets it padded onto a legal canvas rather than cropped.
     const images = socialImageUrls(ev.coverImage);
+    // A gallery becomes a carousel; a lone cover stays a single photo, since
+    // Instagram rejects a one-slide carousel.
+    const carousel = instagramCarouselUrls(ev.coverImage, ev.gallery);
 
     // Post to each network independently — one failing shouldn't block the other.
     const errors: string[] = [];
@@ -134,7 +138,10 @@ export async function POST(req: Request) {
 
     if (instagramConfigured() && images) {
       try {
-        igId = await postToInstagram(caption, images.instagram);
+        igId =
+          carousel && carousel.length > 1
+            ? await postCarouselToInstagram(caption, carousel)
+            : await postToInstagram(caption, images.instagram);
       } catch (e) {
         errors.push(`ig: ${e instanceof Error ? e.message : String(e)}`);
       }

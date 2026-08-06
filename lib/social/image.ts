@@ -44,6 +44,45 @@ export function imageDimensions(image: SanityImage): { width: number; height: nu
   return { width, height };
 }
 
+/** Instagram rejects a carousel with fewer than 2 or more than 10 items. */
+export const IG_CAROUSEL_MAX = 10;
+
+/**
+ * Cover + gallery sized for one Instagram carousel.
+ *
+ * Instagram applies a SINGLE aspect ratio to every slide — the first one's —
+ * and crops the rest to match. So the canvas is derived from the cover (clamped
+ * into the legal window) and every image, cover included, is padded onto that
+ * exact canvas. Same ratio everywhere means Instagram has nothing left to crop.
+ *
+ * Returns null when there's nothing to post, and a single-item array when there
+ * is only a cover — the caller posts that as a normal photo, since a one-slide
+ * carousel isn't allowed.
+ */
+export function instagramCarouselUrls(
+  cover: SanityImage,
+  gallery: SanityImage[] = [],
+): string[] | null {
+  if (!cover?.asset) return null;
+
+  const dims = imageDimensions(cover);
+  const natural = dims ? dims.width / dims.height : 1;
+  const ratio = Math.min(IG_MAX_RATIO, Math.max(IG_MIN_RATIO, natural));
+  const height = Math.round(IG_MAX_WIDTH / ratio);
+
+  const onCanvas = (image: SanityImage) =>
+    urlForImage(image as never)
+      .width(IG_MAX_WIDTH)
+      .height(height)
+      .fit("fill")
+      .bg(PAD_COLOR)
+      .format("jpg")
+      .url();
+
+  const rest = gallery.filter((g) => g?.asset).slice(0, IG_CAROUSEL_MAX - 1);
+  return [cover, ...rest].map(onCanvas);
+}
+
 export type SocialImages = { facebook: string; instagram: string } | null;
 
 export function socialImageUrls(image: SanityImage): SocialImages {

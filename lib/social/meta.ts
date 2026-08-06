@@ -161,3 +161,53 @@ export async function postToInstagram(caption: string, imageUrl: string): Promis
   });
   return String(published.id ?? "");
 }
+
+/**
+ * Publish a multi-image carousel to Instagram.
+ *
+ * Three steps, unlike a single photo: every image becomes its own container
+ * flagged `is_carousel_item` (these carry no caption), then one CAROUSEL
+ * container ties them together with the caption, then that gets published.
+ * Each child is waited on — publishing a carousel whose children are still
+ * ingesting fails the same way a single image does.
+ *
+ * Instagram allows 2–10 items; the caller is expected to have capped the list,
+ * and a list of one is rejected here rather than silently posted as something
+ * else. All images must already share an aspect ratio (see
+ * instagramCarouselUrls) or Instagram crops them to match the first.
+ */
+export async function postCarouselToInstagram(
+  caption: string,
+  imageUrls: string[],
+): Promise<string> {
+  if (!instagramConfigured()) throw new Error("Instagram not configured");
+  if (imageUrls.length < 2 || imageUrls.length > 10) {
+    throw new Error(`IG carousel needs 2–10 images, got ${imageUrls.length}`);
+  }
+
+  const childIds: string[] = [];
+  for (const image_url of imageUrls) {
+    const child = await graph(`${IG_USER_ID}/media`, {
+      image_url,
+      is_carousel_item: "true",
+    });
+    const id = String(child.id ?? "");
+    if (!id) throw new Error("No creation id returned for carousel item");
+    await waitForContainer(id);
+    childIds.push(id);
+  }
+
+  const container = await graph(`${IG_USER_ID}/media`, {
+    media_type: "CAROUSEL",
+    children: childIds.join(","),
+    caption,
+  });
+  const creationId = String(container.id ?? "");
+  if (!creationId) throw new Error("No creation id returned for carousel");
+  await waitForContainer(creationId);
+
+  const published = await graph(`${IG_USER_ID}/media_publish`, {
+    creation_id: creationId,
+  });
+  return String(published.id ?? "");
+}
