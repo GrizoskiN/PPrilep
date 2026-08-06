@@ -93,6 +93,29 @@ export default defineType({
       ],
     }),
     defineField({
+      name: "gallery",
+      title: "Дополнителни слики (галерија)",
+      type: "array",
+      description:
+        "Повеќе слики од настанот. Насловната останува прва — овие се " +
+        "прикажуваат под неа и се отвораат со клик.",
+      of: [
+        {
+          type: "image",
+          options: { hotspot: true },
+          fields: [
+            defineField({
+              name: "alt",
+              title: "Алт текст (пристапност)",
+              type: "string",
+            }),
+          ],
+        },
+      ],
+      options: { layout: "grid" },
+      validation: (r) => r.max(12),
+    }),
+    defineField({
       name: "sourceUrl",
       title: "Надворешен линк (Facebook настан, билети…)",
       type: "url",

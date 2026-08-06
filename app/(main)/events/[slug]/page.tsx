@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import ShareSheet from "@/components/ui/ShareSheet";
 import EventInterestButton from "@/components/events/EventInterestButton";
+import EventCover from "@/components/events/EventCover";
 
 const BASE_URL = "https://mojprilep.mk";
 
@@ -88,6 +89,21 @@ export default async function EventDetailPage({ params }: Props) {
   const cover = ev.coverImage?.asset
     ? urlForImage(ev.coverImage).width(1200).height(600).url()
     : null;
+  // The banner is cropped to a 2:1 band; the viewer gets the whole image.
+  const coverFull = ev.coverImage?.asset
+    ? urlForImage(ev.coverImage).width(1600).fit("max").url()
+    : null;
+  const gallery = ev.gallery.map((img) => ({
+    thumb: urlForImage(img).width(160).height(160).url(),
+    full: urlForImage(img).width(1600).fit("max").url(),
+    alt: img.alt ?? ev.title,
+  }));
+  const categoryBadge = (
+    <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-wide text-zinc-800 backdrop-blur-sm">
+      <span>{visual.emoji}</span>
+      {categoryLabel}
+    </span>
+  );
   const shareUrl = `${BASE_URL}${eventPath(ev)}`;
 
   return (
@@ -99,16 +115,17 @@ export default async function EventDetailPage({ params }: Props) {
       </Link>
 
       <article className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        {/* Cover */}
-        <div className="relative h-56 w-full sm:h-72">
-          {cover ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={cover}
-              alt={ev.coverImage?.alt ?? ev.title}
-              className="h-full w-full object-cover"
-            />
-          ) : (
+        {/* Cover — clickable, opening the uncropped image and any gallery shots. */}
+        {cover ? (
+          <EventCover
+            src={cover}
+            full={coverFull!}
+            alt={ev.coverImage?.alt ?? ev.title}
+            gallery={gallery}>
+            {categoryBadge}
+          </EventCover>
+        ) : (
+          <div className="relative h-56 w-full sm:h-72">
             <div
               className={cn(
                 "flex h-full w-full items-center justify-center bg-linear-to-br",
@@ -116,12 +133,9 @@ export default async function EventDetailPage({ params }: Props) {
               )}>
               <span className="text-7xl drop-shadow-sm">{visual.emoji}</span>
             </div>
-          )}
-          <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-wide text-zinc-800 backdrop-blur-sm">
-            <span>{visual.emoji}</span>
-            {categoryLabel}
-          </span>
-        </div>
+            {categoryBadge}
+          </div>
+        )}
 
         {/* Body */}
         <div className="space-y-4 p-5">

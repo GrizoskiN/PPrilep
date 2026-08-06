@@ -78,6 +78,8 @@ export type SanityEvent = {
     asset: { _ref: string };
     alt: string | null;
   } | null;
+  /** Extra photos shown under the cover; empty when the editor added none. */
+  gallery: { asset: { _ref: string }; alt: string | null }[];
   sourceUrl: string | null;
   pinned: boolean;
   slug: string | null;
@@ -94,6 +96,7 @@ const EVENT_FIELDS = `
     location,
     description,
     coverImage{ asset, alt },
+    "gallery": coalesce(gallery[]{ asset, alt }, []),
     sourceUrl,
     "pinned": coalesce(pinned, false),
     "slug": slug.current,
