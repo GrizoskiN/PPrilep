@@ -19,7 +19,7 @@
 
 import { NextResponse } from "next/server";
 import { fetchEventFresh } from "@/lib/sanity/queries";
-import { urlForImage } from "@/lib/sanity/image";
+import { socialImageUrls } from "@/lib/social/image";
 import { eventPath } from "@/lib/data/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -111,15 +111,9 @@ export async function POST(req: Request) {
       url,
     };
     const caption = buildCaption(post);
-    const imageUrl =
-      ev.coverImage && ev.coverImage.asset
-        ? urlForImage(ev.coverImage)
-            .width(1080)
-            .height(1080)
-            .fit("crop")
-            .format("jpg") // Instagram requires JPEG; FB photo posts prefer it too.
-            .url()
-        : null;
+    // Per-network sizing: Facebook takes any ratio so it gets the whole image;
+    // Instagram gets it padded onto a legal canvas rather than cropped.
+    const images = socialImageUrls(ev.coverImage);
 
     // Post to each network independently — one failing shouldn't block the other.
     const errors: string[] = [];
@@ -130,7 +124,7 @@ export async function POST(req: Request) {
       errors.push("fb: auto-post disabled (post manually until App Review)");
     } else if (facebookConfigured()) {
       try {
-        fbId = await postToFacebook(caption, url, imageUrl);
+        fbId = await postToFacebook(caption, url, images?.facebook ?? null);
       } catch (e) {
         errors.push(`fb: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -138,14 +132,14 @@ export async function POST(req: Request) {
       errors.push("fb: not configured");
     }
 
-    if (instagramConfigured() && imageUrl) {
+    if (instagramConfigured() && images) {
       try {
-        igId = await postToInstagram(caption, imageUrl);
+        igId = await postToInstagram(caption, images.instagram);
       } catch (e) {
         errors.push(`ig: ${e instanceof Error ? e.message : String(e)}`);
       }
     } else {
-      errors.push(imageUrl ? "ig: not configured" : "ig: event has no cover image");
+      errors.push(images ? "ig: not configured" : "ig: event has no cover image");
     }
 
     // Total failure → release the claim so a later re-publish can retry.
