@@ -38,7 +38,7 @@ const LocationPickerModal = dynamic(
 // and fillable (so people can see how it works) — only the final insert is
 // blocked. Ideas, stories, memberships and donations are unaffected. Flip back
 // to `true` to re-enable reporting.
-const REPORTING_ENABLED = false;
+const REPORTING_ENABLED = true;
 
 const DISTRICTS = [
   "Center",
