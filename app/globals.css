@@ -491,6 +491,21 @@ label[for] {
   }
 }
 
+/* Dotted border that subtly travels around the card (install-app panel). */
+.pp-marching-ants {
+  animation: pp-marching-ants 160s linear infinite;
+}
+@keyframes pp-marching-ants {
+  to {
+    stroke-dashoffset: -1000;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-marching-ants {
+    animation: none;
+  }
+}
+
 /* Map info popups (stops) — slim, rounded, glassy card */
 .pp-map-popup .maplibregl-popup-content {
   border-radius: 16px;

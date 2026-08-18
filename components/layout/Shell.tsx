@@ -9,6 +9,7 @@ import RightPanel from "./RightPanel";
 import RightPanelSkeleton from "./RightPanelSkeleton";
 import NavigationProgress from "./NavigationProgress";
 import MarqueeBanner from "../ui/MarqueeBanner";
+import InstallAppBanner from "../app/InstallAppBanner";
 import { usesThreeColumns, routeHasCustomPanel } from "../../lib/layout";
 
 interface Props {
@@ -147,6 +148,7 @@ export default function Shell({ children, rightPanel, fullWidth }: Props) {
         <NavigationProgress />
       </Suspense>
       <div className="flex h-screen w-full  flex-col overflow-hidden bg-transparent">
+        <InstallAppBanner />
         <MarqueeBanner />
         <div className="mx-auto flex h-full min-h-0 w-full max-w-400 flex-1 flex-col overflow-hidden">
           <div className="grid shrink-0 grid-cols-1 lg:grid-cols-[18%_1fr_18%]">
