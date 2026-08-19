@@ -1,14 +1,18 @@
 // GET /api/cron/event-reminders
 //
-// Hourly Vercel Cron (see vercel.json). Pushes "Потсети ме" reminders to every
-// opted-in device for events happening TODAY, then stamps notified_at so a
-// device is reminded exactly once.
+// Daily Vercel Cron at 07:00 UTC (see vercel.json) — 09:00 in Skopje through
+// summer, 08:00 in winter. Pushes "Потсети ме" reminders to every opted-in
+// device for events happening TODAY, then stamps notified_at so a device is
+// reminded exactly once.
 //
-// Timing rule (per event, local Europe/Skopje time):
-//   • has a start time  → remind at min(11:00, start − 3h)
-//   • no start time     → remind at 11:00
-// A reminder is "due" once local now is at/after that time and before the event
-// starts (for timed events) or any time that day (for all-day events).
+// One morning sweep, not a per-event countdown: the Hobby plan allows a single
+// daily cron, so there is no later run to catch an event whose ideal reminder
+// time hasn't arrived yet. Gating on "min(11:00, start − 3h)" under a daily
+// schedule would silently drop every evening event — the 09:00 run would judge
+// it not-yet-due and nothing would fire again that day. So the rule is simply:
+// remind about anything today that hasn't started yet. Most events clear the
+// intended 3h lead comfortably; something starting before ~09:00 gets less
+// notice, which is the honest trade for one run a day.
 //
 // Auth: Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`. Required, so the
 // endpoint can't be triggered by the public. The same secret triggers a manual
@@ -26,8 +30,6 @@ export const maxDuration = 60;
 
 const BASE_URL = "https://mojprilep.mk";
 const TZ = "Europe/Skopje";
-const FLOOR_MIN = 11 * 60; // 11:00
-const LEAD_MIN = 3 * 60; // 3 hours before start
 
 /** Local Europe/Skopje "now" as { date: "YYYY-MM-DD", minutes: sinceMidnight }. */
 function skopjeNow(): { date: string; minutes: number } {
@@ -89,11 +91,11 @@ export async function GET(req: Request) {
 
   for (const ev of todays) {
     const startMin = parseStartMinutes(ev.time);
-    const remindMin = startMin === null ? FLOOR_MIN : Math.min(FLOOR_MIN, startMin - LEAD_MIN);
 
-    const afterRemind = now.minutes >= remindMin;
+    // An all-day event (no parseable time) is always still "ahead" of the
+    // morning run; a timed one only counts if it hasn't started.
     const beforeStart = startMin === null ? true : now.minutes < startMin;
-    if (!afterRemind || !beforeStart) continue;
+    if (!beforeStart) continue;
 
     // Opted-in devices not yet reminded for this event.
     const { data: rows, error } = await admin
@@ -127,8 +129,9 @@ export async function GET(req: Request) {
     });
 
     // Stamp as sent so they're never re-reminded. Do this for all pending rows
-    // (even the few that erred) — a stuck reminder retried hourly is worse than
-    // one missed push, and dead tokens are pruned below anyway.
+    // (even the few that erred) — a stuck reminder retried tomorrow, after the
+    // event has passed, is worse than one missed push, and dead tokens are
+    // pruned below anyway.
     const ids = pending.map((r) => r.id);
     await admin
       .from("event_reminders")
