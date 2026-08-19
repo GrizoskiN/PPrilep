@@ -368,3 +368,41 @@ view goes stale*. For a live-monitoring surface, degrade to a **slow heartbeat**
 never a hard stop — the loop must always eventually pick up state changes without
 user interaction. Reserve the full stop for views where staleness is harmless
 (and where the request cost actually justifies it, e.g. anonymous/cached tabs).
+
+## Silent deploy failures: read the config error before blaming the plumbing
+Context: pushes to `main` stopped producing Vercel deployments. I diagnosed a
+broken GitHub↔Vercel integration and sent the user through disconnecting and
+reconnecting the Git repo, auditing GitHub App permissions, inspecting the
+Webhooks page, and pushing several empty commits. None of it was relevant. The
+real cause: I had added an hourly cron (`"0 * * * *"`) to `vercel.json`, and the
+account is on the Hobby plan, which allows at most one cron run per day. Vercel
+validates `vercel.json` *before creating a deployment*, so every push was
+rejected outright and produced **no entry at all** in the Deployments list — no
+error row, no queued build. That gap looks exactly like a dead webhook.
+`npx vercel --prod` printed the reason in one line; the dashboard never did.
+Rule: when a deploy silently doesn't happen, suspect **the config I most
+recently changed** before suspecting infrastructure — diff `vercel.json` /
+`next.config.ts` against the last commit known to have deployed. "No entry in
+the list" ≠ "the trigger didn't fire"; it also means "rejected at validation" (a
+failed *build* shows an Error row, a failed *config validation* shows nothing).
+Reach for the CLI early. And note a passing local `npm run build` proves only
+that the *code* is fine — it is not evidence the deploy should work.
+
+## Platform limits constrain feature design, not just config
+Context: same incident. Dropping the cron to daily wasn't a one-line schedule
+change. The reminder logic gated on `min(11:00, start - 3h)`, which assumes a
+later run exists to catch an event once its window opens. Under a daily schedule
+the single morning run judges every evening event not-yet-due and nothing fires
+again that day — the feature would have looked healthy while silently sending
+nothing.
+Rule: when forced to change a schedule, re-derive whether the logic riding on it
+still holds. Ask "what here assumes this runs again soon?"
+
+## Verify a path from the right directory before concluding a file is missing
+Context: I ran `test -f tasks/lessons.md`, got "MISSING", and wrote a fresh file
+— destroying 370 lines of existing lessons. The check had run from
+`ppp/` rather than `ppp/pprilep/`, a cwd reset this repo hits repeatedly.
+Rule: before creating a file that would overwrite one, confirm with a
+repo-relative check that cannot silently target the wrong root — `git ls-files
+<path>` or an absolute path. If a file is expected to exist and appears not to,
+treat that as a cwd bug until proven otherwise.
