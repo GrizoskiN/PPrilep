@@ -1,4 +1,5 @@
 import AvatarInitials from "../../../components/ui/AvatarInitials";
+import { createClient } from "../../../lib/supabase/server";
 
 interface Hero {
   name: string;
@@ -6,9 +7,11 @@ interface Hero {
   points: number;
 }
 
-// Placeholder until live applause tracking goes public. The real leaderboard
-// will be driven by profiles.points once the feature launches.
-const HEROES: Hero[] = [{ name: "Мој Прилеп", username: null, points: 7 }];
+type HeroRow = {
+  full_name: string | null;
+  username: string | null;
+  points: number | null;
+};
 
 function HeroList({ heroes }: { heroes: Hero[] }) {
   if (heroes.length === 0) {
@@ -22,7 +25,7 @@ function HeroList({ heroes }: { heroes: Hero[] }) {
     <div className="space-y-2">
       {heroes.map((hero, index) => (
         <div
-          key={hero.name}
+          key={`${hero.name}-${index}`}
           className="bg-theme-surface border border-theme rounded-lg p-4 flex items-center gap-3">
           <span className="text-sm font-bold text-theme-subtle w-6 text-right shrink-0">
             {index + 1}
@@ -46,7 +49,21 @@ function HeroList({ heroes }: { heroes: Hero[] }) {
   );
 }
 
-export default function HeroesPage() {
+export default async function HeroesPage() {
+  const supabase = await createClient();
+  // Full leaderboard: everyone with at least one community applause, ranked.
+  const { data } = await supabase
+    .from("profiles")
+    .select("full_name, username, points")
+    .gt("points", 0)
+    .order("points", { ascending: false })
+    .limit(50);
+  const heroes: Hero[] = ((data as HeroRow[] | null) ?? []).map((h) => ({
+    name: h.full_name ?? h.username ?? "Анонимно",
+    username: h.username,
+    points: h.points ?? 0,
+  }));
+
   return (
     <div className="space-y-6">
       <div>
@@ -65,7 +82,7 @@ export default function HeroesPage() {
             Ранг-листа
           </h2>
         </div>
-        <HeroList heroes={HEROES} />
+        <HeroList heroes={heroes} />
       </section>
 
       <section className="rounded-xl border border-theme bg-theme-surface p-4 space-y-4">

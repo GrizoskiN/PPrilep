@@ -23,14 +23,10 @@ type HomeInitiative = {
   created_at: string;
 };
 
-type HelperProfile = {
+type HeroRow = {
   full_name: string | null;
   username: string | null;
-};
-
-type HelperRow = {
-  user_id: string | null;
-  profiles: HelperProfile | HelperProfile[] | null;
+  points: number | null;
 };
 
 export default async function HomePage() {
@@ -42,7 +38,7 @@ export default async function HomePage() {
     { data: authUser },
     { data: issues },
     { data: initiatives },
-    { data: helpers },
+    { data: heroes },
     { data: agencyPosts },
   ] = await Promise.all([
     supabase.auth.getUser(),
@@ -56,9 +52,14 @@ export default async function HomePage() {
       .select("id, title, stage, vote_count, district, created_at")
       .order("created_at", { ascending: false })
       .limit(3),
+    // Top heroes by community applause (profiles.points, incremented by
+    // award_applause). Only people who've actually earned an applause show.
     supabase
-      .from("issue_helpers")
-      .select("user_id, profiles(full_name, username)"),
+      .from("profiles")
+      .select("full_name, username, points")
+      .gt("points", 0)
+      .order("points", { ascending: false })
+      .limit(3),
     supabase
       .from("agency_posts")
       .select("*")
@@ -92,26 +93,13 @@ export default async function HomePage() {
     if (rawName) greetingName = rawName.trim().split(/\s+/)[0];
   }
 
-  const helperCounts: Record<string, { count: number; name: string }> = {};
-  for (const row of (helpers as HelperRow[] | null) ?? []) {
-    if (!row.user_id) continue;
-    const profile = Array.isArray(row.profiles)
-      ? row.profiles[0]
-      : row.profiles;
-    const displayName = profile?.full_name ?? profile?.username ?? "Анонимно";
-    if (!helperCounts[row.user_id]) {
-      helperCounts[row.user_id] = { count: 0, name: displayName };
-    }
-    helperCounts[row.user_id].count += 1;
-  }
-
-  // Hardcoded placeholder leaderboard until live applause tracking goes public
-  // (mirrors the /heroes page). Real `helperCounts` are computed above but not
-  // shown yet.
-  void helperCounts;
-  const topHeroes: { count: number; name: string }[] = [
-    { name: "Мој Прилеп", count: 7 },
-  ];
+  // Live leaderboard: top citizens by community applause (profiles.points).
+  const topHeroes: { count: number; name: string }[] = (
+    (heroes as HeroRow[] | null) ?? []
+  ).map((h) => ({
+    name: h.full_name ?? h.username ?? "Анонимно",
+    count: h.points ?? 0,
+  }));
 
   const latestIssues = (issues as HomeIssue[] | null) ?? [];
   const latestInitiatives = (initiatives as HomeInitiative[] | null) ?? [];
