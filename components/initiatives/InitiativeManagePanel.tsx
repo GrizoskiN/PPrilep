@@ -93,7 +93,7 @@ export default function InitiativeManagePanel({
         const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("initiative-images")
-          .upload(path, file, { cacheControl: "3600", upsert: false });
+          .upload(path, file, { cacheControl: "31536000", upsert: false });
         if (upErr) {
           toast.error(`Грешка при прикачување: ${upErr.message}`);
           continue;

@@ -467,7 +467,8 @@ export default function AccountPage() {
     for (const bucket of buckets) {
       const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(filePath, file, { contentType: file.type, upsert: true });
+        // Timestamped path → immutable, so cache a year instead of the 1h default.
+        .upload(filePath, file, { contentType: file.type, cacheControl: "31536000", upsert: true });
 
       if (error) {
         lastError = error.message;

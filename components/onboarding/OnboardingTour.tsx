@@ -335,7 +335,8 @@ export default function OnboardingTour() {
     for (const bucket of ["avatars", "issue-photos"] as const) {
       const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(filePath, file, { contentType: file.type, upsert: true });
+        // Timestamped path → immutable, so cache a year instead of the 1h default.
+        .upload(filePath, file, { contentType: file.type, cacheControl: "31536000", upsert: true });
       if (error) continue;
       setAvatarUrl(supabase.storage.from(bucket).getPublicUrl(data.path).data.publicUrl);
       setUploading(false);

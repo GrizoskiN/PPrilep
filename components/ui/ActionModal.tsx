@@ -267,7 +267,9 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
     const path = `${crypto.randomUUID()}.${ext}`;
     const { data, error } = await supabase.storage
       .from("issue-photos")
-      .upload(path, file, { contentType: file.type });
+      // Unique + immutable filename → cache a year (the default 1h TTL was
+      // forcing hourly re-downloads that dominated cached-egress).
+      .upload(path, file, { contentType: file.type, cacheControl: "31536000" });
     if (error) return null;
     return supabase.storage.from("issue-photos").getPublicUrl(data.path).data.publicUrl;
   }

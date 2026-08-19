@@ -68,12 +68,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, sent: 0 });
   }
 
+  // The recipient's current unread count, so the push carries an iOS app-icon
+  // badge that's correct even when the app is fully closed. The just-inserted
+  // row is already in the table when this webhook fires, so it's included. A
+  // failed count simply omits the badge rather than blocking the push.
+  const { count: unread } = await admin
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("recipient_user_id", rec.recipient_user_id)
+    .is("read_at", null);
+  const badge = typeof unread === "number" ? unread : undefined;
+
   const messages: PushMessage[] = tokens.map((to) => ({
     to,
     title: rec.title as string,
     body: rec.body ?? "",
     data: rec.link ? { link: rec.link } : {},
     channelId: "default",
+    ...(badge !== undefined ? { badge } : {}),
   }));
 
   const tickets = await sendExpoPush(messages);

@@ -685,6 +685,7 @@ export default function IssueDetail({
       .from("issue-photos")
       .upload(`${currentIssue.id}/after-${Date.now()}.${ext}`, file, {
         contentType: file.type,
+        cacheControl: "31536000",
         upsert: true,
       });
     if (error) {
@@ -720,7 +721,7 @@ export default function IssueDetail({
         .upload(
           `${userId}/proposals/${currentIssue.id}-${Date.now()}.${ext}`,
           proposeFile,
-          { contentType: proposeFile.type, upsert: true },
+          { contentType: proposeFile.type, cacheControl: "31536000", upsert: true },
         );
       if (error) {
         toast.error(error.message);
@@ -875,6 +876,7 @@ export default function IssueDetail({
           commentImage,
           {
             contentType: commentImage.type,
+            cacheControl: "31536000",
             upsert: false,
           },
         );

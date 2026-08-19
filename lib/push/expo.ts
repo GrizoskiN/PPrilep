@@ -16,6 +16,12 @@ export type PushMessage = {
   sound?: "default" | null;
   channelId?: string;
   priority?: "default" | "normal" | "high";
+  /**
+   * iOS app-icon badge number to display. Delivered by APNs with the push, so
+   * the icon shows the right count even when the app is fully closed. Android
+   * ignores it (launcher-dependent); the app maintains its own badge there.
+   */
+  badge?: number;
 };
 
 export type PushTicket = { status: "ok" | "error"; id?: string; message?: string; details?: unknown };

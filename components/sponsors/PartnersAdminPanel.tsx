@@ -73,7 +73,7 @@ export default function PartnersAdminPanel({ onChange }: { onChange?: () => void
     const path = `${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage
       .from("partner-logos")
-      .upload(path, file, { cacheControl: "3600", upsert: false });
+      .upload(path, file, { cacheControl: "31536000", upsert: false });
     setUploading(false);
     if (error) {
       toast.error(`Грешка при прикачување: ${error.message}`);

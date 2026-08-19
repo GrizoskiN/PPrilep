@@ -233,7 +233,7 @@ export default function NewInitiativeForm({
         const { error: upErr } = await supabase.storage
           .from("initiative-images")
           .upload(path, state.cover_image, {
-            cacheControl: "3600",
+            cacheControl: "31536000",
             upsert: false,
           });
         if (upErr) {
