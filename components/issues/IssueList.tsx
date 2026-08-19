@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useIssues } from "../../lib/hooks/useIssues";
 import { useAuth } from "../../lib/hooks/useAuth";
+import { useKeyboardInset } from "../../lib/hooks/useKeyboardInset";
 import IssueCard from "./IssueCard";
 import IssueCardSkeleton from "./IssueCardSkeleton";
 import IssueDetail from "./IssueDetail";
@@ -81,6 +82,8 @@ export default function IssueList({
   const [datesAnimOpen, setDatesAnimOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   const drawerScrollRef = useRef<HTMLDivElement>(null);
+  // Extra bottom room so edit fields clear the on-screen keyboard on mobile.
+  const kbInset = useKeyboardInset();
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -418,7 +421,10 @@ export default function IssueList({
             <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab">
               <div className="h-1.5 w-12 rounded-full bg-zinc-300" />
             </div>
-            <div ref={drawerScrollRef} className="overflow-y-auto flex-1">
+            <div
+              ref={drawerScrollRef}
+              className="overflow-y-auto flex-1"
+              style={kbInset ? { paddingBottom: kbInset } : undefined}>
               <IssueDetail
                 issue={modalIssue}
                 userId={user?.id}

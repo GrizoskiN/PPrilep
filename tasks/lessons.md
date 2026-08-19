@@ -66,6 +66,20 @@ Context: an approved event with `autoPost:true` didn't post. Diagnosis facts:
   it also has `min-h-0` (allows it to shrink below intrinsic content height).
 - ✅ Pattern: `<div class="flex flex-col"><div class="flex-1 min-h-0 overflow-y-auto">`.
 
+### Mobile keyboard hides lower fields in a fixed-height sheet — `dvh`/`vh` won't save you
+- A bottom-anchored modal at `height/maxHeight: 85dvh` (etc.) keeps its full
+  height when the soft keyboard opens — `dvh`/`vh` do NOT shrink for the
+  keyboard, it just overlays the viewport. Lower fields (submit button, an
+  "after" photo picker) end up behind the keyboard, unreachable.
+- ✅ `useKeyboardInset()` (`lib/hooks/useKeyboardInset.ts`) reads the keyboard
+  height from `window.visualViewport` (`innerHeight - vv.height - vv.offsetTop`)
+  and you feed it as `paddingBottom` on the sheet's `overflow-y-auto` scroll
+  container. The extra room lets those fields scroll up above the keyboard and
+  lets the browser's focus-into-view land above it. Applied in `ActionModal`
+  (solve form) and `IssueList` (mobile issue drawer, incl. inline edit).
+- A `min-h-screen` full page (e.g. `IssuePageClient` mobile) scrolls naturally
+  and needs no fix — only fixed-height sheets do.
+
 ### Bottom sheet slide-up animation: two-tick pattern
 - Mounting a sheet at `transform: translateY(0)` gives no animation because
   the browser never saw the `translateY(100%)` start state.

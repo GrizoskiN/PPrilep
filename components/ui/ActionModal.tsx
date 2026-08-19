@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
 import { getIssuePath } from "../../lib/utils";
+import { useKeyboardInset } from "../../lib/hooks/useKeyboardInset";
 import Button from "./Button";
 import StreetAutocomplete from "../issues/StreetAutocomplete";
 import DuplicateAlert, { type SimilarIssue } from "../issues/DuplicateAlert";
@@ -113,6 +114,8 @@ interface Props {
 export default function ActionModal({ userId, userEmail, userName, agencyId, onClose }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
+  // Extra bottom room so form fields clear the on-screen keyboard on mobile.
+  const kbInset = useKeyboardInset();
 
   // ── Shell ─────────────────────────────────────────────────────────────────────
   const [step, setStep] = useState<Step>("choose");
@@ -549,7 +552,9 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
               </div>
 
               {/* ══ Panel 1: Forms ══ */}
-              <div className="desktop-scrollbar-hidden w-1/2 overflow-y-auto">
+              <div
+                className="desktop-scrollbar-hidden w-1/2 overflow-y-auto"
+                style={kbInset ? { paddingBottom: kbInset } : undefined}>
                 {/* ── Report form ── */}
                 <div className={step === "report" ? "block" : "hidden"}>
                   <form
