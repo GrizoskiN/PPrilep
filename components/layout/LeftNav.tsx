@@ -22,11 +22,13 @@ import {
   faCalendarDays,
   faChildren,
   faRecycle,
+  faBell,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Map } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { createClient } from "../../lib/supabase/client";
+import { OWNER_EMAIL } from "../../lib/config/owner";
 
 interface LeftNavItemProps {
   href: string;
@@ -167,6 +169,35 @@ export default function LeftNav() {
 
   const [activeIssuesCount, setActiveIssuesCount] = useState(0);
   const [totalIssuesCount, setTotalIssuesCount] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Show the admin section only to admins. Reads the signed-in user's
+  // profiles.is_admin; RLS lets a user read their own row.
+  useEffect(() => {
+    let mounted = true;
+    const supabase = createClient();
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      // The owner is always an admin here — mirrors the server, which also
+      // accepts ADMIN_EMAIL that the client can't read.
+      if (user.email === OWNER_EMAIL) {
+        if (mounted) setIsAdmin(true);
+        return;
+      }
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (mounted) setIsAdmin(Boolean(data?.is_admin));
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     // Seed from cache after hydration — avoids SSR mismatch
@@ -375,6 +406,28 @@ export default function LeftNav() {
           />
         </div>
       </section>
+
+      {isAdmin ? (
+        <section>
+          <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
+            Администрација
+          </p>
+          <div className="flex flex-col gap-1">
+            <LeftNavItem
+              href="/admin/reminders"
+              label="Потсетници за настани"
+              iconNode={<FontAwesomeIcon icon={faBell} className="h-4 w-4" />}
+              iconTone="red"
+            />
+            <LeftNavItem
+              href="/admin/water"
+              label="Водовод — админ"
+              iconNode={<FontAwesomeIcon icon={faDroplet} className="h-4 w-4" />}
+              iconTone="blue"
+            />
+          </div>
+        </section>
+      ) : null}
 
       <section className=" rounded-3xl p-3 ">
         <div className="mb-3 flex items-center justify-between px-1">

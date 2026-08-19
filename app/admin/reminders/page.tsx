@@ -6,6 +6,7 @@ import { fetchCityEvents } from "@/lib/sanity/queries";
 import EventReminderAdmin, {
   type ReminderEvent,
 } from "../../../components/admin/EventReminderAdmin";
+import { OWNER_EMAIL } from "../../../lib/config/owner";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,7 @@ export default async function RemindersAdminPage() {
     .maybeSingle();
   const isAdmin =
     Boolean(profile?.is_admin) ||
+    user.email === OWNER_EMAIL ||
     (!!process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL);
   if (!isAdmin) redirect("/");
 

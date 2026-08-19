@@ -19,6 +19,7 @@ import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchEventByKey } from "@/lib/sanity/queries";
 import { eventPath } from "@/lib/data/events";
 import { sendExpoPush, type PushMessage } from "@/lib/push/expo";
+import { OWNER_EMAIL } from "@/lib/config/owner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
     .maybeSingle();
   const isAdmin =
     Boolean(profile?.is_admin) ||
+    user.email === OWNER_EMAIL ||
     (!!process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL);
   if (!isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
