@@ -25,6 +25,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+// Absolute, because the link is embedded in a push payload the phone opens —
+// a relative path has nothing to resolve against outside a browser context.
 const BASE_URL = "https://mojprilep.mk";
 
 export async function POST(req: Request) {
