@@ -486,27 +486,31 @@ export default function IssueCard({
                 </span>
               </div>
               {/* Solver bar — spans both images on mobile, confined to the
-                  "Потоа" image (no avatar) on desktop. */}
-              {issue.resolver && (
+                  "Потоа" image (no avatar) on desktop. The free-text label wins
+                  over the registered resolver (and shows no avatar). */}
+              {(issue.resolved_by_label?.trim() || issue.resolver) && (
                 <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center gap-2 bg-gradient-to-t from-black/85 to-black/35 px-3 py-2 backdrop-blur-sm lg:left-1/2">
                   <span className="text-[30px] leading-none">🏆</span>
-                  <AvatarInitials
-                    name={
-                      issue.resolver.full_name ??
-                      issue.resolver.username ??
-                      ""
-                    }
-                    avatarUrl={issue.resolver.avatar_url}
-                    size="sm"
-                    className="w-8! h-8! text-[11px]!"
-                  />
+                  {!issue.resolved_by_label?.trim() && issue.resolver && (
+                    <AvatarInitials
+                      name={
+                        issue.resolver.full_name ??
+                        issue.resolver.username ??
+                        ""
+                      }
+                      avatarUrl={issue.resolver.avatar_url}
+                      size="sm"
+                      className="w-8! h-8! text-[11px]!"
+                    />
+                  )}
                   <span className="flex min-w-0 flex-col leading-tight">
                     <span className="text-[8px] font-medium uppercase tracking-wide text-white/70">
                       Решено од
                     </span>
                     <span className="truncate text-sm font-bold text-white">
-                      {issue.resolver.full_name ??
-                        issue.resolver.username ??
+                      {issue.resolved_by_label?.trim() ||
+                        issue.resolver?.full_name ||
+                        issue.resolver?.username ||
                         "Херој"}
                     </span>
                   </span>

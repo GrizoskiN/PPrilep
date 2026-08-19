@@ -98,6 +98,8 @@ export interface Issue {
   lng?: number | null;
   reported_by: string | null;
   resolved_by?: string | null;
+  /** Free-text resolver name; takes display precedence over `resolver`. */
+  resolved_by_label?: string | null;
   resolver?: Profile | null;
   resolution_upvotes?: number;
   has_upvoted_resolver?: boolean;

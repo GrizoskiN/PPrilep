@@ -391,6 +391,8 @@ export default function IssueDetail({
   }, [currentIssue.id, currentIssue.status, currentIssue.resolved_by, userId]);
 
   const [savingResolver, setSavingResolver] = useState(false);
+  // Free-text resolver name (admin-only), edited independently of the dropdown.
+  const [resolvedLabel, setResolvedLabel] = useState(issue.resolved_by_label ?? "");
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [viewCount, setViewCount] = useState<number | null>(
     issue.views ?? null,
@@ -422,13 +424,37 @@ export default function IssueDetail({
     setSavingResolver(false);
   }
 
+  async function saveResolverLabel() {
+    // Admins only. Empty string clears the label back to null.
+    if (!isAdmin || savingResolver) return;
+    const value = resolvedLabel.trim() || null;
+    if (value === (currentIssue.resolved_by_label ?? null)) return;
+    setSavingResolver(true);
+    const { error } = await supabase
+      .from("issues")
+      .update({ resolved_by_label: value })
+      .eq("id", currentIssue.id);
+    if (error) {
+      toast.error(error.message);
+      setSavingResolver(false);
+      return;
+    }
+    setCurrentIssue((prev) => ({ ...prev, resolved_by_label: value }));
+    toast.success("Зачувано");
+    setSavingResolver(false);
+  }
+
   async function toggleResolverUpvote() {
     if (!userId) {
       redirectToAuth();
       return;
     }
-    if (!resolver || upvotingResolver) return;
-    if (resolver.id === userId) {
+    if (upvotingResolver) return;
+    // Applause works for a free-text resolver too (no profile, but the upvote is
+    // keyed by issue, not by the resolver's user id).
+    const hasLabel = !!currentIssue.resolved_by_label?.trim();
+    if (!resolver && !hasLabel) return;
+    if (resolver && resolver.id === userId) {
       toast.error("Не можеш да гласаш за себе");
       return;
     }
@@ -1902,47 +1928,57 @@ export default function IssueDetail({
     </div>
   );
 
-  const resolverSection = currentIssue.status === "resolved" && resolver && (
+  // Free-text label wins over the registered resolver; only a registered
+  // resolver (no label) gets an avatar + profile link.
+  const heroLabel = currentIssue.resolved_by_label?.trim() || null;
+  const heroName = heroLabel ?? resolver?.full_name ?? resolver?.username ?? null;
+  const heroIsUser = !heroLabel && !!resolver;
+  const resolverSection = currentIssue.status === "resolved" && heroName && (
     <div className="rounded-xl border border-teal-200 bg-linear-to-br from-teal-50 to-emerald-50 p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg">🏆</span>
-          <Link
-            href={
-              resolver.username
-                ? `/${resolver.username}`
-                : `/${resolver.id}`
-            }
-            className="flex items-center gap-2 min-w-0 group">
-            <AvatarInitials
-              name={resolver.full_name ?? resolver.username ?? "Херој"}
-              avatarUrl={resolver.avatar_url}
-              size="sm"
-              membershipTier={resolver.membership_tier as import("../ui/AvatarInitials").MembershipTier}
-              points={resolver.points}
-            />
+          {heroIsUser && resolver ? (
+            <Link
+              href={resolver.username ? `/${resolver.username}` : `/${resolver.id}`}
+              className="flex items-center gap-2 min-w-0 group">
+              <AvatarInitials
+                name={resolver.full_name ?? resolver.username ?? "Херој"}
+                avatarUrl={resolver.avatar_url}
+                size="sm"
+                membershipTier={resolver.membership_tier as import("../ui/AvatarInitials").MembershipTier}
+                points={resolver.points}
+              />
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-teal-800 leading-tight">
+                  Решено од
+                </p>
+                <p className="text-sm font-bold text-zinc-900 group-hover:underline truncate">
+                  {resolver.full_name ?? resolver.username ?? "Херој"}
+                </p>
+              </div>
+            </Link>
+          ) : (
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-teal-800 leading-tight">
                 Решено од
               </p>
-              <p className="text-sm font-bold text-zinc-900 group-hover:underline truncate">
-                {resolver.full_name ?? resolver.username ?? "Херој"}
-              </p>
+              <p className="text-sm font-bold text-zinc-900 truncate">{heroName}</p>
             </div>
-          </Link>
+          )}
         </div>
         <button
           onClick={toggleResolverUpvote}
-          disabled={upvotingResolver || resolver.id === userId}
+          disabled={upvotingResolver || (heroIsUser && resolver?.id === userId)}
           className={cn(
             "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
             hasUpvotedResolver
               ? "bg-teal-600 text-white"
               : "bg-white border border-teal-300 text-teal-700 hover:bg-teal-50",
-            resolver.id === userId && "opacity-50 cursor-not-allowed",
+            heroIsUser && resolver?.id === userId && "opacity-50 cursor-not-allowed",
           )}
           title={
-            resolver.id === userId
+            heroIsUser && resolver?.id === userId
               ? "Не можеш да гласаш за себе"
               : "Дај поени на херојот"
           }>
@@ -2167,6 +2203,23 @@ export default function IssueDetail({
                 </option>
               )}
           </select>
+          {isAdmin && (
+            <div className="flex items-center gap-1.5 w-full">
+              <span className="text-[11px] font-medium text-zinc-400">или име:</span>
+              <input
+                type="text"
+                value={resolvedLabel}
+                disabled={savingResolver}
+                onChange={(e) => setResolvedLabel(e.target.value)}
+                onBlur={saveResolverLabel}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
+                placeholder="пр. Комуналец, ЈП Водовод…"
+                className="flex-1 min-w-0 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-700 outline-none focus:border-teal-400 disabled:opacity-60"
+              />
+            </div>
+          )}
         </div>
       )}
       {/* After photo upload */}
