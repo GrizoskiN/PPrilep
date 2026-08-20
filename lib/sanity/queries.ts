@@ -28,6 +28,12 @@ export type PostFull = PostListItem & {
   // PortableText blocks — opaque on the type level, rendered with PortableText
   body: unknown[] | null;
   videoUrl: string | null;
+  /** Extra photos shown as a gallery under the content; empty when none added. */
+  gallery: {
+    asset: { _ref: string };
+    alt: string | null;
+    caption: string | null;
+  }[];
 };
 
 // ── Queries ──────────────────────────────────────────────────────────────────
@@ -59,7 +65,8 @@ const POST_BY_SLUG_QUERY = `
     "tags": coalesce(tags[]->{title, "slug": slug.current}, []),
     "categories": coalesce(categories, []),
     body,
-    videoUrl
+    videoUrl,
+    "gallery": coalesce(gallery[]{ asset, alt, caption }, [])
   }
 `;
 

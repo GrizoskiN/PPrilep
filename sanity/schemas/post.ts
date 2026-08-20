@@ -51,6 +51,31 @@ export default defineType({
       ],
     }),
     defineField({
+      name: "gallery",
+      title: "Галерија со слики",
+      type: "array",
+      description: "Дополнителни фотографии — се прикажуваат како галерија под содржината.",
+      of: [
+        {
+          type: "image",
+          options: { hotspot: true },
+          fields: [
+            defineField({
+              name: "alt",
+              title: "Алт текст (за пристапност)",
+              type: "string",
+            }),
+            defineField({
+              name: "caption",
+              title: "Опис под слика",
+              type: "string",
+            }),
+          ],
+        },
+      ],
+      options: { layout: "grid" },
+    }),
+    defineField({
       name: "publishedAt",
       title: "Датум на објавување",
       type: "datetime",

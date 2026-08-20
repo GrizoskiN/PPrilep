@@ -5,6 +5,7 @@ import { PortableText, type PortableTextComponents } from "@portabletext/react";
 import { fetchPositivePost } from "../../../../lib/sanity/queries";
 import { urlForImage } from "../../../../lib/sanity/image";
 import ClickableCover from "../../../../components/positive/ClickableCover";
+import PostGallery from "../../../../components/positive/PostGallery";
 
 // Convert a YouTube/Vimeo watch URL into an embeddable URL.
 function getEmbedUrl(url: string): string | null {
@@ -178,6 +179,17 @@ export default async function PositivePostPage({ params }: Props) {
             🎥 Отвори го видеото во нов прозорец →
           </a>
         </div>
+      )}
+
+      {post.gallery.length > 0 && (
+        <PostGallery
+          items={post.gallery.map((img) => ({
+            src: urlForImage(img).width(600).height(600).url(),
+            fullSrc: urlForImage(img).width(2000).url(),
+            alt: img.alt ?? post.title,
+            caption: img.caption,
+          }))}
+        />
       )}
 
       {post.tags.length > 0 && (
