@@ -23,9 +23,12 @@ import { createAdminClient } from "../../../../lib/supabase/admin";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Tallies are social proof — a short shared edge cache keeps origin cost low
-// while staying fresh enough. Keyed by the eventId query param.
-const GET_CACHE = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
+// A vote must show up the instant the voter refreshes, so tallies are NOT
+// shared-cached — a stale CDN copy would read back as "no vote" right after
+// voting (which is exactly what it did). Polls are low-traffic; correctness
+// beats the tiny egress saving here. (Interest counts tolerate a short cache
+// because they never need to reflect the reader's own action on reload.)
+const GET_CACHE = { "Cache-Control": "no-store" };
 
 type Admin = ReturnType<typeof createAdminClient>;
 

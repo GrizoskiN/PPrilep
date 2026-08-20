@@ -5,6 +5,7 @@ import { Star, CalendarDays, MapPin, Clock } from "lucide-react";
 import Link from "next/link";
 import { cn } from "../../lib/utils";
 import ShareSheet from "../ui/ShareSheet";
+import BlurImage from "../ui/BlurImage";
 import EventDetailModal from "./EventDetailModal";
 import FilterSelect from "../ui/FilterSelect";
 import {
@@ -96,10 +97,13 @@ function EventCover({ ev }: { ev: SanityEvent }) {
   if (ev.coverImage?.asset) {
     const src = urlForImage(ev.coverImage).width(800).height(480).url();
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <BlurImage
         src={src}
         alt={ev.coverImage.alt ?? ev.title}
+        width={800}
+        height={480}
+        sizes="(max-width: 640px) 100vw, 400px"
+        wrapperClassName="h-full w-full"
         className="h-full w-full object-cover"
       />
     );

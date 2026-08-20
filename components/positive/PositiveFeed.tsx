@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import BlurImage from "../ui/BlurImage";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { urlForImage } from "../../lib/sanity/image";
@@ -77,26 +77,26 @@ export default function PositiveFeed({ posts }: Props) {
               <Link
                 key={p._id}
                 href={`/positive/${p.slug}`}
-                className="group block overflow-hidden rounded-2xl border border-zinc-200 bg-white transition-all hover:border-zinc-300 hover:shadow-sm">
+                className="group relative block overflow-hidden rounded-2xl border border-zinc-200 bg-white transition-all hover:border-zinc-300 hover:shadow-sm">
                 {p.coverImage ? (
-                  <div className="relative aspect-video w-full bg-zinc-100">
-                    <Image
-                      src={urlForImage(p.coverImage).width(600).height(338).url()}
-                      alt={p.coverImage.alt ?? p.title}
-                      fill
-                      sizes="(max-width: 640px) 100vw, 300px"
-                      className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                    />
-                    {(p.categories ?? []).length > 0 && (
-                      <span className="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-                        {p.categories[0]}
-                      </span>
-                    )}
-                  </div>
+                  <BlurImage
+                    src={urlForImage(p.coverImage).width(600).height(338).url()}
+                    alt={p.coverImage.alt ?? p.title}
+                    width={600}
+                    height={338}
+                    sizes="(max-width: 640px) 100vw, 300px"
+                    wrapperClassName="aspect-video w-full bg-zinc-100"
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  />
                 ) : (
                   <div className="aspect-video w-full bg-zinc-100 flex items-center justify-center text-3xl">
                     ☀️
                   </div>
+                )}
+                {(p.categories ?? []).length > 0 && (
+                  <span className="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+                    {p.categories[0]}
+                  </span>
                 )}
                 <div className="p-3 space-y-1.5">
                   <h2 className="text-sm font-semibold text-zinc-900 leading-snug line-clamp-2 group-hover:text-primary transition-colors">
