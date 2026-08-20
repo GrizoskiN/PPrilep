@@ -1,0 +1,40 @@
+name: EVN Prilep outages sync
+
+on:
+  schedule:
+    # 07:00 and 13:00 UTC ≈ 09:00 and 15:00 Europe/Skopje in summer (UTC+2).
+    # Cron has no timezone support, so in winter (UTC+1) these run at 08:00 /
+    # 14:00 local. Close enough for outage notices; adjust if it ever matters.
+    - cron: "0 7,13 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evn-outages
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PPrilep (for scripts/ingest-evn-outages.mjs)
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            scripts
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Install deps (supabase-js only)
+        run: npm install @supabase/supabase-js
+
+      - name: Sync КЕЦ Прилеп outages → EVN agency posts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/ingest-evn-outages.mjs --commit
