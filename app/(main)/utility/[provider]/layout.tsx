@@ -1,5 +1,6 @@
 import WaterLayoutClient from "../../../../components/utility/WaterLayoutClient";
 import KomunalecLayoutClient from "../../../../components/utility/KomunalecLayoutClient";
+import ElectricityLayoutClient from "../../../../components/utility/ElectricityLayoutClient";
 
 interface Props {
   children: React.ReactNode;
@@ -15,6 +16,10 @@ export default async function UtilityProviderLayout({ children, params }: Props)
 
   if (provider === "garbage") {
     return <KomunalecLayoutClient>{children}</KomunalecLayoutClient>;
+  }
+
+  if (provider === "electricity") {
+    return <ElectricityLayoutClient>{children}</ElectricityLayoutClient>;
   }
 
   return <>{children}</>;

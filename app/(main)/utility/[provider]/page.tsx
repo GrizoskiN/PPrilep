@@ -4,6 +4,7 @@ import StatusPill from "../../../../components/ui/StatusPill";
 import BusRouteMap from "../../../../components/ui/BusRouteMap";
 import BusLineManager from "../../../../components/transport/BusLineManager";
 import WaterQuickActions from "../../../../components/utility/WaterQuickActions";
+import ElectricityQuickActions from "../../../../components/utility/ElectricityQuickActions";
 import WaterInfoAccordion from "../../../../components/utility/WaterInfoAccordion";
 import KomunalecQuickActions from "../../../../components/utility/KomunalecQuickActions";
 import KomunalecInfoAccordion from "../../../../components/utility/KomunalecInfoAccordion";
@@ -161,6 +162,9 @@ export default async function UtilityPage({ params }: Props) {
             <WaterInfoAccordion />
           </>
         )}
+
+        {/* Electricity quick actions — pay bill (EVN) + live outages map */}
+        {p === "electricity" && <ElectricityQuickActions />}
 
         {/* Komunalec quick actions */}
         {p === "garbage" && (
