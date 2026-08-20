@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import ShareSheet from "@/components/ui/ShareSheet";
 import EventInterestButton from "@/components/events/EventInterestButton";
+import EventPoll from "@/components/events/EventPoll";
 import EventCover from "@/components/events/EventCover";
 
 const BASE_URL = "https://mojprilep.mk";
@@ -165,6 +166,8 @@ export default async function EventDetailPage({ params }: Props) {
               {ev.description}
             </p>
           )}
+
+          {ev.poll && <EventPoll eventId={ev._id} poll={ev.poll} />}
 
           {/* Actions */}
           <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-4">

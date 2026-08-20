@@ -13,6 +13,7 @@ import {
 } from "../../lib/data/events";
 import { urlForImage } from "../../lib/sanity/image";
 import type { SanityEvent } from "../../lib/sanity/queries";
+import EventPoll from "./EventPoll";
 import { Star } from "lucide-react";
 
 // ── Date helpers (same as EventsExplorer, no Intl) ──────────────────────────
@@ -206,6 +207,8 @@ export default function EventDetailModal({
               {ev.description}
             </p>
           )}
+
+          {ev.poll && <EventPoll eventId={ev._id} poll={ev.poll} />}
         </div>
 
         {/* Footer actions */}

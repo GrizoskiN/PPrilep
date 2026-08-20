@@ -84,6 +84,14 @@ export type SanityEvent = {
   pinned: boolean;
   slug: string | null;
   autoPost: boolean;
+  /** Optional single-choice poll; null when the editor added none. */
+  poll: EventPoll | null;
+};
+
+/** An editor-authored poll on an event. Options carry their Sanity `_key`. */
+export type EventPoll = {
+  question: string;
+  options: { key: string; label: string }[];
 };
 
 const EVENT_FIELDS = `
@@ -100,7 +108,14 @@ const EVENT_FIELDS = `
     sourceUrl,
     "pinned": coalesce(pinned, false),
     "slug": slug.current,
-    "autoPost": coalesce(autoPost, false)
+    "autoPost": coalesce(autoPost, false),
+    "poll": select(
+      defined(poll.question) && count(poll.options) >= 2 => {
+        "question": poll.question,
+        "options": poll.options[]{ "key": _key, label }
+      },
+      null
+    )
 `;
 
 const EVENTS_QUERY = `

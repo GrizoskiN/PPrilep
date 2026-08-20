@@ -120,6 +120,61 @@ export default defineType({
       title: "Надворешен линк (Facebook настан, билети…)",
       type: "url",
     }),
+
+    // ── Optional poll ─────────────────────────────────────────────────────────
+    // Attach a single-choice poll so visitors can vote on an idea tied to the
+    // event. Votes are stored in Supabase (event_poll_votes), keyed by this
+    // document's _id and each option's stable _key. Leave empty for no poll.
+    defineField({
+      name: "poll",
+      title: "Анкета (опционално)",
+      type: "object",
+      description:
+        "Додади прашање со опции за гласање. Оставете празно ако настанот нема " +
+        "анкета. Немој да ги бришеш/менуваш опциите откако ќе почне гласањето — " +
+        "гласовите се врзани за секоја опција.",
+      options: { collapsible: true, collapsed: true },
+      fields: [
+        defineField({
+          name: "question",
+          title: "Прашање",
+          type: "string",
+          validation: (r) => r.max(200),
+        }),
+        defineField({
+          name: "options",
+          title: "Опции",
+          type: "array",
+          of: [
+            {
+              type: "object",
+              fields: [
+                defineField({
+                  name: "label",
+                  title: "Текст на опцијата",
+                  type: "string",
+                  validation: (r) => r.required().max(120),
+                }),
+              ],
+              preview: { select: { title: "label" } },
+            },
+          ],
+          validation: (r) => r.min(2).max(6),
+        }),
+      ],
+      // A poll is valid only when it has a question AND enough options; a lone
+      // question with no options is an editing mistake, so flag it.
+      validation: (r) =>
+        r.custom((poll: { question?: string; options?: unknown[] } | undefined) => {
+          if (!poll) return true;
+          const hasQ = Boolean(poll.question?.trim());
+          const n = Array.isArray(poll.options) ? poll.options.length : 0;
+          if (!hasQ && n === 0) return true; // empty object = no poll
+          if (!hasQ) return "Внеси прашање за анкетата.";
+          if (n < 2) return "Анкетата треба барем 2 опции.";
+          return true;
+        }),
+    }),
     defineField({
       name: "pinned",
       title: "Закачен настан",
