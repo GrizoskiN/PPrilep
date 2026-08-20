@@ -1,17 +1,12 @@
 import AvatarInitials from "../../../components/ui/AvatarInitials";
 import { createClient } from "../../../lib/supabase/server";
+import { fetchTopHeroes } from "../../../lib/data/issues";
 
 interface Hero {
   name: string;
   username: string | null;
   points: number;
 }
-
-type HeroRow = {
-  full_name: string | null;
-  username: string | null;
-  points: number | null;
-};
 
 function HeroList({ heroes }: { heroes: Hero[] }) {
   if (heroes.length === 0) {
@@ -51,17 +46,13 @@ function HeroList({ heroes }: { heroes: Hero[] }) {
 
 export default async function HeroesPage() {
   const supabase = await createClient();
-  // Full leaderboard: everyone with at least one community applause, ranked.
-  const { data } = await supabase
-    .from("profiles")
-    .select("full_name, username, points")
-    .gt("points", 0)
-    .order("points", { ascending: false })
-    .limit(50);
-  const heroes: Hero[] = ((data as HeroRow[] | null) ?? []).map((h) => ({
-    name: h.full_name ?? h.username ?? "Анонимно",
+  // Full leaderboard: everyone credited on a resolved issue, ranked by the real
+  // applause (issue_resolution_upvotes) their solved issues received.
+  const rows = await fetchTopHeroes(supabase, 50);
+  const heroes: Hero[] = rows.map((h) => ({
+    name: h.name,
     username: h.username,
-    points: h.points ?? 0,
+    points: h.points,
   }));
 
   return (

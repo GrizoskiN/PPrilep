@@ -4,6 +4,7 @@ import HomeAgencyFeed from "../../components/agency/HomeAgencyFeed";
 import { createClient } from "../../lib/supabase/server";
 import { DISTRICT_LABELS, STATUS_LABELS, getIssuePath } from "../../lib/utils";
 import { STAGE_LABEL } from "../../lib/initiatives";
+import { fetchTopHeroes } from "../../lib/data/issues";
 import type { AgencyPost } from "../../lib/types/database";
 
 type HomeIssue = {
@@ -23,12 +24,6 @@ type HomeInitiative = {
   created_at: string;
 };
 
-type HeroRow = {
-  full_name: string | null;
-  username: string | null;
-  points: number | null;
-};
-
 export default async function HomePage() {
   const supabase = await createClient();
   // Hide agency posts whose active window hasn't started or has ended.
@@ -38,7 +33,7 @@ export default async function HomePage() {
     { data: authUser },
     { data: issues },
     { data: initiatives },
-    { data: heroes },
+    heroes,
     { data: agencyPosts },
   ] = await Promise.all([
     supabase.auth.getUser(),
@@ -52,14 +47,9 @@ export default async function HomePage() {
       .select("id, title, stage, vote_count, district, created_at")
       .order("created_at", { ascending: false })
       .limit(3),
-    // Top heroes by community applause (profiles.points, incremented by
-    // award_applause). Only people who've actually earned an applause show.
-    supabase
-      .from("profiles")
-      .select("full_name, username, points")
-      .gt("points", 0)
-      .order("points", { ascending: false })
-      .limit(3),
+    // Top heroes by real community applause — the applause button writes to
+    // issue_resolution_upvotes, summed per resolver. (NOT profiles.points.)
+    fetchTopHeroes(supabase, 3),
     supabase
       .from("agency_posts")
       .select("*")
@@ -93,12 +83,10 @@ export default async function HomePage() {
     if (rawName) greetingName = rawName.trim().split(/\s+/)[0];
   }
 
-  // Live leaderboard: top citizens by community applause (profiles.points).
-  const topHeroes: { count: number; name: string }[] = (
-    (heroes as HeroRow[] | null) ?? []
-  ).map((h) => ({
-    name: h.full_name ?? h.username ?? "Анонимно",
-    count: h.points ?? 0,
+  // Live leaderboard: top citizens by real community applause.
+  const topHeroes: { count: number; name: string }[] = heroes.map((h) => ({
+    name: h.name,
+    count: h.points,
   }));
 
   const latestIssues = (issues as HomeIssue[] | null) ?? [];

@@ -359,3 +359,70 @@ export async function fetchIssueHelpOffers(
 
   return { ok: true, offers: offers_ };
 }
+
+// ── Community heroes leaderboard ─────────────────────────────────────────────
+
+export interface HeroRow {
+  /** Stable dedup key: `user:<uuid>` or `label:<name>`. */
+  key: string;
+  name: string;
+  username: string | null;
+  points: number;
+}
+
+/**
+ * The live "Херои на заедницата" leaderboard, built from real applause: every
+ * resolved issue that credits someone (a registered resolver via `resolved_by`,
+ * or a free-text `resolved_by_label`), summing the applause rows in
+ * `issue_resolution_upvotes` on each of their issues. Ranked by total applause.
+ *
+ * This mirrors the mobile `fetchHeroes` exactly so web and app agree. NOTE: the
+ * source of truth is `issue_resolution_upvotes` (the applause button), NOT
+ * `profiles.points` (which only the approve-a-resolved-proposal path bumps).
+ */
+export async function fetchTopHeroes(
+  supabase: SupabaseClient,
+  limit = 20,
+): Promise<HeroRow[]> {
+  const { data, error } = await supabase
+    .from("issues")
+    .select(
+      "id, resolved_by, resolved_by_label, resolver:resolved_by(full_name, username), applause:issue_resolution_upvotes(count)",
+    )
+    .eq("status", "resolved");
+  if (error || !data) return [];
+
+  const map = new Map<string, HeroRow>();
+  for (const row of data as unknown as Array<{
+    resolved_by: string | null;
+    resolved_by_label: string | null;
+    resolver: { full_name: string | null; username: string | null } | null;
+    applause: { count: number }[] | null;
+  }>) {
+    const label = (row.resolved_by_label ?? "").trim();
+    // Embedded aggregate comes back as `[{ count: N }]`.
+    const applause = Array.isArray(row.applause) ? row.applause[0]?.count ?? 0 : 0;
+
+    let key: string;
+    let name: string;
+    let username: string | null;
+    if (label) {
+      // Free-text credit: fold case-insensitively so "Комуналец" == "комуналец".
+      key = `label:${label.toLowerCase()}`;
+      name = label;
+      username = null;
+    } else if (row.resolved_by && row.resolver) {
+      key = `user:${row.resolved_by}`;
+      name = row.resolver.full_name || row.resolver.username || "Херо";
+      username = row.resolver.username ?? null;
+    } else {
+      continue; // resolved but nobody credited — not a hero entry
+    }
+
+    const existing = map.get(key);
+    if (existing) existing.points += applause;
+    else map.set(key, { key, name, username, points: applause });
+  }
+
+  return [...map.values()].sort((a, b) => b.points - a.points).slice(0, limit);
+}
