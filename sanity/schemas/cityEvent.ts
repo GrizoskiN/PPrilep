@@ -155,8 +155,17 @@ export default defineType({
                   type: "string",
                   validation: (r) => r.required().max(120),
                 }),
+                defineField({
+                  name: "image",
+                  title: "Слика (опционално)",
+                  type: "image",
+                  description:
+                    "Додади слика за опцијата — луѓето може да ја допрат за да " +
+                    "гласаат. Стави слики на сите опции или на ниту една.",
+                  options: { hotspot: true },
+                }),
               ],
-              preview: { select: { title: "label" } },
+              preview: { select: { title: "label", media: "image" } },
             },
           ],
           validation: (r) => r.min(2).max(6),

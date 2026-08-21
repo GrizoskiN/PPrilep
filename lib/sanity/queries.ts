@@ -98,7 +98,12 @@ export type SanityEvent = {
 /** An editor-authored poll on an event. Options carry their Sanity `_key`. */
 export type EventPoll = {
   question: string;
-  options: { key: string; label: string }[];
+  options: {
+    key: string;
+    label: string;
+    /** Optional per-option image; editors add it in Studio, null when absent. */
+    image: { asset: { _ref: string } } | null;
+  }[];
 };
 
 const EVENT_FIELDS = `
@@ -119,7 +124,7 @@ const EVENT_FIELDS = `
     "poll": select(
       defined(poll.question) && count(poll.options) >= 2 => {
         "question": poll.question,
-        "options": poll.options[]{ "key": _key, label }
+        "options": poll.options[]{ "key": _key, label, "image": coalesce(image, null) }
       },
       null
     )

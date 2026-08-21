@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { urlForImage } from "../../lib/sanity/image";
 import type { EventPoll as EventPollData } from "../../lib/sanity/queries";
 
 /**
@@ -86,6 +87,9 @@ export default function EventPoll({
 
   const total = Object.values(tallies).reduce((a, b) => a + b, 0);
   const voted = mine !== null;
+  // If the editor attached a picture to any option, render the whole poll as a
+  // grid of tappable photo cards; otherwise fall back to the compact bar list.
+  const hasImages = poll.options.some((o) => o.image);
 
   function vote(optionKey: string) {
     if (busy) return;
@@ -127,49 +131,119 @@ export default function EventPoll({
         <h2 className="text-sm font-semibold text-theme-heading">{poll.question}</h2>
       </div>
 
-      <div className="space-y-2">
-        {poll.options.map((opt) => {
-          const count = tallies[opt.key] ?? 0;
-          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-          const chosen = mine === opt.key;
-          return (
-            <button
-              key={opt.key}
-              onClick={() => vote(opt.key)}
-              disabled={busy}
-              aria-pressed={chosen}
-              className={cn(
-                "relative w-full overflow-hidden rounded-lg border px-3 py-2.5 text-left transition-colors disabled:opacity-70",
-                chosen
-                  ? "border-primary bg-primary-light"
-                  : "border-theme bg-theme-surface hover:border-primary/50",
-              )}>
-              {/* Result bar — only after the reader has voted. */}
-              {voted && (
-                <span
-                  className={cn(
-                    "absolute inset-y-0 left-0 rounded-lg transition-[width] duration-500",
-                    chosen ? "bg-primary/20" : "bg-theme-canvas",
+      {hasImages ? (
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          {poll.options.map((opt) => {
+            const count = tallies[opt.key] ?? 0;
+            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+            const chosen = mine === opt.key;
+            const src = opt.image
+              ? urlForImage(opt.image).width(400).height(400).fit("crop").url()
+              : null;
+            return (
+              <button
+                key={opt.key}
+                onClick={() => vote(opt.key)}
+                disabled={busy}
+                aria-pressed={chosen}
+                className={cn(
+                  "group relative overflow-hidden rounded-xl border-2 text-left transition-all disabled:opacity-70",
+                  chosen
+                    ? "border-primary ring-2 ring-primary/30"
+                    : "border-theme hover:border-primary/50",
+                )}>
+                {/* Photo */}
+                <div className="relative aspect-square w-full overflow-hidden bg-theme-canvas">
+                  {src ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={src}
+                      alt={opt.label}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-2xl text-theme-subtle">
+                      📷
+                    </div>
                   )}
-                  style={{ width: `${pct}%` }}
-                  aria-hidden
-                />
-              )}
-              <span className="relative flex items-center justify-between gap-3">
-                <span className="flex items-center gap-2 text-sm font-medium text-theme-heading">
-                  {chosen && <Check size={14} className="text-primary" />}
-                  {opt.label}
-                </span>
-                {voted && (
-                  <span className="text-xs font-bold tabular-nums text-theme-muted">
-                    {pct}%
+                  {/* Chosen tick */}
+                  {chosen && (
+                    <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white shadow">
+                      <Check size={14} />
+                    </span>
+                  )}
+                  {/* Percentage badge — after voting */}
+                  {voted && (
+                    <span className="absolute bottom-1.5 right-1.5 rounded-md bg-black/65 px-1.5 py-0.5 text-xs font-bold tabular-nums text-white">
+                      {pct}%
+                    </span>
+                  )}
+                </div>
+                {/* Label + result bar */}
+                <div className="relative px-2.5 py-2">
+                  {voted && (
+                    <span
+                      className={cn(
+                        "absolute inset-y-0 left-0 transition-[width] duration-500",
+                        chosen ? "bg-primary/20" : "bg-theme-canvas",
+                      )}
+                      style={{ width: `${pct}%` }}
+                      aria-hidden
+                    />
+                  )}
+                  <span className="relative block text-sm font-medium text-theme-heading">
+                    {opt.label}
                   </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {poll.options.map((opt) => {
+            const count = tallies[opt.key] ?? 0;
+            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+            const chosen = mine === opt.key;
+            return (
+              <button
+                key={opt.key}
+                onClick={() => vote(opt.key)}
+                disabled={busy}
+                aria-pressed={chosen}
+                className={cn(
+                  "relative w-full overflow-hidden rounded-lg border px-3 py-2.5 text-left transition-colors disabled:opacity-70",
+                  chosen
+                    ? "border-primary bg-primary-light"
+                    : "border-theme bg-theme-surface hover:border-primary/50",
+                )}>
+                {/* Result bar — only after the reader has voted. */}
+                {voted && (
+                  <span
+                    className={cn(
+                      "absolute inset-y-0 left-0 rounded-lg transition-[width] duration-500",
+                      chosen ? "bg-primary/20" : "bg-theme-canvas",
+                    )}
+                    style={{ width: `${pct}%` }}
+                    aria-hidden
+                  />
                 )}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                <span className="relative flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-sm font-medium text-theme-heading">
+                    {chosen && <Check size={14} className="text-primary" />}
+                    {opt.label}
+                  </span>
+                  {voted && (
+                    <span className="text-xs font-bold tabular-nums text-theme-muted">
+                      {pct}%
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <p className="mt-2.5 text-xs text-theme-subtle">
         {total === 0
