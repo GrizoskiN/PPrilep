@@ -138,7 +138,7 @@ export default function EventPoll({
             const pct = total > 0 ? Math.round((count / total) * 100) : 0;
             const chosen = mine === opt.key;
             const src = opt.image
-              ? urlForImage(opt.image).width(400).height(400).fit("crop").url()
+              ? urlForImage(opt.image).width(600).height(800).fit("crop").url()
               : null;
             return (
               <button
@@ -153,7 +153,7 @@ export default function EventPoll({
                     : "border-theme hover:border-primary/50",
                 )}>
                 {/* Photo */}
-                <div className="relative aspect-square w-full overflow-hidden bg-theme-canvas">
+                <div className="relative aspect-[3/4] w-full overflow-hidden bg-theme-canvas">
                   {src ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -191,7 +191,7 @@ export default function EventPoll({
                       aria-hidden
                     />
                   )}
-                  <span className="relative block text-sm font-medium text-theme-heading">
+                  <span className="relative block text-center text-sm font-medium text-theme-heading">
                     {opt.label}
                   </span>
                 </div>
