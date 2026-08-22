@@ -36,6 +36,7 @@ import {
   getIssuePath,
   cdnUrl,
   bucketObjectPath,
+  DISTRICT_LABELS,
 } from "../../lib/utils";
 import { incrementIssueViews } from "../../lib/views";
 import { agencyHandlesCategory } from "../../lib/agencies";
@@ -44,7 +45,20 @@ import {
   ISSUE_STATUS_LABELS,
   ISSUE_STATUS_MENU_TEXT_CLASSES,
 } from "../../lib/status";
-import type { Issue, IssueStatus } from "../../lib/types/database";
+import type { Issue, IssueStatus, District } from "../../lib/types/database";
+
+// The Naselba (district) options an admin can reassign an issue to. Order
+// mirrors the filter dropdown; labels come from DISTRICT_LABELS.
+const DISTRICT_OPTIONS: District[] = [
+  "Center",
+  "Varoš",
+  "Trizla",
+  "Točila",
+  "Rid",
+  "Tipski",
+  "Boncejca",
+  "KorzoMaalo",
+];
 import { toast } from "sonner";
 import { createClient } from "../../lib/supabase/client";
 import { useAuth } from "../../lib/hooks/useAuth";
@@ -171,6 +185,7 @@ export default function IssueDetail({
     issue.description ?? "",
   );
   const [editStreet, setEditStreet] = useState(issue.street_name ?? "");
+  const [editDistrict, setEditDistrict] = useState<District>(issue.district as District);
   const [savingIssue, setSavingIssue] = useState(false);
   const [deletingIssue, setDeletingIssue] = useState(false);
 
@@ -289,6 +304,7 @@ export default function IssueDetail({
       setEditTitle(issue.title);
       setEditDescription(issue.description ?? "");
       setEditStreet(issue.street_name ?? "");
+      setEditDistrict(issue.district as District);
       setIsEditing(false);
     }, 0);
     return () => clearTimeout(id);
@@ -770,6 +786,8 @@ export default function IssueDetail({
       title,
       description: editDescription.trim() || null,
       street_name: editStreet.trim() || null,
+      // Only admins may reassign the Naselba; for a plain author keep it as-is.
+      ...(isAdmin ? { district: editDistrict } : {}),
     };
 
     let q = supabase.from("issues").update(payload).eq("id", currentIssue.id);
@@ -2335,6 +2353,7 @@ export default function IssueDetail({
                           setEditTitle(currentIssue.title);
                           setEditDescription(currentIssue.description ?? "");
                           setEditStreet(currentIssue.street_name ?? "");
+                          setEditDistrict(currentIssue.district as District);
                           setShowModMenu(false);
                         }}
                         className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50">
@@ -2434,6 +2453,18 @@ export default function IssueDetail({
                   className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-xs text-zinc-700 outline-none focus:border-teal-400"
                   placeholder="Улица (опционално)"
                 />
+                {isAdmin && (
+                  <select
+                    value={editDistrict}
+                    onChange={(e) => setEditDistrict(e.target.value as District)}
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-xs text-zinc-700 outline-none focus:border-teal-400">
+                    {DISTRICT_OPTIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {DISTRICT_LABELS[d] ?? d}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <textarea
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
@@ -2578,6 +2609,7 @@ export default function IssueDetail({
                           setEditTitle(currentIssue.title);
                           setEditDescription(currentIssue.description ?? "");
                           setEditStreet(currentIssue.street_name ?? "");
+                          setEditDistrict(currentIssue.district as District);
                           setShowModMenu(false);
                         }}
                         className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
@@ -2742,6 +2774,18 @@ export default function IssueDetail({
                 className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-xs text-zinc-700 outline-none focus:border-teal-400"
                 placeholder="Улица (опционално)"
               />
+              {isAdmin && (
+                <select
+                  value={editDistrict}
+                  onChange={(e) => setEditDistrict(e.target.value as District)}
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-xs text-zinc-700 outline-none focus:border-teal-400">
+                  {DISTRICT_OPTIONS.map((d) => (
+                    <option key={d} value={d}>
+                      {DISTRICT_LABELS[d] ?? d}
+                    </option>
+                  ))}
+                </select>
+              )}
               <textarea
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
