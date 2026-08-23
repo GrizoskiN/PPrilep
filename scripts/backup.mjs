@@ -9,7 +9,7 @@
 //    • tables/<name>.json   — every row of every table (full SELECT *)
 //    • auth_users.json      — account list incl. EMAILS (members/companies who
 //                             gave money — profiles does not store the email)
-//    • storage/<bucket>/…   — the actual photo files, folder structure preserved
+//    • ../storage-pool/<bucket>/…  — the actual photo files (see note below)
 //    • manifest.json        — what was backed up, row/file counts, timestamp
 //
 //  Run:   node scripts/backup.mjs            (saves to ppp/backups/)
@@ -19,7 +19,7 @@
 //  The service-role key bypasses RLS so it sees EVERY row — keep these backups
 //  private (they contain personal data); the destination is outside the git repo.
 // ════════════════════════════════════════════════════════════════════════════
-import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
@@ -69,6 +69,16 @@ const TABLES = [
 ];
 
 const STORAGE_BUCKETS = ["issue-photos", "initiative-images"];
+
+// Storage photos are downloaded ONCE, ever, into a single shared pool that lives
+// beside the timestamped snapshots (not inside them). Photos are immutable —
+// their storage keys carry a timestamp + random suffix — so an object already in
+// the pool never needs re-downloading. This is the whole point: re-downloading
+// every bucket on every run was the dominant source of Supabase cached egress
+// (a full-bucket pull daily). We still re-download an object if its byte size no
+// longer matches the pool copy (covers the rare upsert-in-place case). The DB
+// dumps below are cheap and stay a fresh full snapshot per run.
+const POOL = join(process.argv[2] || defaultRoot, "storage-pool");
 
 const manifest = { startedAt: new Date().toISOString(), project: url, tables: {}, auth: {}, storage: {} };
 let warnings = 0;
@@ -120,41 +130,51 @@ for (const table of TABLES) {
   console.log(`  ✓ auth_users                 ${users.length} accounts`);
 }
 
-// ── 3. download storage files (recurse folders) ──────────────────────────────
-async function downloadFolder(bucket, prefix) {
-  let count = 0;
+// ── 3. sync storage files into the shared pool (incremental) ─────────────────
+// Only objects missing from the pool (or whose size changed) are downloaded, so
+// each photo costs egress exactly once instead of on every run.
+async function syncFolder(bucket, prefix, stats) {
   let offset = 0;
   const PAGE = 1000;
   for (;;) {
     const { data, error } = await supabase.storage.from(bucket).list(prefix, {
       limit: PAGE, offset, sortBy: { column: "name", order: "asc" },
     });
-    if (error) { console.warn(`  ⚠ ${bucket}/${prefix}: ${error.message}`); warnings++; return count; }
+    if (error) { console.warn(`  ⚠ ${bucket}/${prefix}: ${error.message}`); warnings++; return; }
     if (!data.length) break;
     for (const entry of data) {
       const path = prefix ? `${prefix}/${entry.name}` : entry.name;
       if (entry.id === null) {
         // a folder — recurse
-        count += await downloadFolder(bucket, path);
-      } else {
-        const { data: blob, error: dlErr } = await supabase.storage.from(bucket).download(path);
-        if (dlErr) { console.warn(`  ⚠ download ${bucket}/${path}: ${dlErr.message}`); warnings++; continue; }
-        const dest = join(OUT, "storage", bucket, path);
-        mkdirSync(dirname(dest), { recursive: true });
-        writeFileSync(dest, Buffer.from(await blob.arrayBuffer()));
-        count++;
+        await syncFolder(bucket, path, stats);
+        continue;
       }
+      const dest = join(POOL, bucket, path);
+      const remoteSize = entry.metadata?.size;
+      // Skip if we already hold a copy of the same size (no egress). When the
+      // remote size is unknown we fall back to "present on disk = keep".
+      if (existsSync(dest) && (remoteSize == null || statSync(dest).size === remoteSize)) {
+        stats.skipped++;
+        continue;
+      }
+      const { data: blob, error: dlErr } = await supabase.storage.from(bucket).download(path);
+      if (dlErr) { console.warn(`  ⚠ download ${bucket}/${path}: ${dlErr.message}`); warnings++; continue; }
+      mkdirSync(dirname(dest), { recursive: true });
+      writeFileSync(dest, Buffer.from(await blob.arrayBuffer()));
+      stats.downloaded++;
     }
     if (data.length < PAGE) break;
     offset += PAGE;
   }
-  return count;
 }
 
 for (const bucket of STORAGE_BUCKETS) {
-  const n = await downloadFolder(bucket, "");
-  manifest.storage[bucket] = n;
-  console.log(`  ✓ storage/${bucket.padEnd(20)} ${n} files`);
+  const stats = { downloaded: 0, skipped: 0 };
+  await syncFolder(bucket, "", stats);
+  manifest.storage[bucket] = stats;
+  console.log(
+    `  ✓ storage/${bucket.padEnd(20)} ${stats.downloaded} new, ${stats.skipped} cached`,
+  );
 }
 
 // ── 4. manifest ──────────────────────────────────────────────────────────────
