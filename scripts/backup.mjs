@@ -68,7 +68,17 @@ const TABLES = [
   "notifications", "utility_posts",
 ];
 
-const STORAGE_BUCKETS = ["issue-photos", "initiative-images"];
+// Every public bucket the app writes to. avatars and partner-logos are tiny
+// next to the photo buckets, but losing them would leave the whole platform
+// rendering blank profile pictures and partner cards — and now that the sync
+// below is incremental, carrying them costs one seeding pull and ~nothing
+// per day after.
+const STORAGE_BUCKETS = [
+  "issue-photos",
+  "initiative-images",
+  "avatars",
+  "partner-logos",
+];
 
 // Storage photos are downloaded ONCE, ever, into a single shared pool that lives
 // beside the timestamped snapshots (not inside them). Photos are immutable —
