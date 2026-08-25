@@ -19,7 +19,7 @@
 //  The service-role key bypasses RLS so it sees EVERY row — keep these backups
 //  private (they contain personal data); the destination is outside the git repo.
 // ════════════════════════════════════════════════════════════════════════════
-import { readFileSync, mkdirSync, writeFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync, existsSync, statSync, readdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
@@ -192,6 +192,30 @@ for (const bucket of STORAGE_BUCKETS) {
 manifest.finishedAt = new Date().toISOString();
 manifest.warnings = warnings;
 writeFileSync(join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2));
+
+// ── 5. prune old snapshots ───────────────────────────────────────────────────
+// Snapshots are timestamped directories of table JSON — ~2MB each now that the
+// photos live in the shared pool, so a month of them is cheap insurance against
+// a bad data change nobody noticed for a few weeks.
+//
+// The pool is NEVER pruned. It is the only copy of photos that have since been
+// deleted from live Storage, and clearing it would also force a full
+// re-download on the next run — the exact egress the pool exists to avoid.
+const KEEP_DAYS = 30;
+const cutoff = Date.now() - KEEP_DAYS * 24 * 60 * 60 * 1000;
+const backupRoot = process.argv[2] || defaultRoot;
+let pruned = 0;
+for (const name of readdirSync(backupRoot)) {
+  // Only ISO-stamped snapshot dirs — never "storage-pool" or anything else the
+  // folder happens to hold.
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$/.test(name)) continue;
+  if (name === stamp) continue; // never the run we just wrote
+  const when = Date.parse(name.replace(/T(\d{2})-(\d{2})-(\d{2})$/, "T$1:$2:$3Z"));
+  if (Number.isNaN(when) || when >= cutoff) continue;
+  rmSync(join(backupRoot, name), { recursive: true, force: true });
+  pruned++;
+}
+if (pruned) console.log(`\n  ✓ pruned ${pruned} snapshot(s) older than ${KEEP_DAYS} days`);
 
 console.log(`\n  Backup complete → ${OUT}`);
 if (warnings) console.log(`  (${warnings} warning(s) above — usually tables that don't exist; safe to ignore.)`);
