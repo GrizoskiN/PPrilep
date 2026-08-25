@@ -16,7 +16,12 @@ export default function PastScreeningsPanel({
   screenings: PastScreening[];
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    // The middle column carries --app-pad-y; the panel column does not, so it
+    // takes the same value here rather than a hand-picked margin that would
+    // drift the moment the token changes.
+    <div
+      className="rounded-2xl border border-slate-200 bg-white p-4"
+      style={{ marginTop: "var(--app-pad-y)" }}>
       <h2 className="flex items-center gap-2 text-sm font-semibold text-theme-heading">
         <Popcorn size={16} className="text-primary" />
         Досега гледавме
@@ -27,32 +32,30 @@ export default function PastScreeningsPanel({
           Штом ќе го одгледаме првиот филм, ќе се појави тука.
         </p>
       ) : (
-        <ul className="mt-3 space-y-3">
+        <ul className="mt-4 space-y-5">
           {screenings.map((s) => (
-            <li key={s.id} className="flex gap-3">
+            <li key={s.id} className="flex flex-col items-center text-center">
               {s.poster_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={s.poster_url}
                   alt=""
-                  className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                  className="aspect-[16/9] w-full rounded-xl object-cover"
                 />
               ) : (
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-300">
-                  <Popcorn size={16} />
+                <span className="flex aspect-[16/9] w-full items-center justify-center rounded-xl bg-slate-100 text-slate-300">
+                  <Popcorn size={22} />
                 </span>
               )}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-theme-heading">
-                  {s.title}
-                </span>
-                <span className="block text-xs text-theme-muted">
-                  {formatScreeningDate(s.screened_at)}
-                </span>
-                {s.note && (
-                  <span className="mt-0.5 block text-xs text-theme-muted">{s.note}</span>
-                )}
+              <span className="mt-2 text-sm font-semibold text-theme-heading">
+                {s.title}
               </span>
+              <span className="text-xs text-theme-muted">
+                {formatScreeningDate(s.screened_at)}
+              </span>
+              {s.note && (
+                <span className="mt-1 text-xs text-theme-muted">{s.note}</span>
+              )}
             </li>
           ))}
         </ul>
