@@ -68,16 +68,17 @@ const TABLES = [
   "notifications", "utility_posts",
 ];
 
-// Every public bucket the app writes to. avatars and partner-logos are tiny
-// next to the photo buckets, but losing them would leave the whole platform
-// rendering blank profile pictures and partner cards — and now that the sync
-// below is incremental, carrying them costs one seeding pull and ~nothing
-// per day after.
+// The buckets worth the egress: user-submitted photos that exist nowhere else.
+// Lose an issue photo and the report it documents is gone for good.
+//
+// `avatars` and `partner-logos` are deliberately NOT here. They are cheap to
+// reconstruct — an avatar is re-uploaded by its owner (or falls back to the
+// Google picture), a partner logo is re-uploaded from the /sponsors admin panel
+// — so backing them up buys a blank-picture inconvenience, not data. Seeding
+// them cost a full-bucket pull on 2026-08-25 for exactly that.
 const STORAGE_BUCKETS = [
   "issue-photos",
   "initiative-images",
-  "avatars",
-  "partner-logos",
 ];
 
 // Storage photos are downloaded ONCE, ever, into a single shared pool that lives
