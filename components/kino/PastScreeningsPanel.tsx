@@ -40,10 +40,10 @@ export default function PastScreeningsPanel({
                 <img
                   src={s.poster_url}
                   alt=""
-                  className="aspect-[16/9] w-full rounded-xl object-cover"
+                  className="aspect-[2/3] w-full max-w-[9.5rem] rounded-xl object-cover"
                 />
               ) : (
-                <span className="flex aspect-[16/9] w-full items-center justify-center rounded-xl bg-slate-100 text-slate-300">
+                <span className="flex aspect-[2/3] w-full max-w-[9.5rem] items-center justify-center rounded-xl bg-slate-100 text-slate-300">
                   <Popcorn size={22} />
                 </span>
               )}
