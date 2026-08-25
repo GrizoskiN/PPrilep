@@ -190,7 +190,7 @@ export async function fetchPastScreenings(limit = 12): Promise<PastScreening[]> 
       title: d.title,
       screened_at: d.screenedAt,
       poster_url: d.poster?.asset?._ref
-        ? urlForImage(d.poster).width(400).height(600).fit("crop").url()
+        ? urlForImage(d.poster).width(600).height(900).fit("crop").url()
         : null,
       note: d.note ?? null,
     }));
