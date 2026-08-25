@@ -26,6 +26,7 @@ export const THREE_COLUMN_ROUTES: readonly string[] = [
   "/utility/garbage",     // Комуналец
   "/utility/electricity", // Струја — ЕВН
   "/recycle",             // Рециклирање
+  "/kino",                // Кино анкета
   "/privacy",          // Политика на приватност
   "/terms",            // Услови за користење
   "/data-deletion",    // Бришење на податоци
@@ -59,7 +60,7 @@ export function usesThreeColumns(pathname: string): boolean {
 // during SSR / first paint we show a neutral skeleton instead of the default
 // info panel — avoiding a flash of the wrong content on hard refresh.
 
-const CUSTOM_PANEL_ROUTES: readonly string[] = ["/sponsors", "/kindergarten", "/account", "/about", "/projects", "/positive", "/utility/water", "/utility/garbage", "/utility/electricity", "/recycle"];
+const CUSTOM_PANEL_ROUTES: readonly string[] = ["/sponsors", "/kindergarten", "/account", "/about", "/projects", "/positive", "/utility/water", "/utility/garbage", "/utility/electricity", "/recycle", "/kino"];
 
 /** True when the route supplies its own right panel (so default → skeleton). */
 export function routeHasCustomPanel(pathname: string): boolean {

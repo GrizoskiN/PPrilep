@@ -4,5 +4,6 @@ import tag from "./tag";
 import cityEvent from "./cityEvent";
 import project from "./project";
 import moviePoll from "./moviePoll";
+import pastScreening from "./pastScreening";
 
-export const schemaTypes = [post, author, tag, cityEvent, project, moviePoll];
+export const schemaTypes = [post, author, tag, cityEvent, project, moviePoll, pastScreening];

@@ -106,22 +106,95 @@ export async function loadPoll(pollId: string | null): Promise<PollRow | null> {
   }
 }
 
-/**
- * "среда, 27 август во 21:30" — pinned to Europe/Skopje, because the screening
- * happens in Prilep no matter where the reader's device thinks it is.
- */
-export function formatScreening(iso: string): string {
-  const d = new Date(iso);
-  const day = new Intl.DateTimeFormat("mk-MK", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
+// Macedonian month and weekday names, written out rather than left to Intl.
+// `mk-MK` is not in every runtime's ICU data — on the server it silently fell
+// back to English ("Thursday, August 27"), which is not a failure Intl reports.
+// Only the timeZone shift is taken from Intl, and that works everywhere.
+const MK_MONTHS = [
+  "јануари", "февруари", "март", "април", "мај", "јуни",
+  "јули", "август", "септември", "октомври", "ноември", "декември",
+];
+const MK_WEEKDAYS = [
+  "недела", "понеделник", "вторник", "среда", "четврток", "петок", "сабота",
+];
+
+/** The date's parts as they read in Prilep, whatever the server's timezone. */
+function skopjeParts(iso: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Skopje",
-  }).format(d);
-  const time = new Intl.DateTimeFormat("mk-MK", {
+    weekday: "short",
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "Europe/Skopje",
-  }).format(d);
-  return `${day} во ${time}`;
+    hour12: false,
+  }).formatToParts(new Date(iso));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const weekdayIndex = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
+    get("weekday"),
+  );
+  return {
+    weekday: MK_WEEKDAYS[weekdayIndex] ?? "",
+    day: Number(get("day")),
+    month: MK_MONTHS[Number(get("month")) - 1] ?? "",
+    year: get("year"),
+    // 24:00 is how en-GB renders midnight with hour12:false.
+    hour: get("hour") === "24" ? "00" : get("hour"),
+    minute: get("minute"),
+  };
+}
+
+/** "четврток, 27 август во 21:30" */
+export function formatScreening(iso: string): string {
+  const p = skopjeParts(iso);
+  return `${p.weekday}, ${p.day} ${p.month} во ${p.hour}:${p.minute}`;
+}
+
+/** "27 август 2026" — the date alone, for screenings already past. */
+export function formatScreeningDate(iso: string): string {
+  const p = skopjeParts(iso);
+  return `${p.day} ${p.month} ${p.year}`;
+}
+
+/** A screening that already happened — the archive shown next to the poll. */
+export type PastScreening = {
+  id: string;
+  title: string;
+  screened_at: string;
+  poster_url: string | null;
+  note: string | null;
+};
+
+type SanityScreening = {
+  _id: string;
+  title: string;
+  screenedAt: string;
+  poster?: { asset?: { _ref?: string } };
+  note?: string;
+};
+
+/**
+ * The most recent screenings, newest first. Capped because this is a sidebar,
+ * not an archive page — twelve is about two screenings a month for half a year.
+ */
+export async function fetchPastScreenings(limit = 12): Promise<PastScreening[]> {
+  try {
+    const docs = await sanityClient.fetch<SanityScreening[]>(
+      `*[_type == "pastScreening" && defined(screenedAt)]
+       | order(screenedAt desc)[0...$limit]{_id, title, screenedAt, poster, note}`,
+      { limit },
+    );
+    return (docs ?? []).map((d) => ({
+      id: d._id,
+      title: d.title,
+      screened_at: d.screenedAt,
+      poster_url: d.poster?.asset?._ref
+        ? urlForImage(d.poster).width(160).height(160).fit("crop").url()
+        : null,
+      note: d.note ?? null,
+    }));
+  } catch {
+    return [];
+  }
 }

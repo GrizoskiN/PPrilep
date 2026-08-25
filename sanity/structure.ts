@@ -50,6 +50,13 @@ export const structure: StructureResolver = (S) =>
       S.listItem()
         .title("🎬 Кино анкети")
         .child(S.documentTypeList("moviePoll").title("Кино анкети")),
+    S.listItem()
+      .title("🍿 Одгледани филмови")
+      .child(
+        S.documentTypeList("pastScreening")
+          .title("Одгледани филмови")
+          .defaultOrdering([{ field: "screenedAt", direction: "desc" }]),
+      ),
 
       S.divider(),
 
