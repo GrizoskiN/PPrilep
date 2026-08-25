@@ -105,7 +105,8 @@ export async function GET(req: Request) {
       { poll: { ...poll, live: isLive(poll) }, ...state },
       { headers: NO_STORE },
     );
-  } catch {
+  } catch (err) {
+    console.error("[movie-poll] GET failed", err);
     return NextResponse.json(EMPTY, { headers: NO_STORE });
   }
 }
@@ -247,7 +248,11 @@ export async function POST(req: Request) {
 
     const state = await stateFor(admin, pollId, { userId: user?.id, visitorId });
     return NextResponse.json({ pollId, ...state }, { headers: NO_STORE });
-  } catch {
+  } catch (err) {
+    // Logged, not returned: the caller gets a generic message, but a 500 with
+    // no trace anywhere is undiagnosable — which is exactly what a bigint/text
+    // mismatch on poll_id looked like.
+    console.error("[movie-poll] POST failed", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
