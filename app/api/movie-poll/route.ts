@@ -49,7 +49,7 @@ async function stateFor(
   const [optionsRes, votesRes] = await Promise.all([
     admin
       .from("movie_poll_options")
-      .select("id, title, created_at")
+      .select("id, title, created_at, created_by")
       .eq("poll_id", pollId)
       .eq("is_hidden", false)
       .order("created_at", { ascending: true }),
@@ -77,8 +77,18 @@ async function stateFor(
     }
   }
 
-  const options = ((optionsRes.data ?? []) as { id: number; title: string }[])
-    .map((o) => ({ id: o.id, title: o.title, votes: counts.get(o.id) ?? 0 }))
+  const options = (
+    (optionsRes.data ?? []) as { id: number; title: string; created_by: string | null }[]
+  )
+    .map((o) => ({
+      id: o.id,
+      title: o.title,
+      votes: counts.get(o.id) ?? 0,
+      // Whether the caller added this film, so the UI can offer edit/delete
+      // without a second request. Never true for a signed-out visitor:
+      // suggestions always carry an account.
+      own: !!actor.userId && o.created_by === actor.userId,
+    }))
     // Most votes first. Ties keep insertion order, so a brand-new film sits at
     // the bottom instead of jumping around as votes trickle in.
     .sort((a, b) => b.votes - a.votes);
@@ -126,8 +136,10 @@ export async function POST(req: Request) {
   }
 
   const pollId = typeof body.pollId === "string" ? body.pollId.trim().slice(0, 100) : "";
-  const action =
-    body.action === "remove" ? "remove" : body.action === "suggest" ? "suggest" : "vote";
+  const ACTIONS = ["vote", "remove", "suggest", "edit", "delete"] as const;
+  const action = (ACTIONS as readonly string[]).includes(body.action as string)
+    ? (body.action as (typeof ACTIONS)[number])
+    : "vote";
   const optionId = Number(body.optionId);
   const title = typeof body.title === "string" ? body.title.trim().replace(/\s+/g, " ") : "";
   const visitorId = typeof body.visitorId === "string" ? body.visitorId.trim().slice(0, 100) : "";
@@ -220,6 +232,72 @@ export async function POST(req: Request) {
       const before = await stateFor(admin, pollId, { userId: user.id, visitorId });
       if (newOptionId && before.mine === null) {
         await castVote(admin, pollId, newOptionId, user.id, visitorId);
+      }
+
+      const state = await stateFor(admin, pollId, { userId: user.id, visitorId });
+      return NextResponse.json({ pollId, ...state }, { headers: NO_STORE });
+    }
+
+    if (action === "edit" || action === "delete") {
+      if (!user) {
+        return NextResponse.json({ error: "Најавете се." }, { status: 401 });
+      }
+      if (!Number.isInteger(optionId) || optionId <= 0) {
+        return NextResponse.json({ error: "Bad request" }, { status: 400 });
+      }
+
+      const { data: own } = await admin
+        .from("movie_poll_options")
+        .select("id, created_by")
+        .eq("id", optionId)
+        .eq("poll_id", pollId)
+        .maybeSingle();
+      if (!own) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      if (own.created_by !== user.id) {
+        return NextResponse.json(
+          { error: "Може да го смените само вашиот предлог." },
+          { status: 403 },
+        );
+      }
+
+      // Once other people have backed a film, its author no longer owns it
+      // alone: renaming it would change what they voted for, and deleting it
+      // would throw their votes away. Their own vote does not count as such.
+      const { data: otherVotes } = await admin
+        .from("movie_poll_votes")
+        .select("id")
+        .eq("option_id", optionId)
+        // `neq` alone would drop the anonymous rows: in SQL `null <> value` is
+        // null, not true, so visitor votes would silently not count as "other
+        // people".
+        .or(`user_id.is.null,user_id.neq.${user.id}`)
+        .limit(1);
+      if ((otherVotes?.length ?? 0) > 0) {
+        return NextResponse.json(
+          { error: "Веќе гласале други за овој филм, па не може да се менува." },
+          { status: 409 },
+        );
+      }
+
+      if (action === "delete") {
+        // The votes on it go with it — the cascade in the schema.
+        const { error } = await admin.from("movie_poll_options").delete().eq("id", optionId);
+        if (error) throw error;
+      } else {
+        if (title.length < 2 || title.length > MAX_TITLE) {
+          return NextResponse.json({ error: "Внесете име на филм." }, { status: 400 });
+        }
+        const { error } = await admin
+          .from("movie_poll_options")
+          .update({ title })
+          .eq("id", optionId);
+        if (error) {
+          if (error.code !== "23505") throw error;
+          return NextResponse.json(
+            { error: "Тој филм е веќе на листата." },
+            { status: 409 },
+          );
+        }
       }
 
       const state = await stateFor(admin, pollId, { userId: user.id, visitorId });

@@ -10,12 +10,12 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, Check, Film, CalendarDays } from "lucide-react";
+import { Plus, Check, Film, CalendarDays, Pencil, Trash2, X } from "lucide-react";
 import Button from "../ui/Button";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { formatScreening } from "../../lib/sanity/moviePoll";
 
-type Option = { id: number; title: string; votes: number };
+type Option = { id: number; title: string; votes: number; own: boolean };
 type Poll = {
   id: string;
   title: string;
@@ -60,6 +60,9 @@ export default function MoviePoll({ pollId }: { pollId?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [adding, setAdding] = useState(false);
+  // The option currently being renamed, and its draft title. Null = nobody.
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -115,6 +118,19 @@ export default function MoviePoll({ pollId }: { pollId?: string }) {
     // door — the same behaviour the event poll has.
     if (mine === optionId) send({ action: "remove" });
     else send({ action: "vote", optionId });
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    const name = editTitle.trim();
+    if (!name || editingId === null) return;
+    await send({ action: "edit", optionId: editingId, title: name });
+    setEditingId(null);
+  }
+
+  async function removeOption(o: Option) {
+    if (!confirm(`Да го тргнеме „${o.title}“ од листата?`)) return;
+    await send({ action: "delete", optionId: o.id });
   }
 
   async function suggest(e: React.FormEvent) {
@@ -178,12 +194,34 @@ export default function MoviePoll({ pollId }: { pollId?: string }) {
           const chosen = mine === o.id;
           return (
             <li key={o.id}>
+              {editingId === o.id ? (
+                <form onSubmit={saveEdit} className="flex gap-2">
+                  <input
+                    autoFocus
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    maxLength={90}
+                    className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                  <Button type="submit" disabled={!editTitle.trim() || busy}>
+                    Зачувај
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(null)}
+                    aria-label="Откажи"
+                    className="rounded-xl px-2 text-slate-400 hover:text-slate-600">
+                    <X size={16} />
+                  </button>
+                </form>
+              ) : (
+              <div className="flex items-center gap-1">
               <button
                 type="button"
                 disabled={!poll.live || busy}
                 onClick={() => vote(o.id)}
                 aria-pressed={chosen}
-                className={`relative w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed ${
+                className={`relative min-w-0 flex-1 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed ${
                   chosen
                     ? "border-primary bg-[#2aa99d]/5"
                     : "border-slate-200 bg-white hover:border-slate-300"
@@ -212,6 +250,34 @@ export default function MoviePoll({ pollId }: { pollId?: string }) {
                   </span>
                 </span>
               </button>
+              {/* Only the author sees these, and only while the poll is live —
+                  the server enforces both, plus that nobody else has voted for
+                  the film yet. */}
+              {o.own && poll.live && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Измени"
+                    disabled={busy}
+                    onClick={() => {
+                      setEditingId(o.id);
+                      setEditTitle(o.title);
+                    }}
+                    className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Избриши"
+                    disabled={busy}
+                    onClick={() => removeOption(o)}
+                    className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                    <Trash2 size={14} />
+                  </button>
+                </>
+              )}
+              </div>
+              )}
             </li>
           );
         })}
