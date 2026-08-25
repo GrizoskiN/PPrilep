@@ -8,6 +8,7 @@ export type EventCategory =
   | "sport"
   | "exhibition"
   | "theatre"
+  | "cinema"
   | "family"
   | "other";
 
@@ -41,6 +42,7 @@ export const EVENT_CATEGORY_LABELS: Record<EventCategory, string> = {
   sport: "Спорт",
   exhibition: "Изложба",
   theatre: "Театар",
+  cinema: "Кино",
   family: "Семејно",
   other: "Друго",
 };
@@ -55,6 +57,7 @@ export const EVENT_CATEGORY_VISUAL: Record<
   sport: { emoji: "🏃", gradient: "from-emerald-500 to-teal-500" },
   exhibition: { emoji: "🖼️", gradient: "from-sky-500 to-indigo-500" },
   theatre: { emoji: "🎭", gradient: "from-rose-500 to-pink-600" },
+  cinema: { emoji: "🎬", gradient: "from-indigo-500 to-violet-600" },
   family: { emoji: "🎈", gradient: "from-orange-400 to-amber-500" },
   other: { emoji: "📌", gradient: "from-slate-500 to-zinc-600" },
 };

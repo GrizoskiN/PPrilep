@@ -13,6 +13,7 @@ const CATEGORIES = [
   { title: "Спорт", value: "sport" },
   { title: "Изложба", value: "exhibition" },
   { title: "Театар", value: "theatre" },
+  { title: "Кино", value: "cinema" },
   { title: "Семејно", value: "family" },
   { title: "Друго", value: "other" },
 ];

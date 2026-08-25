@@ -44,6 +44,15 @@ export const structure: StructureResolver = (S) =>
 
       S.divider(),
 
+      // ── 🎬 Кино анкета ───────────────────────────────────────────────
+      // Poll creation lives only here: the app and the API can add films and
+      // votes to a poll, but never create one.
+      S.listItem()
+        .title("🎬 Кино анкети")
+        .child(S.documentTypeList("moviePoll").title("Кино анкети")),
+
+      S.divider(),
+
       // ── ✨ Позитива (blog) ────────────────────────────────────────────
       S.listItem()
         .title("✨ Позитива")

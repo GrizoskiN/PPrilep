@@ -1,6 +1,7 @@
 import { fetchCityEvents } from "../../../lib/sanity/queries";
 import EventsExplorer from "../../../components/events/EventsExplorer";
 import SubmitEventButton from "../../../components/events/SubmitEventButton";
+import MoviePollCard from "../../../components/kino/MoviePollCard";
 
 export default async function EventsPage() {
   const events = await fetchCityEvents();
@@ -19,6 +20,8 @@ export default async function EventsPage() {
         </div>
         <SubmitEventButton />
       </header>
+
+      <MoviePollCard />
 
       <EventsExplorer events={events} />
     </div>

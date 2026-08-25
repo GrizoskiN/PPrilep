@@ -1,0 +1,261 @@
+"use client";
+
+/**
+ * Movie poll — the shared UI for /kino on the web.
+ *
+ * All state lives behind /api/movie-poll (see that route for the identity
+ * rules). This component never touches Supabase directly: votes are written
+ * with the service role because anonymous visitors have no RLS identity to
+ * write with.
+ */
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Plus, Check, Film, CalendarDays } from "lucide-react";
+import Button from "../ui/Button";
+import { useAuth } from "../../lib/hooks/useAuth";
+import { formatScreening } from "../../lib/sanity/moviePoll";
+
+type Option = { id: number; title: string; votes: number };
+type Poll = {
+  id: string;
+  title: string;
+  description: string | null;
+  poster_url: string | null;
+  screening_at: string | null;
+  allow_suggestions: boolean;
+  live: boolean;
+};
+
+/**
+ * A stable per-browser id so a signed-out visitor's vote survives a reload.
+ * Shared with the events poll on purpose — it identifies the browser, not the
+ * poll, and reusing it means a returning visitor keeps one identity.
+ */
+const VISITOR_KEY = "pp_visitor_id";
+
+function visitorId(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    let v = localStorage.getItem(VISITOR_KEY);
+    if (!v) {
+      v = crypto.randomUUID();
+      localStorage.setItem(VISITOR_KEY, v);
+    }
+    return v;
+  } catch {
+    // Private mode with storage blocked: the vote still lands, it just will not
+    // be recognised as theirs on the next visit.
+    return "";
+  }
+}
+
+export default function MoviePoll({ pollId }: { pollId?: string }) {
+  const { user } = useAuth();
+  const [poll, setPoll] = useState<Poll | null>(null);
+  const [options, setOptions] = useState<Option[]>([]);
+  const [total, setTotal] = useState(0);
+  const [mine, setMine] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [adding, setAdding] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const load = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (pollId) params.set("pollId", pollId);
+    const v = visitorId();
+    if (v) params.set("visitorId", v);
+    try {
+      const res = await fetch(`/api/movie-poll?${params}`, { cache: "no-store" });
+      const data = await res.json();
+      setPoll(data.poll);
+      setOptions(data.options ?? []);
+      setTotal(data.total ?? 0);
+      setMine(data.mine ?? null);
+    } catch {
+      setPoll(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [pollId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function send(payload: Record<string, unknown>) {
+    if (!poll || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/movie-poll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pollId: poll.id, visitorId: visitorId(), ...payload }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Нешто тргна наопаку.");
+        return;
+      }
+      setOptions(data.options ?? []);
+      setTotal(data.total ?? 0);
+      setMine(data.mine ?? null);
+    } catch {
+      setError("Нема врска со серверот.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function vote(optionId: number) {
+    // Tapping your own choice again retracts it, so a vote is never a one-way
+    // door — the same behaviour the event poll has.
+    if (mine === optionId) send({ action: "remove" });
+    else send({ action: "vote", optionId });
+  }
+
+  async function suggest(e: React.FormEvent) {
+    e.preventDefault();
+    const name = title.trim();
+    if (!name) return;
+    await send({ action: "suggest", title: name });
+    setTitle("");
+    setAdding(false);
+  }
+
+  if (loading) {
+    return <div className="h-32 animate-pulse rounded-2xl bg-slate-100" />;
+  }
+
+  if (!poll) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center">
+        <Film size={22} className="mx-auto mb-2 text-slate-300" />
+        <p className="text-sm text-theme-muted">Моментално нема активна анкета.</p>
+      </div>
+    );
+  }
+
+  // The leader is only highlighted once there is something to lead — with no
+  // votes at all, every bar at 0% with one of them marked would be misleading.
+  const top = options.length && options[0].votes > 0 ? options[0].votes : 0;
+
+  return (
+    <div className="space-y-4">
+      {poll.poster_url && (
+        /* Plain <img>: the URL comes from Sanity's CDN already cropped to the
+           size we ask for, so next/image would only add a second resize hop. */
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={poll.poster_url}
+          alt=""
+          className="aspect-[1200/630] w-full rounded-2xl object-cover"
+        />
+      )}
+      <div>
+        <h1 className="text-base font-semibold text-theme-heading">{poll.title}</h1>
+        {poll.screening_at && (
+          <p className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-[#2aa99d]/10 px-2 py-1 text-xs font-semibold text-primary">
+            <CalendarDays size={13} />
+            Проекција: {formatScreening(poll.screening_at)}
+          </p>
+        )}
+        {poll.description && (
+          <p className="mt-0.5 text-xs text-theme-muted">{poll.description}</p>
+        )}
+        <p className="mt-1 text-xs text-theme-muted">
+          {total} {total === 1 ? "глас" : "гласови"}
+          {!poll.live && " · анкетата е затворена"}
+        </p>
+      </div>
+
+      <ul className="space-y-2">
+        {options.map((o) => {
+          const pct = total > 0 ? Math.round((o.votes / total) * 100) : 0;
+          const chosen = mine === o.id;
+          return (
+            <li key={o.id}>
+              <button
+                type="button"
+                disabled={!poll.live || busy}
+                onClick={() => vote(o.id)}
+                aria-pressed={chosen}
+                className={`relative w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed ${
+                  chosen
+                    ? "border-primary bg-[#2aa99d]/5"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                }`}>
+                {/* The bar is behind the text rather than beside it, so a long
+                    film title never has to compete with a gauge for width. */}
+                <span
+                  aria-hidden
+                  className={`absolute inset-y-0 left-0 transition-[width] duration-300 ${
+                    o.votes === top && top > 0 ? "bg-[#2aa99d]/15" : "bg-slate-100"
+                  }`}
+                  style={{ width: `${pct}%` }}
+                />
+                <span className="relative flex items-center gap-2">
+                  <span
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                      chosen ? "border-primary bg-primary text-white" : "border-slate-300"
+                    }`}>
+                    {chosen && <Check size={11} strokeWidth={3} />}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-theme-heading">
+                    {o.title}
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums text-theme-muted">
+                    {o.votes} · {pct}%
+                  </span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {options.length === 0 && (
+        <p className="rounded-xl border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-theme-muted">
+          Сè уште нема предложени филмови. Биди прв!
+        </p>
+      )}
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
+
+      {poll.live && poll.allow_suggestions && (
+        <div>
+          {!user ? (
+            <p className="text-xs text-theme-muted">
+              Гласањето е отворено за сите. Најавете се за да предложите филм.
+            </p>
+          ) : adding ? (
+            <form onSubmit={suggest} className="flex gap-2">
+              <input
+                ref={inputRef}
+                autoFocus
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={90}
+                placeholder="Име на филм"
+                className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+              <Button size="sm" variant="teal" type="submit" disabled={busy || !title.trim()}>
+                Додај
+              </Button>
+              <Button size="sm" variant="ghost" type="button" onClick={() => setAdding(false)}>
+                Откажи
+              </Button>
+            </form>
+          ) : (
+            <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
+              <Plus size={13} /> Предложи филм
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

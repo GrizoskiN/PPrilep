@@ -35,7 +35,7 @@ function getSanityClient() {
 
 // Valid event categories (must match sanity/schemas/cityEvent.ts).
 const CATEGORIES = new Set([
-  "concert", "festival", "sport", "exhibition", "theatre", "family", "other",
+  "concert", "festival", "sport", "exhibition", "theatre", "cinema", "family", "other",
 ]);
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
