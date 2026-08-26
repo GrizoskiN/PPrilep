@@ -8,6 +8,7 @@ import ElectricityQuickActions from "../../../../components/utility/ElectricityQ
 import WaterInfoAccordion from "../../../../components/utility/WaterInfoAccordion";
 import KomunalecQuickActions from "../../../../components/utility/KomunalecQuickActions";
 import KomunalecInfoAccordion from "../../../../components/utility/KomunalecInfoAccordion";
+import ParkingInfoAccordion from "../../../../components/utility/ParkingInfoAccordion";
 import KomunalecContactForm from "../../../../components/komunalec/KomunalecContactForm";
 import KomunalecRequestQueue from "../../../../components/komunalec/KomunalecRequestQueue";
 import AgencyPostCard from "../../../../components/agency/AgencyPostCard";
@@ -165,6 +166,10 @@ export default async function UtilityPage({ params }: Props) {
 
         {/* Electricity quick actions — pay bill (EVN) + live outages map */}
         {p === "electricity" && <ElectricityQuickActions />}
+
+        {/* Parking — the operator's terms for a resident permit. Mirrored in the
+            app's parking screen; keep the two wordings in sync. */}
+        {p === "parking" && <ParkingInfoAccordion />}
 
         {/* Komunalec quick actions */}
         {p === "garbage" && (

@@ -23,6 +23,8 @@ import {
   faChildren,
   faRecycle,
   faBell,
+  faCarSide,
+  faBusSimple,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Map } from "lucide-react";
@@ -241,7 +243,7 @@ export default function LeftNav() {
   return (
     <nav data-tour="menu" className="scrollbar-hidden flex h-full min-h-0 flex-col gap-5 overflow-y-auto py-3">
       <section data-tour="menu-citizens">
-        <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
+        <p className="text-nav-section mb-2 px-3 text-[8px] font-semibold uppercase tracking-[0.06em]">
           Граѓани
         </p>
         <div className="flex flex-col gap-1 ">
@@ -296,8 +298,8 @@ export default function LeftNav() {
       </section>
 
       <section data-tour="menu-platform">
-        <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
-          За платформата
+        <p className="text-nav-section mb-2 px-3 text-[8px] font-semibold uppercase tracking-[0.06em]">
+          За Мој Прилеп
         </p>
         <div className="flex flex-col gap-1 ">
           <LeftNavItem
@@ -328,7 +330,7 @@ export default function LeftNav() {
       </section>
 
       <section data-tour="menu-info">
-        <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
+        <p className="text-nav-section mb-2 px-3 text-[8px] font-semibold uppercase tracking-[0.06em]">
           Информации
         </p>
         <div className="flex flex-col gap-1">
@@ -356,8 +358,8 @@ export default function LeftNav() {
       </section>
 
       <section data-tour="menu-enterprise">
-        <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
-          Претпријатие
+        <p className="text-nav-section mb-2 px-3 text-[8px] font-semibold uppercase tracking-[0.06em]">
+          Јавни Претпријатија
         </p>
         <div className="flex flex-col gap-1">
           <LeftNavItem
@@ -385,10 +387,42 @@ export default function LeftNav() {
             iconTone="orange"
           />
           <LeftNavItem
+            href="/kindergarten"
+            label="Градинки — Наша Иднина"
+            iconNode={<FontAwesomeIcon icon={faChildren} className="h-4 w-4" />}
+            iconTone="emerald"
+          />
+        </div>
+      </section>
+
+      {/* Mirrors the mobile drawer's "Превоз и Паркинг". These two used to sit
+          at the bottom of Претпријатие among the utilities, where nobody went
+          looking for a bus time. Такси and Автобуска станица exist on mobile
+          only for now — they join this section once the web pages land. */}
+      <section data-tour="menu-transport">
+        <p className="text-nav-section mb-2 px-3 text-[8px] font-semibold uppercase tracking-[0.06em]">
+          Превоз и Паркинг
+        </p>
+        <div className="flex flex-col gap-1">
+          <LeftNavItem
             href="/prevoz"
             label="Градски превоз"
             iconNode={<FontAwesomeIcon icon={faBus} className="h-4 w-4" />}
             iconTone="violet"
+          />
+          <LeftNavItem
+            href="/taxi"
+            label="Такси"
+            iconNode={<FontAwesomeIcon icon={faCarSide} className="h-4 w-4" />}
+            iconTone="yellow"
+          />
+          <LeftNavItem
+            href="/bus-station"
+            label="Автобуска станица"
+            iconNode={
+              <FontAwesomeIcon icon={faBusSimple} className="h-4 w-4" />
+            }
+            iconTone="sky"
           />
           <LeftNavItem
             href="/utility/parking"
@@ -398,18 +432,12 @@ export default function LeftNav() {
             }
             iconTone="teal"
           />
-          <LeftNavItem
-            href="/kindergarten"
-            label="Градинки — Наша Иднина"
-            iconNode={<FontAwesomeIcon icon={faChildren} className="h-4 w-4" />}
-            iconTone="emerald"
-          />
         </div>
       </section>
 
       {isAdmin ? (
         <section>
-          <p className="text-nav-section mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em]">
+          <p className="text-nav-section mb-2 px-3 text-[8px] font-semibold uppercase tracking-[0.06em]">
             Администрација
           </p>
           <div className="flex flex-col gap-1">
@@ -431,7 +459,7 @@ export default function LeftNav() {
 
       <section className=" rounded-3xl p-3 ">
         <div className="mb-3 flex items-center justify-between px-1">
-          <p className="text-nav-section text-[9px] font-semibold uppercase tracking-[0.18em]">
+          <p className="text-nav-section text-[8px] font-semibold uppercase tracking-[0.06em]">
             Филтер по мапа
           </p>
           <Link

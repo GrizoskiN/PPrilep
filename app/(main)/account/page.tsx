@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../../lib/hooks/useAuth";
 import { createClient } from "../../../lib/supabase/client";
+import { compressImage } from "../../../lib/compressImage";
 import { useTurnstile } from "../../../lib/hooks/useTurnstile";
 import {
   DISTRICT_LABELS,
@@ -315,7 +316,7 @@ export default function AccountPage() {
       setAvatarUrl(profile?.avatar_url ?? null);
       setStreetName(profile?.street_name ?? "");
       setEmailDigest(profile?.email_digest !== false); // default true
-      setEmailNewsletter(Boolean(profile?.email_newsletter)); // default false (opt-in)
+      setEmailNewsletter(profile?.email_newsletter !== false); // default true (opt-out)
       // District is DB-backed (profiles.district). Always sync from the profile
       // so a refresh restores the saved value (null → "all"/Прилеп).
       setPrimaryDistrict(profile?.district ?? "all");
@@ -459,7 +460,10 @@ export default function AccountPage() {
     }
 
     setUploadingAvatar(true);
-    const ext = file.name.split(".").pop() ?? "jpg";
+    // Avatars are rendered at ~40px but were stored at full camera resolution
+    // and downloaded whole by the mobile app on every feed that shows one.
+    const photo = await compressImage(file);
+    const ext = photo.name.split(".").pop() ?? "jpg";
     const filePath = `${user.id}/${Date.now()}.${ext}`;
     const buckets = ["avatars", "issue-photos"] as const;
     let lastError: string | null = null;
@@ -468,7 +472,7 @@ export default function AccountPage() {
       const { data, error } = await supabase.storage
         .from(bucket)
         // Timestamped path → immutable, so cache a year instead of the 1h default.
-        .upload(filePath, file, { contentType: file.type, cacheControl: "31536000", upsert: true });
+        .upload(filePath, photo, { contentType: photo.type, cacheControl: "31536000", upsert: true });
 
       if (error) {
         lastError = error.message;

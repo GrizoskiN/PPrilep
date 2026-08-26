@@ -23,6 +23,7 @@ import { createAdminClient } from "../../../../lib/supabase/admin";
 import { fetchCityEvents } from "@/lib/sanity/queries";
 import { eventPath } from "@/lib/data/events";
 import { sendExpoPush, type PushMessage } from "@/lib/push/expo";
+import { isLive, loadPoll } from "@/lib/sanity/moviePoll";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -62,6 +63,84 @@ function parseStartMinutes(time: string | null | undefined): number | null {
   return h * 60 + min;
 }
 
+/**
+ * Push one reminder to every device that opted in for `subjectId` and has not
+ * been notified yet, then stamp them so it never goes out twice.
+ *
+ * Shared by the events sweep and the cinema screening below: both store their
+ * opt-ins in the same `event_reminders` table keyed by a Sanity document id, so
+ * the only thing that differs is the copy and the link.
+ */
+async function pushReminder(
+  admin: ReturnType<typeof createAdminClient>,
+  subjectId: string,
+  message: { title: string; body: string; link: string },
+): Promise<{ sent: number; pruned: number }> {
+  const { data: rows, error } = await admin
+    .from("event_reminders")
+    .select("id, expo_token")
+    .eq("event_id", subjectId)
+    .is("notified_at", null);
+  if (error) {
+    console.error("[cron/event-reminders] reminders", error);
+    return { sent: 0, pruned: 0 };
+  }
+  const pending = (rows ?? []) as { id: number; expo_token: string }[];
+  if (pending.length === 0) return { sent: 0, pruned: 0 };
+
+  const messages: PushMessage[] = pending.map((r) => ({
+    to: r.expo_token,
+    title: message.title,
+    body: message.body,
+    data: { link: message.link, type: "event" },
+    channelId: "default",
+  }));
+
+  const tickets = await sendExpoPush(messages);
+
+  const dead: string[] = [];
+  tickets.forEach((t, i) => {
+    const code = (t.details as { error?: string } | undefined)?.error;
+    if (t.status === "error" && code === "DeviceNotRegistered") dead.push(pending[i].expo_token);
+  });
+
+  // Stamp as sent so they're never re-reminded. Do this for all pending rows
+  // (even the few that erred) — a stuck reminder retried tomorrow, after the
+  // event has passed, is worse than one missed push, and dead tokens are
+  // pruned below anyway.
+  await admin
+    .from("event_reminders")
+    .update({ notified_at: new Date().toISOString() })
+    .in("id", pending.map((r) => r.id));
+
+  if (dead.length) {
+    await admin.from("event_reminders").delete().in("expo_token", dead);
+    await admin.from("push_subscriptions").delete().in("expo_token", dead);
+  }
+
+  return { sent: pending.length, pruned: dead.length };
+}
+
+/** The Europe/Skopje calendar day and wall-clock minute of an ISO instant. */
+function skopjeAt(iso: string): { date: string; minutes: number } | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  return {
+    date: `${get("year")}-${get("month")}-${get("day")}`,
+    minutes: (Number(get("hour")) % 24) * 60 + Number(get("minute")),
+  };
+}
+
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -97,55 +176,42 @@ export async function GET(req: Request) {
     const beforeStart = startMin === null ? true : now.minutes < startMin;
     if (!beforeStart) continue;
 
-    // Opted-in devices not yet reminded for this event.
-    const { data: rows, error } = await admin
-      .from("event_reminders")
-      .select("id, expo_token")
-      .eq("event_id", ev._id)
-      .is("notified_at", null);
-    if (error) {
-      console.error("[cron/event-reminders] reminders", error);
-      continue;
-    }
-    const pending = (rows ?? []) as { id: number; expo_token: string }[];
-    if (pending.length === 0) continue;
-
     const link = `${BASE_URL}${eventPath(ev)}`;
     const whenBits = [ev.time, ev.location].filter(Boolean).join(" · ");
-    const messages: PushMessage[] = pending.map((r) => ({
-      to: r.expo_token,
+    const res = await pushReminder(admin, ev._id, {
       title: "Наскоро започнува 📅",
       body: whenBits ? `${ev.title} — ${whenBits}` : ev.title,
-      data: { link, type: "event" },
-      channelId: "default",
-    }));
-
-    const tickets = await sendExpoPush(messages);
-
-    const dead: string[] = [];
-    tickets.forEach((t, i) => {
-      const code = (t.details as { error?: string } | undefined)?.error;
-      if (t.status === "error" && code === "DeviceNotRegistered") dead.push(pending[i].expo_token);
+      link,
     });
+    if (!res.sent) continue;
 
-    // Stamp as sent so they're never re-reminded. Do this for all pending rows
-    // (even the few that erred) — a stuck reminder retried tomorrow, after the
-    // event has passed, is worse than one missed push, and dead tokens are
-    // pruned below anyway.
-    const ids = pending.map((r) => r.id);
-    await admin
-      .from("event_reminders")
-      .update({ notified_at: new Date().toISOString() })
-      .in("id", ids);
+    totalSent += res.sent;
+    totalPruned += res.pruned;
+    processed.push({ event: ev._id, sent: res.sent });
+  }
 
-    if (dead.length) {
-      await admin.from("event_reminders").delete().in("expo_token", dead);
-      await admin.from("push_subscriptions").delete().in("expo_token", dead);
-      totalPruned += dead.length;
+  // The Кино анкета screening. It is a `moviePoll` document rather than a city
+  // event, so the sweep above never sees it — but people opt in from the poll
+  // exactly the way they opt in from an event, into the same table, so it gets
+  // the same one-a-day treatment here.
+  try {
+    const poll = await loadPoll(null);
+    const at = poll?.screening_at ? skopjeAt(poll.screening_at) : null;
+    if (poll && isLive(poll) && at && at.date === now.date && now.minutes < at.minutes) {
+      const hh = String(Math.floor(at.minutes / 60)).padStart(2, "0");
+      const mm = String(at.minutes % 60).padStart(2, "0");
+      const res = await pushReminder(admin, poll.id, {
+        title: "Денес е проекцијата 🎬",
+        body: `${poll.title} — ${hh}:${mm}`,
+        link: `${BASE_URL}/kino`,
+      });
+      totalSent += res.sent;
+      totalPruned += res.pruned;
+      if (res.sent) processed.push({ event: poll.id, sent: res.sent });
     }
-
-    totalSent += pending.length;
-    processed.push({ event: ev._id, sent: pending.length });
+  } catch (e) {
+    // A failure here must not lose the events sweep's result.
+    console.error("[cron/event-reminders] movie poll", e);
   }
 
   return NextResponse.json({ ok: true, sent: totalSent, pruned: totalPruned, events: processed });

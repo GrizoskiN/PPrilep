@@ -20,6 +20,7 @@ import {
 import { useAuth } from "../../lib/hooks/useAuth";
 import { cdnUrl } from "../../lib/utils";
 import { createClient } from "../../lib/supabase/client";
+import { compressImage } from "../../lib/compressImage";
 
 const STORAGE_PREFIX = "pp_onboarding_v3_";
 const PAD = 8;
@@ -330,13 +331,14 @@ export default function OnboardingTour() {
     if (!file.type.startsWith("image/")) return toast.error("Избери слика (jpg/png/webp)");
     if (file.size > 8 * 1024 * 1024) return toast.error("Сликата е преголема (макс 8MB)");
     setUploading(true);
-    const ext = file.name.split(".").pop() ?? "jpg";
+    const photo = await compressImage(file);
+    const ext = photo.name.split(".").pop() ?? "jpg";
     const filePath = `${user.id}/${Date.now()}.${ext}`;
     for (const bucket of ["avatars", "issue-photos"] as const) {
       const { data, error } = await supabase.storage
         .from(bucket)
         // Timestamped path → immutable, so cache a year instead of the 1h default.
-        .upload(filePath, file, { contentType: file.type, cacheControl: "31536000", upsert: true });
+        .upload(filePath, photo, { contentType: photo.type, cacheControl: "31536000", upsert: true });
       if (error) continue;
       setAvatarUrl(supabase.storage.from(bucket).getPublicUrl(data.path).data.publicUrl);
       setUploading(false);

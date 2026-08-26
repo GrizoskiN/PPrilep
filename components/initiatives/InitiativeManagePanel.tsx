@@ -5,6 +5,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, ImagePlus, Save, X } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
+import { compressImage } from "../../lib/compressImage";
 import {
   saveInitiativeProgress,
   setInitiativeStage,
@@ -89,11 +90,16 @@ export default function InitiativeManagePanel({
     try {
       const urls: string[] = [];
       for (const file of picked) {
-        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const photo = await compressImage(file);
+        const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
         const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("initiative-images")
-          .upload(path, file, { cacheControl: "31536000", upsert: false });
+          .upload(path, photo, {
+            contentType: photo.type,
+            cacheControl: "31536000",
+            upsert: false,
+          });
         if (upErr) {
           toast.error(`Грешка при прикачување: ${upErr.message}`);
           continue;

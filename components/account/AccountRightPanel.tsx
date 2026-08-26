@@ -89,7 +89,7 @@ export default function AccountRightPanel() {
     const settingsKey = `account_notification_settings_${user.id}`;
     const id = setTimeout(() => {
       setEmailDigest(profile?.email_digest !== false);
-      setEmailNewsletter(Boolean(profile?.email_newsletter));
+      setEmailNewsletter(profile?.email_newsletter !== false);
       setNotifLocalIssues(profile?.notif_local_issues !== false);
       try {
         const raw = localStorage.getItem(settingsKey);

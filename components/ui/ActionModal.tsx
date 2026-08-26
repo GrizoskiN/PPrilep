@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
+import { compressImage } from "../../lib/compressImage";
 import { getIssuePath } from "../../lib/utils";
 import { useKeyboardInset } from "../../lib/hooks/useKeyboardInset";
 import Button from "./Button";
@@ -262,7 +263,11 @@ export default function ActionModal({ userId, userEmail, userName, agencyId, onC
   }, [watchedCategory, watchedStreet, reportPinLat, reportPinLng, supabase]);
 
   // Upload one file to issue-photos and return its public URL (or null on error).
-  async function uploadIssuePhoto(file: File): Promise<string | null> {
+  async function uploadIssuePhoto(original: File): Promise<string | null> {
+    // Shrink before upload. The mobile app downloads these originals as-is
+    // (no resizer in front of Storage), so an uncompressed web upload is billed
+    // as egress against every phone that scrolls past it.
+    const file = await compressImage(original);
     const ext = file.name.split(".").pop();
     const path = `${crypto.randomUUID()}.${ext}`;
     const { data, error } = await supabase.storage

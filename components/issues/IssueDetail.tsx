@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 const HelperModal = dynamic(() => import("./HelperModal"), { ssr: false });
 import BlurImage from "../ui/BlurImage";
 import { IMAGE_QUALITY } from "../../lib/imageQuality";
+import { compressImage } from "../../lib/compressImage";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -696,11 +697,14 @@ export default function IssueDetail({
       return;
     }
     setUploadingAfter(true);
-    const ext = file.name.split(".").pop() ?? "jpg";
+    // Compressed for the same reason as the report photos: mobile downloads
+    // the stored object itself, so its size is a recurring egress bill.
+    const photo = await compressImage(file);
+    const ext = photo.name.split(".").pop() ?? "jpg";
     const { data, error } = await supabase.storage
       .from("issue-photos")
-      .upload(`${currentIssue.id}/after-${Date.now()}.${ext}`, file, {
-        contentType: file.type,
+      .upload(`${currentIssue.id}/after-${Date.now()}.${ext}`, photo, {
+        contentType: photo.type,
         cacheControl: "31536000",
         upsert: true,
       });
@@ -731,13 +735,14 @@ export default function IssueDetail({
     setProposing(true);
     let afterPhotoUrl: string | null = null;
     if (proposeFile) {
-      const ext = proposeFile.name.split(".").pop() ?? "jpg";
+      const photo = await compressImage(proposeFile);
+      const ext = photo.name.split(".").pop() ?? "jpg";
       const { data, error } = await supabase.storage
         .from("issue-photos")
         .upload(
           `${userId}/proposals/${currentIssue.id}-${Date.now()}.${ext}`,
-          proposeFile,
-          { contentType: proposeFile.type, cacheControl: "31536000", upsert: true },
+          photo,
+          { contentType: photo.type, cacheControl: "31536000", upsert: true },
         );
       if (error) {
         toast.error(error.message);

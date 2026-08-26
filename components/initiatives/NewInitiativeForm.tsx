@@ -18,6 +18,7 @@ import {
   updateInitiative,
 } from "../../app/actions/initiatives";
 import { createClient } from "../../lib/supabase/client";
+import { compressImage } from "../../lib/compressImage";
 import { CATEGORY_LABELS_INIT } from "../../lib/initiatives";
 import { DISTRICT_LABELS, cn } from "../../lib/utils";
 import StreetAutocomplete from "../issues/StreetAutocomplete";
@@ -227,12 +228,13 @@ export default function NewInitiativeForm({
           router.push("/auth/login?next=/initiatives/new");
           return;
         }
-        const ext =
-          state.cover_image.name.split(".").pop()?.toLowerCase() || "jpg";
+        const cover = await compressImage(state.cover_image);
+        const ext = cover.name.split(".").pop()?.toLowerCase() || "jpg";
         const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("initiative-images")
-          .upload(path, state.cover_image, {
+          .upload(path, cover, {
+            contentType: cover.type,
             cacheControl: "31536000",
             upsert: false,
           });

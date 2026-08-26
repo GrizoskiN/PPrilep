@@ -16,6 +16,7 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
+import { broadcastNewEvent } from "@/lib/push/newEvent";
 
 const SECRET = process.env.SANITY_REVALIDATE_SECRET;
 
@@ -51,9 +52,26 @@ export async function POST(req: Request) {
     // Always revalidate the home page (it may show recent posts/events)
     revalidatePath("/", "page");
 
+    // A newly published event also notifies the app. This piggybacks on the
+    // revalidate hook because the Sanity plan only includes two webhooks and
+    // both slots are taken — /api/push/event exists but has nothing calling it.
+    // broadcastNewEvent is idempotent (unique claim in push_broadcasts), so
+    // every later edit of the same event is a no-op.
+    let push: unknown = undefined;
+    if (docType === "cityEvent") {
+      try {
+        push = await broadcastNewEvent(body?._id as string | undefined);
+      } catch (e) {
+        // Never let a push problem fail the revalidation — stale content on the
+        // site is the worse of the two failures.
+        console.error("[revalidate] push", e);
+      }
+    }
+
     return NextResponse.json({
       revalidated: true,
       type: docType ?? "all",
+      push,
       now: Date.now(),
     });
   } catch (err) {

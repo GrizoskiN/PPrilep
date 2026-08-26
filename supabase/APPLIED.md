@@ -47,6 +47,7 @@ script not listed separately came back OK on that run.
 | `add_help_offers.sql` | ✅ applied | All three tables present. Backs the mobile Помогни sheet. |
 | `update_help_offer_limit.sql` | ✅ applied | Date cap is 3, confirmed by reading the function body. The mobile sheet's `/3` is correct. |
 | `add_push_broadcasts.sql` | ✅ applied | Applied 2026-08-01, after the audit found it missing. Without it `/api/push/event` returned 500 and no city event ever pushed. |
+| `add_sport_club_owners.sql` | ❓ unverified | Adds `profiles.club_id` + `current_user_club()` / `user_owns_club()`. Needed before a club can edit its own profile or post news. Not yet run. |
 | `pause_issue_reporting.sql` | ✅ applied | **Intentionally active.** Reporting is paused. |
 | `restore_issue_reporting.sql` | ⛔ not applied | Deliberate — do not run until reporting is being re-enabled. Pair it with `REPORTING_ENABLED` in `components/ui/ActionModal.tsx`. |
 

@@ -25,6 +25,9 @@ export const THREE_COLUMN_ROUTES: readonly string[] = [
   "/utility/water",       // Водовод
   "/utility/garbage",     // Комуналец
   "/utility/electricity", // Струја — ЕВН
+  "/utility/parking",     // Паркинзи
+  "/taxi",                // Такси
+  "/bus-station",         // Автобуска станица
   "/recycle",             // Рециклирање
   "/kino",                // Кино анкета
   "/privacy",          // Политика на приватност

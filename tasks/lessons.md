@@ -420,3 +420,89 @@ Rule: before creating a file that would overwrite one, confirm with a
 repo-relative check that cannot silently target the wrong root — `git ls-files
 <path>` or an absolute path. If a file is expected to exist and appears not to,
 treat that as a cwd bug until proven otherwise.
+
+## A new page is not done until it is registered in lib/layout.ts
+Context: I added /taxi, /bus-station and the Паркинзи section, verified them with
+tsc + `next build`, and reported them finished. All three rendered in the
+2-column fallback with no right panel, because `THREE_COLUMN_ROUTES` is an
+opt-in list and I never added them. The build cannot catch this — an unregistered
+route is a valid route, just a differently-shaped one.
+Rule: when adding a route under app/(main), edit `lib/layout.ts` in the same
+change. Decide explicitly between the default right panel (add to
+THREE_COLUMN_ROUTES only) and an injected one (also add to CUSTOM_PANEL_ROUTES).
+"It compiles" is not evidence the layout is right.
+
+## A mobile change is invisible until it is built or OTA-published
+Context: I described the parking permit section as added while the user was
+looking at an App Store build of 1.0.7. Editing a file in mojprilep-mobile/
+changes nothing on any device — unlike the web, where a running server picks the
+edit up on the next render.
+Rule: when reporting mobile work, say what has to happen for it to become
+visible (dev client + reload, `eas update` against the matching appVersion, or a
+new build). Never let "added" stand for "shipped" on the app.
+
+## Deciding what a thing should do is not building it
+**2026-08-26** — Asked to point the per-route "Купи билет" at the same URL as the
+top button, I replied that `TICKETS_URL` was already the single constant and
+called it settled. The user came back with "the button is still missing" — the
+per-route button had never been rendered at all. Confirming a design decision
+reads as completion to nobody but me. When a request names a UI element, the
+turn is not finished until that element exists in the DOM and I have checked it
+there.
+
+## A component gated on an effect can render nothing at all
+
+`NextDepartures` was written as `useState<Clock | null>(null)` plus a
+`useEffect` that filled it in, returning `null` until then. On a page with
+`revalidate = 3600` it simply never appeared: no console error, correct import,
+correct JSX. The fix was to seed the state from the clock itself
+(`useState(prilepNow)`) and put `suppressHydrationWarning` on the list.
+
+**Rule:** never gate a component's entire render on state an effect fills in.
+Seed the initial value synchronously and let the effect refine it. "Renders
+nothing, throws nothing" is the signature of this bug — look at the state
+initializer before looking anywhere else.
+
+## Two data sources means the reader sees the disagreement, not the design
+
+The bus screen showed the station's own sheet grouped by carrier AND the
+pelagonija.mk portal list underneath. The portal prints the minute a coach
+passes THROUGH Prilep, so "12:47" appeared under a section whose own times were
+all different. The user read it as random numbers — reasonably.
+
+**Rule:** when two sources cover the same thing, do not stack them and expect
+the reader to reconcile them. Pick the authoritative one for the cases it
+covers and drop the other there entirely (and stop fetching it). Also: a
+browse list must be built from what we actually have — the "all destinations"
+list was the portal's 137 stations when only 18 had timetables.
+
+## A hidden browser tab is not a broken component
+
+While verifying the new `/sport` right panel, the injected panel never appeared in the
+Browser pane — the third column kept rendering the skeleton even though a `console.log`
+proved the `useLayoutEffect` ran and `setOverridePanel` was the real function, not the
+context default. Four rounds of instrumentation went into the component before the
+decisive check: `document.visibilityState` was `"hidden"`, and `/kindergarten` — the same
+pattern, live in production for months — behaved exactly the same way in that pane.
+
+**Rule:** before instrumenting new code that "doesn't render", run the *existing*
+equivalent through the same harness. If the known-good path fails identically, the
+harness is the variable, not the change. And on any headless/hidden pane, check
+`document.visibilityState` first — React defers non-urgent updates there, so an
+effect can run without its state update ever painting.
+
+## „Мобилно ≠ второкласно" — не решавај наместо корисникот дека нешто е само за веб
+
+Двапати одлучив дека формата за пријава на клуб и уредувањето на профилот „остануваат
+на веб" зашто имаат upload на лого и повторувачки редови — фиделно, но корисникот
+всушност очекуваше целосна форма и на телефон („its available only on the web, its
+missing on the mobile app"). Fiddly-to-build не е причина да се скрати опсегот наместо
+корисникот.
+
+**Зошто:** намалувањето на опсегот е одлука на корисникот, не моја. RN веќе има
+`pickImage()` (HEIC→JPEG) и chip-контроли; „тешко за градење" беше преценето.
+
+**Како да се примени:** кога веб има форма што ја нема мобилно, изгради ја со ист
+endpoint (`getRequestUser` прима Bearer) наместо да ставиш линк кон веб — освен ако
+корисникот експлицитно не побара линк. Ако сепак изоставам дел, кажи го јасно и
+прашај, не одлучувај тивко.

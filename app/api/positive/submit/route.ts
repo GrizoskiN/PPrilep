@@ -85,7 +85,7 @@ export async function POST(req: Request) {
     // ── Durable cap: too many of this user's stories still awaiting review? ───
     try {
       const pending: number = await sanity.fetch(
-        `count(*[_type == "post" && submittedBy.userId == $uid && _id in path("drafts.**")])`,
+        `count(*[_type == "post" && submittedBy.userId == $uid && isSubmission == true && reviewed != true && _id in path("drafts.**")])`,
         { uid: user.id },
       );
       if (typeof pending === "number" && pending >= MAX_PENDING_DRAFTS) {
