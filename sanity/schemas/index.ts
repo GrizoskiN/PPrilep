@@ -5,5 +5,7 @@ import cityEvent from "./cityEvent";
 import project from "./project";
 import moviePoll from "./moviePoll";
 import pastScreening from "./pastScreening";
+import sportClub from "./sport/sportClub";
+import sportPost from "./sport/sportPost";
 
-export const schemaTypes = [post, author, tag, cityEvent, project, moviePoll, pastScreening];
+export const schemaTypes = [post, author, tag, cityEvent, project, moviePoll, pastScreening, sportClub, sportPost];

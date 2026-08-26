@@ -354,6 +354,12 @@ export default function LeftNav() {
             iconNode={<FontAwesomeIcon icon={faRecycle} className="h-4 w-4" />}
             iconTone="green"
           />
+          <LeftNavItem
+            href="/sport"
+            label="Спорт и Рекреација"
+            iconNode={<FontAwesomeIcon icon={faMedal} className="h-4 w-4" />}
+            iconTone="orange"
+          />
         </div>
       </section>
 

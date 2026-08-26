@@ -1,0 +1,72 @@
+/**
+ * Спорт и Рекреација — the club directory.
+ *
+ * Every club in Prilep gets a free profile with the SAME structure, so a
+ * parent comparing two of them compares like with like. Profiles are created
+ * either by the editorial team in Studio or by the club through /sport/nov.
+ */
+
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Plus } from "lucide-react";
+
+import SportDirectory from "../../../components/sport/SportDirectory";
+import { fetchSportClubs } from "../../../lib/sanity/sport";
+
+export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  title: "Спорт и Рекреација — Мој Прилеп",
+  description:
+    "Сите спортски клубови, школи и фитнес центри во Прилеп на едно место — " +
+    "распоред на тренинзи, цени и контакт.",
+};
+
+export default async function SportPage() {
+  const clubs = await fetchSportClubs();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-xl">
+          🏅
+        </div>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-sm font-bold text-theme-heading">Спорт и Рекреација</h1>
+          <p className="text-xs text-theme-muted">
+            {clubs.length
+              ? `${clubs.length} клубови и организации во Прилеп`
+              : "Клубовите во Прилеп — распоред, цени и контакт"}
+          </p>
+        </div>
+      </div>
+
+      {/* The invitation sits above the list, not buried under it: an empty or
+          short directory is exactly when a club needs to be asked to join. */}
+      <Link
+        href="/sport/nov"
+        className="flex items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-teal-50 p-4 transition-colors hover:bg-teal-100"
+      >
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-teal-800">
+            Имаш клуб? Профилот е бесплатен.
+          </p>
+          <p className="text-xs text-teal-700">
+            Пополни ја формата — распоред, цени и контакт на едно место.
+          </p>
+        </div>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-600 text-white">
+          <Plus className="h-4 w-4" />
+        </span>
+      </Link>
+
+      {clubs.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-zinc-200 p-6 text-center text-sm text-theme-muted">
+          Уште нема објавени клубови. Твојот може да биде првиот.
+        </p>
+      ) : (
+        <SportDirectory clubs={clubs} />
+      )}
+    </div>
+  );
+}

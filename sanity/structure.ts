@@ -96,6 +96,40 @@ export const structure: StructureResolver = (S) =>
             ]),
         ),
 
+      S.divider(),
+
+      // ── 🏅 Спорт и Рекреација ────────────────────────────────────
+      // Club profiles arrive two ways: typed in here by the editorial team, or
+      // submitted by the club through /sport/nov. Both land in the same
+      // document type; the queue below is only the unreviewed submissions.
+      S.listItem()
+        .title("🏅 Спорт и Рекреација")
+        .child(
+          S.list()
+            .title("Спорт и Рекреација")
+            .items([
+              S.listItem()
+                .title("📥 Клубови за преглед")
+                .child(
+                  S.documentList()
+                    .title("Клубови за преглед")
+                    .filter('_type == "sportClub" && isSubmission == true && reviewed != true')
+                    .apiVersion("2024-01-01"),
+                ),
+              S.listItem()
+                .title("📥 Новости за преглед")
+                .child(
+                  S.documentList()
+                    .title("Новости за преглед")
+                    .filter('_type == "sportPost" && isSubmission == true && reviewed != true')
+                    .apiVersion("2024-01-01"),
+                ),
+              S.divider(),
+              S.documentTypeListItem("sportClub").title("Клубови"),
+              S.documentTypeListItem("sportPost").title("Новости од клубовите"),
+            ]),
+        ),
+
       // ── Future sections — uncomment / copy the block when ready ──────
       //
       // S.divider(),
