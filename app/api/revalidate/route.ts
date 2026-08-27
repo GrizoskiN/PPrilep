@@ -17,6 +17,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { broadcastNewEvent } from "@/lib/push/newEvent";
+import { broadcastNewSportPost } from "@/lib/push/sportPost";
 
 const SECRET = process.env.SANITY_REVALIDATE_SECRET;
 
@@ -70,6 +71,15 @@ export async function POST(req: Request) {
         // Never let a push problem fail the revalidation — stale content on the
         // site is the worse of the two failures.
         console.error("[revalidate] push", e);
+      }
+    }
+    // A newly published club post notifies that club's followers (only). Same
+    // idempotent, best-effort contract as the event broadcast above.
+    if (docType === "sportPost") {
+      try {
+        push = await broadcastNewSportPost(body?._id as string | undefined);
+      } catch (e) {
+        console.error("[revalidate] sport push", e);
       }
     }
 

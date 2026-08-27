@@ -551,3 +551,25 @@ label[for] {
     height: 0;
   }
 }
+
+/* "Прима нови членови" — a subtle, slow border glow that draws the eye to the
+   one thing a prospective member is looking for, without the jitter of a hard
+   blink. Pulses the ring colour and a soft halo, nothing that shifts layout. */
+@keyframes pp-accepting-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.7), 0 0 10px 1px rgba(13, 148, 136, 0.25);
+  }
+}
+.pp-accepting-glow {
+  animation: pp-accepting-glow 2.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-accepting-glow {
+    animation: none;
+    box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.45);
+  }
+}

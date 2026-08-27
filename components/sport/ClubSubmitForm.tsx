@@ -298,6 +298,17 @@ export default function ClubSubmitForm({ onCancel, onClose }: Props) {
             <Field label="За клубот">
               <textarea value={about} onChange={(e) => setAbout(e.target.value)} rows={5} className={inputCls} />
             </Field>
+
+            {/* Location sits right below „За клубот“ — same order as the profile. */}
+            <Field label="Сала/терен" hint="Каде всушност се тренира.">
+              <input value={venue} onChange={(e) => setVenue(e.target.value)} className={inputCls} />
+            </Field>
+            <Field label="Адреса">
+              <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputCls} />
+            </Field>
+            <Field label="Населба">
+              <input value={district} onChange={(e) => setDistrict(e.target.value)} className={inputCls} />
+            </Field>
           </div>
         )}
 
@@ -334,6 +345,15 @@ export default function ClubSubmitForm({ onCancel, onClose }: Props) {
                 ))}
               </div>
             </Field>
+
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <Toggle active={freeTrial} onClick={() => setFreeTrial(!freeTrial)}>
+                Прв тренинг бесплатно
+              </Toggle>
+              <Toggle active={acceptingMembers} onClick={() => setAcceptingMembers(!acceptingMembers)}>
+                Примаме нови членови
+              </Toggle>
+            </div>
           </div>
         )}
 
@@ -471,15 +491,6 @@ export default function ClubSubmitForm({ onCancel, onClose }: Props) {
               <Plus className="h-4 w-4" /> Додај ставка
             </button>
 
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              <Toggle active={freeTrial} onClick={() => setFreeTrial(!freeTrial)}>
-                Прв тренинг бесплатно
-              </Toggle>
-              <Toggle active={acceptingMembers} onClick={() => setAcceptingMembers(!acceptingMembers)}>
-                Примаме нови членови
-              </Toggle>
-            </div>
-
             <Field label="Како да се зачлени">
               <textarea value={howToJoin} onChange={(e) => setHowToJoin(e.target.value)} rows={3} className={inputCls} />
             </Field>
@@ -492,16 +503,6 @@ export default function ClubSubmitForm({ onCancel, onClose }: Props) {
         {/* ── Step 5: Контакт ── */}
         {step === 4 && (
           <div className="space-y-3">
-            <Field label="Сала/терен" hint="Каде всушност се тренира.">
-              <input value={venue} onChange={(e) => setVenue(e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="Адреса">
-              <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="Населба">
-              <input value={district} onChange={(e) => setDistrict(e.target.value)} className={inputCls} />
-            </Field>
-
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Телефон *">
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} inputMode="tel" />

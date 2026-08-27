@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import OwnerBar from "../../../../components/sport/OwnerBar";
+import FollowButton from "../../../../components/sport/FollowButton";
 import { urlForImage } from "../../../../lib/sanity/image";
 import {
   AGE_LABEL,
@@ -127,53 +128,114 @@ export default async function SportClubPage({
         <OwnerBar slug={club.slug} />
       </div>
 
-      {club.coverImage ? (
-        <div className="relative h-40 w-full overflow-hidden rounded-2xl bg-zinc-100">
-          <Image
-            src={urlForImage(club.coverImage).width(1200).height(480).fit("crop").url()}
-            alt={club.name}
-            fill
-            className="object-cover"
-            priority
-          />
-        </div>
-      ) : null}
-
-      {/* ── Identity ────────────────────────────────────────────────────── */}
-      <div className="flex gap-3">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-zinc-100">
-          {club.logo ? (
+      {/* ── Hero card: cover + overlapping logo + identity + follow ─────── */}
+      <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-zinc-100">
+        {/* Cover — taller than before; a brand strip stands in when a club
+            uploaded none, so the logo always has something to overlap. */}
+        {club.coverImage ? (
+          <div className="relative h-48 w-full bg-zinc-100 sm:h-60">
             <Image
-              src={urlForImage(club.logo).width(128).height(128).fit("crop").url()}
+              src={urlForImage(club.coverImage).width(1400).height(560).fit("crop").url()}
               alt={club.name}
-              width={64}
-              height={64}
-              className="h-full w-full object-cover"
+              fill
+              className="object-cover"
+              priority
             />
-          ) : (
-            <span className="text-2xl">🏅</span>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-1.5">
-            <h1 className="min-w-0 flex-1 text-base font-bold leading-snug text-theme-heading">
-              {club.name}
-            </h1>
-            {club.verified ? (
-              <BadgeCheck className="mt-1 h-5 w-5 shrink-0 text-teal-600" />
-            ) : null}
           </div>
-          <p className="text-xs text-theme-muted">
-            {[KIND_LABEL[club.kind], (club.sports ?? []).join(", ")]
-              .filter(Boolean)
-              .join(" · ")}
-            {club.foundedYear ? ` · од ${club.foundedYear}` : ""}
-          </p>
+        ) : (
+          <div className="h-28 w-full bg-gradient-to-r from-teal-500 to-teal-600 sm:h-32" />
+        )}
+
+        <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+          <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+            {/* Logo — bigger, a white circle lifted above the cover. */}
+            <div className="relative z-10 -mt-12 flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-4 ring-white sm:-mt-16 sm:h-32 sm:w-32">
+              <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-zinc-100">
+                {club.logo ? (
+                  <Image
+                    src={urlForImage(club.logo).width(256).height(256).fit("crop").url()}
+                    alt={club.name}
+                    width={128}
+                    height={128}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-4xl">🏅</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-1.5">
+                  <h1 className="min-w-0 text-lg font-bold leading-tight text-theme-heading sm:text-xl">
+                    {club.name}
+                  </h1>
+                  {club.verified ? (
+                    <BadgeCheck className="mt-1 h-5 w-5 shrink-0 text-teal-600" />
+                  ) : null}
+                </div>
+                <p className="mt-0.5 text-sm text-theme-muted">
+                  {[KIND_LABEL[club.kind], (club.sports ?? []).join(", ")]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  {club.foundedYear ? ` · од ${club.foundedYear}` : ""}
+                </p>
+              </div>
+
+              {/* Follow lives at the far right of the text row. */}
+              <FollowButton slug={club.slug} />
+            </div>
+          </div>
+
+          {club.shortDescription ? (
+            <p className="mt-4 text-sm leading-relaxed text-theme-heading">
+              {club.shortDescription}
+            </p>
+          ) : null}
+
+          {/* "Прима нови членови" sits right under the title/subtitle, its border
+              glowing gently to pull a prospective member's eye. */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {club.freeTrial ? (
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-600">
+                Прв тренинг бесплатно
+              </span>
+            ) : null}
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-bold ${
+                club.acceptingMembers
+                  ? "pp-accepting-glow bg-teal-50 text-teal-700"
+                  : "bg-zinc-100 text-zinc-500"
+              }`}
+            >
+              {club.acceptingMembers ? "Прима нови членови" : "Уписот е затворен"}
+            </span>
+          </div>
         </div>
       </div>
 
-      {club.shortDescription ? (
-        <p className="text-sm text-theme-heading">{club.shortDescription}</p>
+      {/* ── About (own white card, right below the hero) ────────────────── */}
+      {club.about ? (
+        <div className="space-y-2 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-zinc-100 sm:p-6">
+          <h2 className="text-sm font-semibold text-theme-heading">За клубот</h2>
+          <p className="whitespace-pre-line text-sm leading-relaxed text-theme-muted">
+            {club.about}
+          </p>
+        </div>
+      ) : null}
+
+      {/* ── Location (right below the about section) ────────────────────── */}
+      {club.venue || club.address || club.district ? (
+        <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-zinc-100 sm:p-6">
+          <h2 className="mb-2 text-sm font-semibold text-theme-heading">Локација</h2>
+          <p className="flex items-start gap-1.5 text-sm text-theme-muted">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+            <span>
+              {[club.venue, club.address, club.district].filter(Boolean).join(", ")}
+            </span>
+          </p>
+        </div>
       ) : null}
 
       {/* ── Who it is for ───────────────────────────────────────────────── */}
@@ -192,23 +254,6 @@ export default async function SportClubPage({
           </div>
         </Section>
       ) : null}
-
-      <div className="flex flex-wrap gap-1.5">
-        {club.freeTrial ? (
-          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-600">
-            Прв тренинг бесплатно
-          </span>
-        ) : null}
-        <span
-          className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
-            club.acceptingMembers
-              ? "bg-teal-50 text-teal-700"
-              : "bg-zinc-100 text-zinc-500"
-          }`}
-        >
-          {club.acceptingMembers ? "Прима нови членови" : "Уписот е затворен"}
-        </span>
-      </div>
 
       {/* ── News ────────────────────────────────────────────────────────── */}
       {news.length ? (
@@ -265,12 +310,6 @@ export default async function SportClubPage({
         </Section>
       ) : null}
 
-      {club.about ? (
-        <Section title="За клубот">
-          <p className="whitespace-pre-line text-sm text-theme-muted">{club.about}</p>
-        </Section>
-      ) : null}
-
       {/* ── Schedule ────────────────────────────────────────────────────── */}
       {(club.schedule ?? []).length ? (
         <Section title="Распоред на тренинзи">
@@ -323,23 +362,32 @@ export default async function SportClubPage({
         </Section>
       ) : null}
 
-      {club.howToJoin || club.joinUrl ? (
-        <Section title="Како да се зачлениш">
-          {club.howToJoin ? (
-            <p className="whitespace-pre-line text-sm text-theme-muted">{club.howToJoin}</p>
-          ) : null}
-          {club.joinUrl ? (
-            <a
-              href={club.joinUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
-            >
-              Зачлени се →
-            </a>
-          ) : null}
-        </Section>
-      ) : null}
+      {(() => {
+        // A club often pastes the sign-up URL straight into the free-text field
+        // instead of the dedicated link field. When `howToJoin` is nothing but a
+        // URL, promote it to the button rather than showing a bare address.
+        const joinText = (club.howToJoin ?? "").trim();
+        const joinTextIsUrl = /^https?:\/\/\S+$/i.test(joinText);
+        const joinLink = club.joinUrl || (joinTextIsUrl ? joinText : null);
+        const joinBody = joinTextIsUrl ? null : club.howToJoin;
+        return joinBody || joinLink ? (
+          <Section title="Како да се зачлениш">
+            {joinBody ? (
+              <p className="whitespace-pre-line text-sm text-theme-muted">{joinBody}</p>
+            ) : null}
+            {joinLink ? (
+              <a
+                href={joinLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
+              >
+                Зачлени се →
+              </a>
+            ) : null}
+          </Section>
+        ) : null;
+      })()}
 
       {/* ── Coaches ─────────────────────────────────────────────────────── */}
       {(club.coaches ?? []).length ? (
@@ -369,18 +417,6 @@ export default async function SportClubPage({
               </li>
             ))}
           </ul>
-        </Section>
-      ) : null}
-
-      {/* ── Where ───────────────────────────────────────────────────────── */}
-      {club.venue || club.address || club.district ? (
-        <Section title="Локација">
-          <p className="flex items-start gap-1.5 text-sm text-theme-muted">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-            <span>
-              {[club.venue, club.address, club.district].filter(Boolean).join(", ")}
-            </span>
-          </p>
         </Section>
       ) : null}
 

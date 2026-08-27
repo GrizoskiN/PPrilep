@@ -266,6 +266,20 @@ export default function EditClubForm({ club }: { club: SportClub }) {
         </Field>
       </section>
 
+      {/* ── Location (matches the profile: right below „За клубот“) ────────── */}
+      <section className="space-y-3">
+        <p className="text-xs font-semibold text-zinc-700">Локација</p>
+        <Field label="Сала / објект">
+          <input className={inputCls} value={venue} onChange={(e) => setVenue(e.target.value)} />
+        </Field>
+        <Field label="Адреса">
+          <input className={inputCls} value={address} onChange={(e) => setAddress(e.target.value)} />
+        </Field>
+        <Field label="Населба">
+          <input className={inputCls} value={district} onChange={(e) => setDistrict(e.target.value)} />
+        </Field>
+      </section>
+
       {/* ── Who it is for ─────────────────────────────────────────────────── */}
       <section className="space-y-2">
         <p className="text-xs font-semibold text-zinc-700">За кого</p>
@@ -429,8 +443,9 @@ export default function EditClubForm({ club }: { club: SportClub }) {
         </button>
       </section>
 
-      {/* ── Where + contact ───────────────────────────────────────────────── */}
+      {/* ── How to join (matches the profile: „Како да се зачлениш“) ───────── */}
       <section className="space-y-3">
+        <p className="text-xs font-semibold text-zinc-700">Како да се зачлениш</p>
         <Field label="Како да се зачлениш">
           <textarea
             className={inputCls}
@@ -447,15 +462,11 @@ export default function EditClubForm({ club }: { club: SportClub }) {
             placeholder="https://"
           />
         </Field>
-        <Field label="Сала / објект">
-          <input className={inputCls} value={venue} onChange={(e) => setVenue(e.target.value)} />
-        </Field>
-        <Field label="Адреса">
-          <input className={inputCls} value={address} onChange={(e) => setAddress(e.target.value)} />
-        </Field>
-        <Field label="Населба">
-          <input className={inputCls} value={district} onChange={(e) => setDistrict(e.target.value)} />
-        </Field>
+      </section>
+
+      {/* ── Contact ───────────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <p className="text-xs font-semibold text-zinc-700">Контакт</p>
         <Field label="Телефон">
           <input className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} />
         </Field>

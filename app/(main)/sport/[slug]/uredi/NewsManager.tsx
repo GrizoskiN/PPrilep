@@ -45,6 +45,14 @@ export default function NewsManager({
     load();
   }, [load]);
 
+  // Arriving from the profile's „Нова објава" button (…/uredi#novosti) means the
+  // club came here to post — open the composer straight away.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash === "#novosti") {
+      setOpen(true);
+    }
+  }, []);
+
   async function publish(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
@@ -87,7 +95,7 @@ export default function NewsManager({
   }
 
   return (
-    <section className="space-y-3">
+    <section id="novosti" className="scroll-mt-20 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-bold text-theme-heading">Новости</h2>
         <button

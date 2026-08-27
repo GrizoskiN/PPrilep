@@ -274,6 +274,33 @@ export async function fetchClubNews(slug: string, limit = 8): Promise<SportNewsI
   );
 }
 
+export type SportPostFresh = {
+  _id: string;
+  title: string;
+  publishedAt: string | null;
+  clubSlug: string | null;
+  clubName: string | null;
+};
+
+/**
+ * One post read straight from the API with no cache — the follower push needs
+ * the just-published row, and an ISR-cached read could still be the pre-publish
+ * emptiness. Mirrors fetchEventFresh. Returns the post plus its club's slug and
+ * name so the broadcaster can address followers and label the notification.
+ */
+export async function fetchSportPostFresh(id: string): Promise<SportPostFresh | null> {
+  if (!id.trim()) return null;
+  return await sanityClient.fetch<SportPostFresh | null>(
+    `*[_type == "sportPost" && _id == $id][0]{
+      _id, title, publishedAt,
+      "clubSlug": club->slug.current,
+      "clubName": club->name
+    }`,
+    { id },
+    { cache: "no-store" },
+  );
+}
+
 // ── Денешниот распоред ────────────────────────────────────────────────────────
 
 export type DaySlot = TrainingSlot & { club: string; clubSlug: string };
