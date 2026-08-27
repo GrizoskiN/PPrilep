@@ -6,9 +6,10 @@
  * that is wrong for as long as it waits.
  *
  * What a club may NOT change about itself is as important as what it may:
- * `name`, `slug`, `verified` and the ownership fields are omitted from the
- * patch entirely. A club renaming its own slug would break its URL and orphan
- * its Postgres binding; `verified` is our statement about them, not theirs.
+ * `slug`, `verified` and the ownership fields are omitted from the patch
+ * entirely. A club renaming its own slug would break its URL and orphan its
+ * Postgres binding; `verified` is our statement about them, not theirs. The
+ * `name` is theirs to correct.
  *
  * Requires SANITY_WRITE_TOKEN with content-create permission.
  */
@@ -110,16 +111,28 @@ export async function PATCH(req: Request) {
       );
     }
 
+    const name = str(form, "name", 120);
+    if (!name) {
+      return NextResponse.json(
+        { error: "Името на клубот не смее да биде празно." },
+        { status: 400 },
+      );
+    }
+
     const genderRaw = str(form, "gender", 20);
 
     // Every editable field is written on every save, blanks included: the form
     // shows the club its current values, so an emptied field is a deletion the
     // club asked for, not a field it forgot to send.
     const patch: Record<string, unknown> = {
+      // The name is theirs to correct; the slug is not — renaming the slug would
+      // break the club's URL and orphan its Postgres binding, so it is frozen.
+      name,
       sports,
       shortDescription: str(form, "shortDescription", MAX_SHORT) || null,
       about: str(form, "about", MAX_ABOUT) || null,
       howToJoin: str(form, "howToJoin", MAX_ABOUT) || null,
+      joinUrl: cleanUrl(form.get("joinUrl") as string) ?? null,
       ageGroups: cleanEnumList(form.get("ageGroups") as string, AGE_GROUPS),
       level: cleanEnumList(form.get("level") as string, LEVELS),
       gender: GENDERS.has(genderRaw) ? genderRaw : "mixed",
@@ -157,6 +170,23 @@ export async function PATCH(req: Request) {
         { filename: file.name || "logo.jpg" },
       );
       patch.logo = { _type: "image", asset: { _type: "reference", _ref: asset._id } };
+    }
+
+    // ── Optional new cover image ──────────────────────────────────────────────
+    const coverFile = form.get("cover");
+    if (coverFile instanceof File && coverFile.size > 0) {
+      if (coverFile.size > MAX_IMG_BYTES) {
+        return NextResponse.json(
+          { error: "Насловната слика е преголема (макс. 8 MB)." },
+          { status: 400 },
+        );
+      }
+      const asset = await sanity.assets.upload(
+        "image",
+        Buffer.from(await coverFile.arrayBuffer()),
+        { filename: coverFile.name || "cover.jpg" },
+      );
+      patch.coverImage = { _type: "image", asset: { _type: "reference", _ref: asset._id } };
     }
 
     await sanity.patch(club._id).set(patch).commit();

@@ -323,9 +323,21 @@ export default async function SportClubPage({
         </Section>
       ) : null}
 
-      {club.howToJoin ? (
+      {club.howToJoin || club.joinUrl ? (
         <Section title="Како да се зачлениш">
-          <p className="whitespace-pre-line text-sm text-theme-muted">{club.howToJoin}</p>
+          {club.howToJoin ? (
+            <p className="whitespace-pre-line text-sm text-theme-muted">{club.howToJoin}</p>
+          ) : null}
+          {club.joinUrl ? (
+            <a
+              href={club.joinUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
+            >
+              Зачлени се →
+            </a>
+          ) : null}
         </Section>
       ) : null}
 
@@ -425,7 +437,7 @@ export default async function SportClubPage({
       {club.updatedAt ? (
         <p className="text-[11px] text-zinc-400">
           Последно ажурирано: {formatUpdated(club.updatedAt)}. Податоците ги
-          дава клубот — ако нешто е сменето, јави ни се.
+          внесува клубот.
         </p>
       ) : null}
     </div>

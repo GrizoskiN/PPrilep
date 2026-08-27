@@ -320,6 +320,14 @@ export default defineType({
       rows: 3,
       group: "schedule",
     }),
+    defineField({
+      name: "joinUrl",
+      title: "Линк за зачленување",
+      type: "url",
+      group: "schedule",
+      description:
+        "Ако клубот има формулар или страница за пријава, стави го линкот тука — на профилот се појавува копче „Зачлени се“.",
+    }),
 
     // ── Where ────────────────────────────────────────────────────────────────
     defineField({

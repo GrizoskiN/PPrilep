@@ -7,10 +7,10 @@
  */
 
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Plus } from "lucide-react";
 
 import SportDirectory from "../../../components/sport/SportDirectory";
+import SubmitClubButton from "../../../components/sport/SubmitClubButton";
 import { fetchSportClubs } from "../../../lib/sanity/sport";
 
 export const revalidate = 3600;
@@ -43,9 +43,8 @@ export default async function SportPage() {
 
       {/* The invitation sits above the list, not buried under it: an empty or
           short directory is exactly when a club needs to be asked to join. */}
-      <Link
-        href="/sport/nov"
-        className="flex items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-teal-50 p-4 transition-colors hover:bg-teal-100"
+      <SubmitClubButton
+        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-teal-50 p-4 text-left transition-colors hover:bg-teal-100"
       >
         <div className="min-w-0">
           <p className="text-sm font-bold text-teal-800">
@@ -58,7 +57,7 @@ export default async function SportPage() {
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-600 text-white">
           <Plus className="h-4 w-4" />
         </span>
-      </Link>
+      </SubmitClubButton>
 
       {clubs.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-zinc-200 p-6 text-center text-sm text-theme-muted">

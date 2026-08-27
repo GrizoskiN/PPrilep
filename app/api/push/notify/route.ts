@@ -28,6 +28,16 @@ type NotificationRecord = {
   link?: string;
 };
 
+// Links that point at web-only destinations the mobile app has no screen for.
+// A push carrying one of these can't open anything on the phone — tapping it
+// just brings the app up on the home screen — so it's noise on mobile even
+// though it's a useful clickable row in the in-app bell (where the admin reads
+// it on desktop). `/studio` is the Sanity CMS: the "нов настан за преглед"
+// review ping (events/submit → notifyAdmins) is the main offender, and because
+// it fires to admins on submit while broadcastNewEvent fires to everyone on
+// publish, an admin otherwise gets TWO pushes per event — one of them dead.
+const MOBILE_DEAD_LINKS = new Set(["/studio"]);
+
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -49,6 +59,13 @@ export async function POST(req: Request) {
   const rec = payload.record;
   if (!rec?.recipient_user_id || !rec.title) {
     return NextResponse.json({ ok: true, skipped: "no recipient/title" });
+  }
+
+  // Skip pushing notifications whose only destination is a web-only page (e.g.
+  // the `/studio` review queue). They remain in the in-app bell; we just don't
+  // send a phone push that could only ever open the app on its home screen.
+  if (rec.link && MOBILE_DEAD_LINKS.has(rec.link)) {
+    return NextResponse.json({ ok: true, skipped: "web-only link" });
   }
 
   const admin = createAdminClient();

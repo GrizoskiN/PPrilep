@@ -25,6 +25,7 @@ import {
   PERIOD_LABEL,
   type SportClub,
 } from "../../../../../lib/sanity/sport";
+import { urlForImage } from "../../../../../lib/sanity/image";
 import {
   AGE_ORDER,
   DAY_ORDER,
@@ -41,6 +42,7 @@ import {
 export default function EditClubForm({ club }: { club: SportClub }) {
   const router = useRouter();
 
+  const [name, setName] = useState(club.name ?? "");
   const [sports, setSports] = useState((club.sports ?? []).join(", "));
   const [shortDescription, setShortDescription] = useState(club.shortDescription ?? "");
   const [about, setAbout] = useState(club.about ?? "");
@@ -70,6 +72,7 @@ export default function EditClubForm({ club }: { club: SportClub }) {
   const [freeTrial, setFreeTrial] = useState(club.freeTrial);
   const [acceptingMembers, setAcceptingMembers] = useState(club.acceptingMembers);
   const [howToJoin, setHowToJoin] = useState(club.howToJoin ?? "");
+  const [joinUrl, setJoinUrl] = useState(club.joinUrl ?? "");
   const [venue, setVenue] = useState(club.venue ?? "");
   const [address, setAddress] = useState(club.address ?? "");
   const [district, setDistrict] = useState(club.district ?? "");
@@ -80,6 +83,16 @@ export default function EditClubForm({ club }: { club: SportClub }) {
   const [instagram, setInstagram] = useState(club.instagram ?? "");
   const [logo, setLogo] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [cover, setCover] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+
+  // The images already on the profile, so the club sees what it is replacing.
+  const currentLogo = club.logo
+    ? urlForImage(club.logo).width(128).height(128).fit("crop").url()
+    : null;
+  const currentCover = club.coverImage
+    ? urlForImage(club.coverImage).width(800).height(320).fit("crop").url()
+    : null;
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -105,10 +118,12 @@ export default function EditClubForm({ club }: { club: SportClub }) {
 
     const form = new FormData();
     form.set("slug", club.slug);
+    form.set("name", name);
     form.set("sports", sports);
     form.set("shortDescription", shortDescription);
     form.set("about", about);
     form.set("howToJoin", howToJoin);
+    form.set("joinUrl", joinUrl);
     form.set("ageGroups", ageGroups.join(","));
     form.set("level", (club.level ?? []).join(","));
     form.set("gender", gender);
@@ -133,6 +148,7 @@ export default function EditClubForm({ club }: { club: SportClub }) {
       JSON.stringify(pricing.filter((p) => p.label.trim() && p.price !== "")),
     );
     if (logo) form.set("logo", logo);
+    if (cover) form.set("cover", cover);
 
     try {
       const res = await fetch("/api/sport/club", { method: "PATCH", body: form });
@@ -156,8 +172,8 @@ export default function EditClubForm({ club }: { club: SportClub }) {
         </Link>
         <h1 className="mt-1 text-base font-bold text-theme-heading">Уреди го профилот</h1>
         <p className="text-xs text-theme-muted">
-          Промените се објавуваат веднаш. Називот и типот ги менуваме ние — јави
-          ни се ако треба да се сменат.
+          Промените се објавуваат веднаш. Адресата на профилот (линкот) останува
+          иста — јави ни се ако треба да се смени.
         </p>
       </div>
 
@@ -170,6 +186,10 @@ export default function EditClubForm({ club }: { club: SportClub }) {
 
       {/* ── Basics ────────────────────────────────────────────────────────── */}
       <section className="space-y-3">
+        <Field label="Име на клубот">
+          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+
         <Field label="Спортови" hint="Одвоени со запирка.">
           <input className={inputCls} value={sports} onChange={(e) => setSports(e.target.value)} />
         </Field>
@@ -193,26 +213,57 @@ export default function EditClubForm({ club }: { club: SportClub }) {
           />
         </Field>
 
-        <Field label="Ново лого" hint="Остави празно за да го задржиш постојното.">
+        <Field label="Лого" hint="Остави празно за да го задржиш постојното.">
+          <div className="flex items-center gap-3">
+            {logoPreview || currentLogo ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={logoPreview ?? currentLogo ?? ""}
+                alt=""
+                className="h-16 w-16 shrink-0 rounded-xl object-cover"
+              />
+            ) : null}
+            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-teal-600">
+              <ImagePlus className="h-4 w-4" />
+              {logo ? logo.name : logoPreview || currentLogo ? "Смени слика" : "Избери слика"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setLogo(file);
+                  setLogoPreview(file ? URL.createObjectURL(file) : null);
+                }}
+              />
+            </label>
+          </div>
+        </Field>
+
+        <Field label="Насловна слика" hint="Широка слика на врвот на профилот. Остави празно за да ја задржиш постојната.">
+          {coverPreview || currentCover ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={coverPreview ?? currentCover ?? ""}
+              alt=""
+              className="mb-2 h-28 w-full rounded-xl object-cover"
+            />
+          ) : null}
           <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-teal-600">
             <ImagePlus className="h-4 w-4" />
-            {logo ? logo.name : "Избери слика"}
+            {cover ? cover.name : coverPreview || currentCover ? "Смени слика" : "Избери слика"}
             <input
               type="file"
               accept="image/*"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0] ?? null;
-                setLogo(file);
-                setLogoPreview(file ? URL.createObjectURL(file) : null);
+                setCover(file);
+                setCoverPreview(file ? URL.createObjectURL(file) : null);
               }}
             />
           </label>
         </Field>
-        {logoPreview ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={logoPreview} alt="" className="h-16 w-16 rounded-xl object-cover" />
-        ) : null}
       </section>
 
       {/* ── Who it is for ─────────────────────────────────────────────────── */}
@@ -386,6 +437,14 @@ export default function EditClubForm({ club }: { club: SportClub }) {
             rows={3}
             value={howToJoin}
             onChange={(e) => setHowToJoin(e.target.value)}
+          />
+        </Field>
+        <Field label="Линк за зачленување" hint="Формулар или страница за пријава — се појавува копче „Зачлени се“.">
+          <input
+            className={inputCls}
+            value={joinUrl}
+            onChange={(e) => setJoinUrl(e.target.value)}
+            placeholder="https://"
           />
         </Field>
         <Field label="Сала / објект">

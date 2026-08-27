@@ -10,6 +10,11 @@ import { structureTool } from "sanity/structure";
 import { visionTool } from "@sanity/vision";
 import { schemaTypes } from "./sanity/schemas";
 import { structure } from "./sanity/structure";
+import { AutoReviewPublishAction } from "./sanity/actions/autoReviewPublish";
+
+// Types where "Publish" on a form submission should also mark it reviewed, so a
+// single click both approves it and reveals it on the public site.
+const AUTO_REVIEW_TYPES = new Set(["sportClub", "sportPost"]);
 
 export default defineConfig({
   name:     "main",
@@ -19,4 +24,12 @@ export default defineConfig({
   basePath:  "/studio",
   plugins:   [structureTool({ structure }), visionTool()],
   schema:    { types: schemaTypes },
+  document: {
+    actions: (prev, context) =>
+      AUTO_REVIEW_TYPES.has(context.schemaType)
+        ? prev.map((action) =>
+            action.action === "publish" ? AutoReviewPublishAction : action,
+          )
+        : prev,
+  },
 });

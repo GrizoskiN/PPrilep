@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CalendarDays, Newspaper } from "lucide-react";
 
 import { urlForImage } from "../../lib/sanity/image";
+import SubmitClubButton from "./SubmitClubButton";
 import {
   DAY_SHORT,
   formatSlotTime,
@@ -177,12 +178,9 @@ export default function SportRightPanel({ day, slots, news, clubName }: Props) {
           Профилот и новостите се бесплатни. Пријави го клубот и добиваш пристап
           за уредување преку твојата Мој Прилеп сметка.
         </p>
-        <Link
-          href="/sport/nov"
-          className="inline-block pt-1 text-xs font-semibold text-teal-600"
-        >
+        <SubmitClubButton className="inline-block pt-1 text-xs font-semibold text-teal-600">
           Пријави клуб →
-        </Link>
+        </SubmitClubButton>
       </div>
     </div>
   );

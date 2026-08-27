@@ -99,6 +99,23 @@ async function notifyAdmins(actorUserId: string, name: string) {
   if (error) console.error("[sport/submit] notify insert", error.message);
 }
 
+/**
+ * Give the submitter edit access to the club they just created, by writing
+ * profiles.club_id — the single source of truth both surfaces check. Guarded to
+ * only claim when the account holds no club yet: this never overwrites an
+ * existing binding (a club account managing club A must not lose A by drafting
+ * B), and a NULL club_id is the normal case for a first-time submitter.
+ */
+async function bindOwner(userId: string, slug: string) {
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("profiles")
+    .update({ club_id: slug })
+    .eq("id", userId)
+    .is("club_id", null);
+  if (error) console.error("[sport/submit] bind owner", error.message);
+}
+
 export async function POST(req: Request) {
   try {
     if (!WRITE_TOKEN) {
@@ -206,12 +223,41 @@ export async function POST(req: Request) {
       }
     }
 
+    // ── Optional cover image ─────────────────────────────────────────────────
+    let coverRef:
+      | { _type: "image"; asset: { _type: "reference"; _ref: string }; alt: string }
+      | undefined;
+
+    const coverFile = form.get("cover") as File | null;
+    if (coverFile && coverFile.size > 0) {
+      if (coverFile.size > MAX_IMG_BYTES) {
+        return NextResponse.json(
+          { error: "Насловната слика смее да биде најмногу 8 MB." },
+          { status: 413 },
+        );
+      }
+      if (coverFile.type.startsWith("image/")) {
+        const buffer = Buffer.from(await coverFile.arrayBuffer());
+        const uploaded = await sanity.assets.upload("image", buffer, {
+          filename: coverFile.name,
+          contentType: coverFile.type || "image/jpeg",
+        });
+        coverRef = {
+          _type: "image",
+          asset: { _type: "reference", _ref: uploaded._id },
+          alt: name,
+        };
+      }
+    }
+
+    const slug = `${slugify(name) || "klub"}-${Date.now().toString(36).slice(-4)}`;
+
     const doc = {
       _type: "sportClub",
       name,
       slug: {
         _type: "slug",
-        current: `${slugify(name) || "klub"}-${Date.now().toString(36).slice(-4)}`,
+        current: slug,
       },
       kind,
       sports,
@@ -227,6 +273,7 @@ export async function POST(req: Request) {
       ...(schedule.length && { schedule }),
       ...(pricing.length && { pricing }),
       ...(logoRef && { logo: logoRef }),
+      ...(coverRef && { coverImage: coverRef }),
       ...(str(form, "shortDescription", MAX_SHORT) && {
         shortDescription: str(form, "shortDescription", MAX_SHORT),
       }),
@@ -234,6 +281,7 @@ export async function POST(req: Request) {
       ...(str(form, "howToJoin", MAX_ABOUT) && {
         howToJoin: str(form, "howToJoin", MAX_ABOUT),
       }),
+      ...(url(form, "joinUrl") && { joinUrl: url(form, "joinUrl") }),
       ...(str(form, "venue") && { venue: str(form, "venue") }),
       ...(str(form, "address") && { address: str(form, "address") }),
       ...(str(form, "district") && { district: str(form, "district") }),
@@ -254,6 +302,16 @@ export async function POST(req: Request) {
 
     // Create as a DRAFT — never public until an editor publishes it.
     const created = await sanity.create({ ...doc, _id: `drafts.${crypto.randomUUID()}` });
+
+    // Bind the submitter to their own club so they can edit it from the start —
+    // web and mobile both gate the Уреди flow on profiles.club_id. We only claim
+    // the binding when the account owns no club yet, so a second submission never
+    // silently steals edit rights from a club the account already manages. The
+    // slug is stable (it never changes after creation), so this holds through
+    // review and publish. Admins keep their blanket access regardless.
+    bindOwner(user.id, slug).catch((e) =>
+      console.error("[sport/submit] owner bind failed", e),
+    );
 
     notifyAdmins(user.id, name).catch((e) =>
       console.error("[sport/submit] notify failed", e),

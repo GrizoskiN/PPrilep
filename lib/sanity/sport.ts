@@ -58,6 +58,7 @@ export type SportClub = {
   freeTrial: boolean;
   acceptingMembers: boolean;
   howToJoin: string | null;
+  joinUrl: string | null;
   venue: string | null;
   address: string | null;
   district: string | null;
@@ -166,7 +167,7 @@ const FULL_FIELDS = `
   schedule[]{ group, days, startTime, endTime, venue },
   pricing[]{ label, price, period, note },
   coaches[]{ name, role, photo{ asset } },
-  howToJoin, venue, address, lat, lng,
+  howToJoin, joinUrl, venue, address, lat, lng,
   phone, email, website, facebook, instagram, tiktok, youtube,
   updatedAt
 `;
@@ -190,17 +191,22 @@ const CLUB_SLUGS_QUERY = `*[${PUBLIC}].slug.current`;
 
 // ── Fetchers ──────────────────────────────────────────────────────────────────
 
+// Fallback ISR interval — the webhook at /api/revalidate purges the "sport" tag
+// instantly on publish; this 24 h floor keeps pages fresh if the webhook misses.
+const REVALIDATE_CONTENT = 86_400;
+const SPORT_CACHE = { next: { revalidate: REVALIDATE_CONTENT, tags: ["sport"] } };
+
 export async function fetchSportClubs(): Promise<SportClubCard[]> {
-  return (await sanityClient.fetch<SportClubCard[]>(CLUBS_QUERY)) ?? [];
+  return (await sanityClient.fetch<SportClubCard[]>(CLUBS_QUERY, {}, SPORT_CACHE)) ?? [];
 }
 
 export async function fetchSportClub(slug: string): Promise<SportClub | null> {
   if (!slug.trim()) return null;
-  return await sanityClient.fetch<SportClub | null>(CLUB_BY_SLUG_QUERY, { slug });
+  return await sanityClient.fetch<SportClub | null>(CLUB_BY_SLUG_QUERY, { slug }, SPORT_CACHE);
 }
 
 export async function fetchSportClubSlugs(): Promise<string[]> {
-  const slugs = await sanityClient.fetch<(string | null)[]>(CLUB_SLUGS_QUERY);
+  const slugs = await sanityClient.fetch<(string | null)[]>(CLUB_SLUGS_QUERY, {}, SPORT_CACHE);
   return (slugs ?? []).filter((s): s is string => Boolean(s));
 }
 
@@ -257,14 +263,14 @@ const CLUB_NEWS_QUERY = `
 
 /** The latest announcements across every club — the right panel's news block. */
 export async function fetchSportNews(limit = 6): Promise<SportNewsItem[]> {
-  return (await sanityClient.fetch<SportNewsItem[]>(NEWS_QUERY, { limit })) ?? [];
+  return (await sanityClient.fetch<SportNewsItem[]>(NEWS_QUERY, { limit }, SPORT_CACHE)) ?? [];
 }
 
 /** One club's announcements, pinned first — shown on its profile. */
 export async function fetchClubNews(slug: string, limit = 8): Promise<SportNewsItem[]> {
   if (!slug.trim()) return [];
   return (
-    (await sanityClient.fetch<SportNewsItem[]>(CLUB_NEWS_QUERY, { slug, limit })) ?? []
+    (await sanityClient.fetch<SportNewsItem[]>(CLUB_NEWS_QUERY, { slug, limit }, SPORT_CACHE)) ?? []
   );
 }
 
@@ -291,7 +297,7 @@ export async function fetchDaySchedule(day: number): Promise<DaySlot[]> {
   const clubs =
     (await sanityClient.fetch<
       { name: string; slug: string | null; schedule: TrainingSlot[] }[]
-    >(SCHEDULE_QUERY)) ?? [];
+    >(SCHEDULE_QUERY, {}, SPORT_CACHE)) ?? [];
 
   const slots: DaySlot[] = [];
   for (const club of clubs) {

@@ -20,6 +20,7 @@ import {
 import { allDestinations, linesTo } from "../../../lib/data/timetable";
 import OfficialTimetable from "../../../components/bus/OfficialTimetable";
 import NextDepartures from "../../../components/bus/NextDepartures";
+import BusPanelInjector from "../../../components/bus/BusPanelInjector";
 
 export const metadata: Metadata = {
   title: "Автобуска станица Прилеп — возен ред | Мој Прилеп",
@@ -87,6 +88,9 @@ export default async function BusStationPage({
 
   return (
     <div className="space-y-6">
+      {/* Rules & terms → right panel (mirrors the mobile "Правила" popup). */}
+      <BusPanelInjector />
+
       <header className="space-y-1">
         <h1 className="text-xl font-semibold text-theme-heading">
           🚌 Автобуска станица Прилеп
