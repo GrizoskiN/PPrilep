@@ -18,6 +18,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { broadcastNewEvent } from "@/lib/push/newEvent";
 import { broadcastNewSportPost } from "@/lib/push/sportPost";
+import { broadcastClubApproved } from "@/lib/push/clubApproved";
 
 const SECRET = process.env.SANITY_REVALIDATE_SECRET;
 
@@ -80,6 +81,16 @@ export async function POST(req: Request) {
         push = await broadcastNewSportPost(body?._id as string | undefined);
       } catch (e) {
         console.error("[revalidate] sport push", e);
+      }
+    }
+    // Publishing a club (approving it from the review queue) congratulates its
+    // submitter. Same idempotent, best-effort contract — claimed once so an edit
+    // never re-notifies.
+    if (docType === "sportClub") {
+      try {
+        push = await broadcastClubApproved(body?._id as string | undefined);
+      } catch (e) {
+        console.error("[revalidate] club approved push", e);
       }
     }
 

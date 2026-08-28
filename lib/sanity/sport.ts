@@ -301,6 +301,33 @@ export async function fetchSportPostFresh(id: string): Promise<SportPostFresh | 
   );
 }
 
+/**
+ * One club read straight from the API with no cache — the "club approved" push
+ * needs the just-published row (an ISR read could still be the pre-publish
+ * emptiness), and it must see the submitter even on a doc that is still flagged
+ * as a submission. Returns only what the broadcaster needs to address and label
+ * the owner's notification.
+ */
+export interface SportClubFresh {
+  _id: string;
+  name: string | null;
+  slug: string | null;
+  ownerUserId: string | null;
+}
+
+export async function fetchSportClubFresh(id: string): Promise<SportClubFresh | null> {
+  if (!id.trim()) return null;
+  return await sanityClient.fetch<SportClubFresh | null>(
+    `*[_type == "sportClub" && _id == $id][0]{
+      _id, name,
+      "slug": slug.current,
+      "ownerUserId": submittedBy.userId
+    }`,
+    { id },
+    { cache: "no-store" },
+  );
+}
+
 // ── Денешниот распоред ────────────────────────────────────────────────────────
 
 export type DaySlot = TrainingSlot & { club: string; clubSlug: string };

@@ -26,6 +26,7 @@ type NotificationRecord = {
   title?: string;
   body?: string;
   link?: string;
+  type?: string;
 };
 
 // Links that point at web-only destinations the mobile app has no screen for.
@@ -37,6 +38,15 @@ type NotificationRecord = {
 // it fires to admins on submit while broadcastNewEvent fires to everyone on
 // publish, an admin otherwise gets TWO pushes per event — one of them dead.
 const MOBILE_DEAD_LINKS = new Set(["/studio"]);
+
+// Notification types that must still reach the phone even though their link is
+// web-only. The admin reviews in Studio on desktop, but the *alert* — "a club
+// applied" — is worth a push regardless; we just strip the dead link below so
+// tapping opens the app rather than dangling on a screen it doesn't have.
+// Unlike `event_submission`, a club submission has no matching publish-time
+// broadcast, so this is the ONLY chance to notify — there is no double-push to
+// avoid here.
+const ALWAYS_ALERT_TYPES = new Set(["sport_submission"]);
 
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -61,10 +71,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, skipped: "no recipient/title" });
   }
 
-  // Skip pushing notifications whose only destination is a web-only page (e.g.
-  // the `/studio` review queue). They remain in the in-app bell; we just don't
-  // send a phone push that could only ever open the app on its home screen.
-  if (rec.link && MOBILE_DEAD_LINKS.has(rec.link)) {
+  // A web-only link (e.g. the `/studio` review queue) normally means no push —
+  // it could only ever open the app on its home screen. The exception is an
+  // always-alert type, which still pushes but with the dead link dropped so the
+  // tap just opens the app; the row keeps its link for the desktop in-app bell.
+  const alwaysAlert = rec.type ? ALWAYS_ALERT_TYPES.has(rec.type) : false;
+  const mobileLink = rec.link && MOBILE_DEAD_LINKS.has(rec.link) ? undefined : rec.link;
+  if (rec.link && MOBILE_DEAD_LINKS.has(rec.link) && !alwaysAlert) {
     return NextResponse.json({ ok: true, skipped: "web-only link" });
   }
 
@@ -100,7 +113,7 @@ export async function POST(req: Request) {
     to,
     title: rec.title as string,
     body: rec.body ?? "",
-    data: rec.link ? { link: rec.link } : {},
+    data: mobileLink ? { link: mobileLink } : {},
     channelId: "default",
     ...(badge !== undefined ? { badge } : {}),
   }));
