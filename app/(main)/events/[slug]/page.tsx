@@ -178,6 +178,20 @@ export default async function EventDetailPage({ params }: Props) {
               showLabel
               className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-100 px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-200"
             />
+            {/* One-click cross-post to Facebook. FB builds the preview card
+                (image + title + description) from this page's OG tags, so the
+                post needs no retyping — pick the МојПрилеп Page in the dialog
+                and post. FB no longer supports pre-filling a custom caption. */}
+            <a
+              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#1877F2] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0f66d0]">
+              <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+              </svg>
+              Сподели на Facebook
+            </a>
             {ev.sourceUrl && (
               <a
                 href={ev.sourceUrl}
