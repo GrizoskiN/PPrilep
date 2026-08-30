@@ -25,9 +25,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   buildCaption,
   postCarouselToInstagram,
-  postToFacebook,
   postToInstagram,
-  facebookConfigured,
   instagramConfigured,
   type SocialPost,
 } from "@/lib/social/meta";
@@ -39,11 +37,11 @@ export const dynamic = "force-dynamic";
 const SECRET = process.env.SANITY_SOCIAL_SECRET;
 const BASE_URL = "https://mojprilep.mk";
 
-// Facebook auto-posting stays OFF until `pages_manage_posts` gets Advanced
-// Access via App Review — until then API-published Page posts are visible only
-// to app-role users (admin-only), so we post FB by hand and let IG auto-post.
-// Flip FB_AUTOPOST_ENABLED=true in Vercel once App Review is approved.
-const FB_AUTOPOST = process.env.FB_AUTOPOST_ENABLED === "true";
+// Events auto-post to Instagram ONLY. Facebook is deliberately manual — the
+// admin cross-posts to the FB Page with one click via the "Сподели на Facebook"
+// button on the event page (FB builds the card from the page's OG tags). This is
+// by design, not a gate: auto-posted Page posts are also visibility-limited until
+// App Review, and a per-event FB post was unwanted. No FB posting happens here.
 
 // ── Macedonian date range (no Intl → deterministic) ──────────────────────────
 const MK_MONTHS = [
@@ -119,22 +117,11 @@ export async function POST(req: Request) {
     // Instagram rejects a one-slide carousel.
     const carousel = instagramCarouselUrls(ev.coverImage, ev.gallery);
 
-    // Post to each network independently — one failing shouldn't block the other.
+    // Instagram-only auto-post. Facebook is manual (see note above), so fbId
+    // stays null by design.
     const errors: string[] = [];
-    let fbId: string | null = null;
+    const fbId: string | null = null;
     let igId: string | null = null;
-
-    if (!FB_AUTOPOST) {
-      errors.push("fb: auto-post disabled (post manually until App Review)");
-    } else if (facebookConfigured()) {
-      try {
-        fbId = await postToFacebook(caption, url, images?.facebook ?? null);
-      } catch (e) {
-        errors.push(`fb: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    } else {
-      errors.push("fb: not configured");
-    }
 
     if (instagramConfigured() && images) {
       try {
