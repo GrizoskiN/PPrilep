@@ -1,16 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FileDown, Clock, Check, MapPin, ChevronDown } from "lucide-react";
 import WeeklyMenuPanel from "./WeeklyMenuPanel";
 import { INSTITUTION_FALLBACK } from "../../lib/kindergarten-fallback";
+import { fetchAllInstitutions } from "../../lib/sanity/kindergarten";
 import type { SignupDocument, MenuPost } from "../../lib/sanity/kindergarten";
 
 interface Props {
   signupDocuments: SignupDocument[];
   latestMenu: MenuPost | null;
 }
+
+/** Shape the panel renders — derived from either Sanity or the fallback list. */
+interface InstitutionRow {
+  slug: string;
+  shortName: string;
+  closingTime: string | null;
+  district: string | null;
+}
+
+const shortName = (name: string) =>
+  name.replace(/Градинка\s*(Наша Иднина|"Наша Иднина")\s*[-–—]?\s*/i, "").trim() || name;
 
 // Потребни документи за упис во градинка (од установата).
 const REQUIRED_DOCUMENTS = [
@@ -25,6 +37,32 @@ const REQUIRED_DOCUMENTS = [
 
 export default function KindergartenListRightPanel({ signupDocuments, latestMenu }: Props) {
   const [instOpen, setInstOpen] = useState(false);
+  const [institutions, setInstitutions] = useState<InstitutionRow[]>(() =>
+    INSTITUTION_FALLBACK.map((i) => ({
+      slug: i.slug,
+      shortName: i.shortName,
+      closingTime: i.closingTime,
+      district: i.district,
+    })),
+  );
+
+  // Live institutions from Sanity — replaces the static fallback once loaded.
+  useEffect(() => {
+    fetchAllInstitutions()
+      .then((rows) => {
+        if (rows.length > 0) {
+          setInstitutions(
+            rows.map((r) => ({
+              slug: r.slug,
+              shortName: shortName(r.name),
+              closingTime: r.closingTime,
+              district: r.district,
+            })),
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-4 lg:p-3">
@@ -120,7 +158,7 @@ export default function KindergartenListRightPanel({ signupDocuments, latestMenu
           aria-expanded={instOpen}>
           <p className="text-sm font-semibold text-zinc-500">Установи</p>
           <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-500">
-            {INSTITUTION_FALLBACK.length}
+            {institutions.length}
           </span>
           <span className="flex-1" />
           <ChevronDown
@@ -131,7 +169,7 @@ export default function KindergartenListRightPanel({ signupDocuments, latestMenu
 
         {instOpen && (
           <div className="mt-3 space-y-1 border-t border-zinc-100 pt-3">
-            {INSTITUTION_FALLBACK.map((inst) => (
+            {institutions.map((inst) => (
               <Link
                 key={inst.slug}
                 href={`/kindergarten/${inst.slug}`}
