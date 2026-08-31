@@ -91,7 +91,7 @@ function AnnouncementCard({ announcement: a }: { announcement: KindergartenAnnou
       className="block rounded-2xl border border-zinc-200 bg-white overflow-hidden transition-all hover:border-zinc-300 hover:shadow-sm">
       {/* Cover image */}
       {a.coverImage && !a.videoFileUrl && !a.videoUrl && (
-        <div className="relative h-44 w-full">
+        <div className="relative h-64 w-full">
           <Image
             src={urlForImage(a.coverImage).width(600).height(280).url()}
             alt={a.title} fill sizes="(max-width: 640px) 100vw, 600px" className="object-cover"
@@ -100,14 +100,14 @@ function AnnouncementCard({ announcement: a }: { announcement: KindergartenAnnou
       )}
       {/* Uploaded video — same height as the cover image */}
       {a.videoFileUrl && (
-        <video src={a.videoFileUrl} controls className="h-44 w-full bg-black object-contain" preload="metadata" />
+        <video src={a.videoFileUrl} controls className="h-64 w-full bg-black object-contain" preload="metadata" />
       )}
       {/* YouTube / Vimeo — same height as the cover image */}
       {!a.videoFileUrl && a.videoUrl && (() => {
         const yt = a.videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/);
         const vm = a.videoUrl.match(/vimeo\.com\/(\d+)/);
         if (yt) return (
-          <div className="relative h-44 w-full bg-black">
+          <div className="relative h-64 w-full bg-black">
             <iframe src={`https://www.youtube.com/embed/${yt[1]}`}
               className="absolute inset-0 h-full w-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -115,7 +115,7 @@ function AnnouncementCard({ announcement: a }: { announcement: KindergartenAnnou
           </div>
         );
         if (vm) return (
-          <div className="relative h-44 w-full bg-black">
+          <div className="relative h-64 w-full bg-black">
             <iframe src={`https://player.vimeo.com/video/${vm[1]}`}
               className="absolute inset-0 h-full w-full"
               allow="autoplay; fullscreen; picture-in-picture" allowFullScreen />
@@ -132,25 +132,6 @@ function AnnouncementCard({ announcement: a }: { announcement: KindergartenAnnou
           </span>
         </div>
         {a.body && <p className="text-xs leading-relaxed text-zinc-600 whitespace-pre-line">{a.body}</p>}
-        {a.gallery && a.gallery.length > 0 && (
-          <div className="grid grid-cols-3 gap-1.5 pt-1">
-            {a.gallery.slice(0, 3).map((img, i) => (
-              <div
-                key={i}
-                className="relative block aspect-square overflow-hidden rounded-lg">
-                <Image
-                  src={urlForImage(img).width(200).height(200).url()}
-                  alt={`${a.title} ${i + 1}`} fill sizes="200px" className="object-cover"
-                />
-                {i === 2 && a.gallery!.length > 3 && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-sm font-semibold text-white">
-                    +{a.gallery!.length - 3}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
         <div className="flex items-center justify-between pt-0.5">
           <p className="text-[11px] text-zinc-400">{formatDays(a.publishedAt)}</p>
           <span className="text-[11px] font-semibold text-[#2aa99d]">Отвори →</span>
