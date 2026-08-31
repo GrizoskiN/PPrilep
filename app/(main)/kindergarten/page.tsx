@@ -3,46 +3,21 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Phone, Clock, MapPin } from "lucide-react";
 import { urlForImage } from "../../../lib/sanity/image";
 import {
-  fetchAllInstitutions,
   fetchAllAnnouncements,
-  type KindergartenInstitution,
   type KindergartenAnnouncement,
 } from "../../../lib/sanity/kindergarten";
 import { INSTITUTION_FALLBACK } from "../../../lib/kindergarten-fallback";
 import { formatDays } from "../../../lib/utils";
 
-function mergeWithSanity(fb: typeof INSTITUTION_FALLBACK[0], sanity?: KindergartenInstitution) {
-  if (!sanity) return { ...fb, coverImage: null as KindergartenInstitution["coverImage"] };
-  return {
-    ...fb,
-    address:     sanity.address     ?? fb.address,
-    // Phone intentionally not merged from Sanity — kindergartens show no phone.
-    phone:       fb.phone,
-    closingTime: sanity.closingTime ?? fb.closingTime,
-    district:    sanity.district    ?? fb.district,
-    coverImage:  sanity.coverImage,
-  };
-}
-
 export default function KindergartenPage() {
-  const [sanityInstitutions, setSanityInstitutions] = useState<KindergartenInstitution[]>([]);
   const [announcements, setAnnouncements] = useState<KindergartenAnnouncement[]>([]);
   const [filter, setFilter] = useState<string | null>(null); // null = all
 
   useEffect(() => {
-    fetchAllInstitutions().then(setSanityInstitutions).catch(() => {});
     fetchAllAnnouncements().then(setAnnouncements).catch(() => {});
   }, []);
-
-  const institutions = useMemo(
-    () => INSTITUTION_FALLBACK.map((fb) =>
-      mergeWithSanity(fb, sanityInstitutions.find((s) => s.slug === fb.slug))
-    ),
-    [sanityInstitutions],
-  );
 
   const filteredAnnouncements = useMemo(() => {
     if (!filter) return announcements;
@@ -63,55 +38,6 @@ export default function KindergartenPage() {
           <h1 className="text-sm font-bold text-zinc-900">Наша Иднина — Градинки</h1>
           <p className="text-xs text-zinc-500">6 установи во Прилеп</p>
         </div>
-      </div>
-
-      {/* 2-column institution grid — direct links */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {institutions.map((inst) => (
-          <Link
-            key={inst.slug}
-            href={`/kindergarten/${inst.slug}`}
-            className="group flex flex-col rounded-2xl border border-zinc-200 bg-white transition-all hover:border-zinc-300 hover:shadow-sm overflow-hidden">
-
-            {inst.coverImage ? (
-              <div className="relative h-32 w-full overflow-hidden">
-                <Image
-                  src={urlForImage(inst.coverImage).width(400).height(200).fit("crop").url()}
-                  alt={inst.shortName} fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
-                  className="object-cover transition-transform group-hover:scale-[1.02]"
-                />
-              </div>
-            ) : (
-              <div className="flex h-24 items-center justify-center bg-zinc-50 border-b border-zinc-100">
-                <span className="text-4xl opacity-50">🌸</span>
-              </div>
-            )}
-
-            <div className="p-4 space-y-1.5">
-              <p className="font-semibold text-zinc-900 group-hover:text-zinc-700 transition-colors">
-                {inst.shortName}
-              </p>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                {inst.phone && (
-                  <span className="flex items-center gap-1 text-xs text-zinc-500">
-                    <Phone size={11} className="text-zinc-400" />{inst.phone}
-                  </span>
-                )}
-                {inst.closingTime && (
-                  <span className="flex items-center gap-1 text-xs text-zinc-500">
-                    <Clock size={11} className="text-zinc-400" />до {inst.closingTime}
-                  </span>
-                )}
-                {inst.district && (
-                  <span className="flex items-center gap-1 text-xs text-zinc-400">
-                    <MapPin size={11} />{inst.district}
-                  </span>
-                )}
-              </div>
-            </div>
-          </Link>
-        ))}
       </div>
 
       {/* Announcements feed */}

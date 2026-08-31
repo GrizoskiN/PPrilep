@@ -123,31 +123,34 @@ export default async function HomePage() {
                 Види повеќе
               </Link>
             </div>
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {announcements.map((a) => {
+                // Only the single cover image (fallback to the first gallery
+                // image) — no gallery thumbnails; uniform-height cards.
                 const img = a.coverImage ?? a.gallery?.[0] ?? null;
                 return (
                   <Link
                     key={a._id}
                     href={`/kindergarten/announcement/${a._id}`}
-                    className="flex items-center gap-3 rounded-lg border border-theme bg-theme-surface p-2 hover:border-[#cfe0da]">
+                    className="group flex flex-col overflow-hidden rounded-xl border border-theme bg-theme-surface hover:border-[#cfe0da]">
                     {img ? (
-                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg">
+                      <div className="relative h-40 w-full overflow-hidden">
                         <Image
-                          src={urlForImage(img).width(112).height(112).url()}
-                          alt={a.title} fill sizes="56px" className="object-cover"
+                          src={urlForImage(img).width(600).height(320).url()}
+                          alt={a.title} fill sizes="(max-width: 640px) 100vw, 320px"
+                          className="object-cover transition-transform group-hover:scale-[1.02]"
                         />
                       </div>
                     ) : (
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-2xl">
+                      <div className="flex h-40 w-full items-center justify-center bg-zinc-100 text-4xl">
                         🌸
                       </div>
                     )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-theme-heading">
+                    <div className="flex flex-1 flex-col p-3">
+                      <p className="line-clamp-2 text-sm font-semibold text-theme-heading">
                         {a.title}
                       </p>
-                      <p className="mt-0.5 truncate text-xs text-theme-muted">
+                      <p className="mt-1 truncate text-xs text-theme-muted">
                         {a.isGlobal ? "Сите установи" : a.institutionName}
                       </p>
                     </div>
