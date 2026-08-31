@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -53,6 +53,19 @@ export default function GalleryLightbox({
 
   const many = images.length > 1;
 
+  // Horizontal swipe navigation for touch devices.
+  const touchX = useRef<number | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchX.current = e.touches[0]?.clientX ?? null;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchX.current === null || !many) return;
+    const dx = (e.changedTouches[0]?.clientX ?? touchX.current) - touchX.current;
+    if (dx > 50) prev();
+    else if (dx < -50) next();
+    touchX.current = null;
+  };
+
   return (
     <div
       role="dialog"
@@ -66,7 +79,7 @@ export default function GalleryLightbox({
           onClose();
         }}
         aria-label="Затвори"
-        className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80">
+        className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80">
         <X size={20} />
       </button>
 
@@ -79,7 +92,7 @@ export default function GalleryLightbox({
               prev();
             }}
             aria-label="Претходна"
-            className="absolute left-4 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80">
+            className="absolute left-4 top-1/2 z-10 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80">
             <ChevronLeft size={22} />
           </button>
           <button
@@ -89,7 +102,7 @@ export default function GalleryLightbox({
               next();
             }}
             aria-label="Следна"
-            className="absolute right-4 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80">
+            className="absolute right-4 top-1/2 z-10 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80">
             <ChevronRight size={22} />
           </button>
         </>
@@ -97,7 +110,9 @@ export default function GalleryLightbox({
 
       <div
         className="relative h-full w-full max-h-screen max-w-screen-lg"
-        onClick={(e) => e.stopPropagation()}>
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}>
         <Image
           key={images[i]}
           src={images[i]}
