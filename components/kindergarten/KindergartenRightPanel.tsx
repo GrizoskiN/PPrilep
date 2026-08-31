@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Phone, Clock, MapPin, ChevronRight, FileDown } from "lucide-react";
 import { formatDays } from "../../lib/utils";
 import WeeklyMenuPanel from "./WeeklyMenuPanel";
+import { fetchAllInstitutions } from "../../lib/sanity/kindergarten";
 import type {
   KindergartenInstitution,
   MenuPost,
@@ -28,7 +30,19 @@ export default function KindergartenRightPanel({
   signupDocuments,
   allInstitutions,
 }: Props) {
-  const others = allInstitutions.filter((i) => i.slug !== institution.slug);
+  // The server-passed list is ISR-cached (up to 1h), so a newly added/removed
+  // institution can lag. Re-fetch live on the client to keep this fresh — seeded
+  // from the server prop so there's no flash of an empty list.
+  const [institutions, setInstitutions] = useState<KindergartenInstitution[]>(allInstitutions);
+  useEffect(() => {
+    fetchAllInstitutions()
+      .then((rows) => {
+        if (rows.length > 0) setInstitutions(rows);
+      })
+      .catch(() => {});
+  }, []);
+
+  const others = institutions.filter((i) => i.slug !== institution.slug);
 
   const shortName = (name: string) =>
     name
