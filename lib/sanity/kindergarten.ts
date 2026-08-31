@@ -67,6 +67,8 @@ export type KindergartenAnnouncement = {
   body: string | null;
   publishedAt: string;
   coverImage: { asset: { _ref: string } } | null;
+  gallery:         { asset: { _ref: string } }[] | null;
+  link:            string | null;
   videoUrl:        string | null;
   videoFileUrl:    string | null;
   isGlobal:        boolean;
@@ -115,7 +117,7 @@ const CURRENT_PROGRAMME_QUERY = `
   }
 `;
 
-const ANNOUNCEMENT_FIELDS = `_id, title, body, publishedAt, coverImage{ asset }, videoUrl, "videoFileUrl": video.asset->url, "isGlobal": !defined(institution), "institutionSlug": institution->slug.current, "institutionName": institution->name`;
+const ANNOUNCEMENT_FIELDS = `_id, title, body, publishedAt, coverImage{ asset }, gallery[]{ asset }, link, videoUrl, "videoFileUrl": video.asset->url, "isGlobal": !defined(institution), "institutionSlug": institution->slug.current, "institutionName": institution->name`;
 
 const ANNOUNCEMENTS_BY_INSTITUTION_QUERY = `
   *[_type == "kindergartenAnnouncement"
@@ -199,4 +201,12 @@ const ALL_ANNOUNCEMENTS_QUERY = `
 
 export async function fetchAllAnnouncements(): Promise<KindergartenAnnouncement[]> {
   return sanityClient.fetch(ALL_ANNOUNCEMENTS_QUERY, {}, { next: { revalidate: 0 } });
+}
+
+const ANNOUNCEMENT_BY_ID_QUERY = `
+  *[_type == "kindergartenAnnouncement" && _id == $id][0] { ${ANNOUNCEMENT_FIELDS} }
+`;
+
+export async function fetchAnnouncementById(id: string): Promise<KindergartenAnnouncement | null> {
+  return sanityClient.fetch(ANNOUNCEMENT_BY_ID_QUERY, { id }, { next: { revalidate: 300 } });
 }

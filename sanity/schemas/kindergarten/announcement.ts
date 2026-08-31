@@ -9,8 +9,16 @@ export default defineType({
     defineField({ name: "title",       title: "Наслов",      type: "string",    validation: (R) => R.required() }),
     defineField({ name: "body",        title: "Содржина",    type: "text",  rows: 6 }),
     defineField({ name: "coverImage",  title: "Слика",                    type: "image",    options: { hotspot: true } }),
+    defineField({
+      name: "gallery",
+      title: "Галерија (повеќе слики)",
+      type: "array",
+      of: [{ type: "image", options: { hotspot: true } }],
+      options: { layout: "grid" },
+    }),
     defineField({ name: "video",       title: "Видео (прикачи директно)", type: "file",     options: { accept: "video/*" } }),
     defineField({ name: "videoUrl",    title: "Видео линк (YouTube / Vimeo)", type: "url",  description: "Алтернатива на директно прикачување" }),
+    defineField({ name: "link",        title: "Линк (копче)",             type: "url",      description: "Незадолжително — прикажува копче што води до оваа адреса" }),
     defineField({ name: "publishedAt", title: "Објавено на",              type: "datetime", validation: (R) => R.required() }),
   ],
   preview: {

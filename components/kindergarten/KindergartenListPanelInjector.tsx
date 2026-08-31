@@ -19,13 +19,18 @@ export default function KindergartenListPanelInjector({ signupDocuments, latestM
   const pathname = usePathname();
 
   useLayoutEffect(() => {
-    if (pathname !== "/kindergarten") return;
+    // Show the section panel on the list itself and on each announcement post,
+    // but not on institution ([slug]) pages — those inject their own panel.
+    const isList = pathname === "/kindergarten";
+    const isAnnouncement = pathname?.startsWith("/kindergarten/announcement/") ?? false;
+    if (!isList && !isAnnouncement) return;
+
     setOverridePanel(
       <KindergartenListRightPanel signupDocuments={signupDocuments} latestMenu={latestMenu} />,
-      "/kindergarten",
+      pathname!,
       true,
     );
-    return () => setOverridePanel(null, "/kindergarten");
+    return () => setOverridePanel(null, pathname!);
   }, [pathname, signupDocuments, latestMenu, setOverridePanel]);
 
   return null;

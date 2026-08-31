@@ -1,6 +1,6 @@
 "use client";
 
-import { FileDown, Clock } from "lucide-react";
+import { FileDown, Clock, Check } from "lucide-react";
 import WeeklyMenuPanel from "./WeeklyMenuPanel";
 import type { SignupDocument, MenuPost } from "../../lib/sanity/kindergarten";
 
@@ -8,6 +8,17 @@ interface Props {
   signupDocuments: SignupDocument[];
   latestMenu: MenuPost | null;
 }
+
+// Потребни документи за упис во градинка (од установата).
+const REQUIRED_DOCUMENTS = [
+  "Брис од грло и нос — негативен (не постар од 15 денови)",
+  "Досие за дете (од книжара)",
+  "Третата страна од досието ја пополнува матичен лекар",
+  "Потврда за двајца вработени родители",
+  "Потврда за вакцинација",
+  "Копија од вакцинален картон",
+  "Потврда од матичен лекар дека детето е здраво (нема симптоми на инфективна болест)",
+];
 
 export default function KindergartenListRightPanel({ signupDocuments, latestMenu }: Props) {
   return (
@@ -49,10 +60,23 @@ export default function KindergartenListRightPanel({ signupDocuments, latestMenu
           <span className="text-base">📄</span>
           <p className="text-sm font-semibold text-zinc-500">Документи за запишување</p>
         </div>
-        {signupDocuments.length === 0 ? (
-          <p className="text-xs text-zinc-400 italic">Наскоро ќе бидат достапни.</p>
-        ) : (
-          <div className="space-y-1">
+
+        {/* Required documents parents must provide to enroll a child. */}
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+          Потребни документи за упис:
+        </p>
+        <ul className="space-y-1.5">
+          {REQUIRED_DOCUMENTS.map((doc) => (
+            <li key={doc} className="flex items-start gap-2 text-xs leading-relaxed text-zinc-600">
+              <Check size={13} className="mt-0.5 shrink-0 text-emerald-500" />
+              <span>{doc}</span>
+            </li>
+          ))}
+        </ul>
+
+        {/* Downloadable forms, once uploaded in the studio. */}
+        {signupDocuments.length > 0 && (
+          <div className="space-y-1 border-t border-zinc-100 pt-2">
             {signupDocuments.map((doc) => (
               <a key={doc._id} href={doc.fileUrl} target="_blank" rel="noopener noreferrer"
                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors group">
