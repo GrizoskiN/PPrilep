@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getIssuePath, parseIssueIdFromSegment } from "@/lib/utils";
+import { getIssuePath, parseIssueIdFromSegment, cdnUrl } from "@/lib/utils";
 import { notFound, redirect } from "next/navigation";
 import IssuePageClient from "./IssuePageClient";
 import type { Metadata } from "next";
@@ -28,7 +28,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: issue.title,
       description: issue.description ?? undefined,
-      images: issue.photo_url ? [{ url: issue.photo_url }] : [],
+      // Route the social-preview image through the Cloudflare CDN. Crawlers and
+      // in-app link previews (FB/Viber/Messenger/Telegram/WhatsApp) re-fetch the
+      // og:image repeatedly, and pointing it straight at Supabase billed every
+      // one of those as Supabase egress — the spike we saw whenever a post was
+      // widely shared. Through the CDN those repeats are edge cache hits.
+      images: issue.photo_url ? [{ url: cdnUrl(issue.photo_url) }] : [],
     },
   };
 }
