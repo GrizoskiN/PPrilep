@@ -62,13 +62,13 @@ const CACHE_HEADERS = {
 };
 
 // ── Service window (Europe/Skopje) ───────────────────────────────────────────
-// Buses run ~06:00–17:00 local. Outside that nothing is on the road, so we
+// Buses run ~06:00–20:00 local. Outside that nothing is on the road, so we
 // short-circuit BEFORE touching Supabase or Flespi and hand the CDN a cache that
 // lasts until service reopens — overnight the function is barely invoked and
 // makes zero upstream calls. The owner endpoint (/admin) is exempt so parked
 // buses stay watchable 24/7. Change these two numbers if the schedule changes.
 const OPEN_MIN = 6 * 60; // 06:00
-const CLOSE_MIN = 17 * 60; // 17:00
+const CLOSE_MIN = 20 * 60; // 20:00
 
 /** Minutes-into-day in Europe/Skopje (DST-correct); the server itself runs UTC. */
 function skopjeMinutes(d = new Date()): number {

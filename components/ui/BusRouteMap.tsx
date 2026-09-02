@@ -233,7 +233,7 @@ const IDLE_MS =
 // app/api/buses/positions/route.ts. The owner is exempt (keeps watching parked
 // buses via the admin endpoint).
 const SERVICE_START_MIN = 6 * 60; // 06:00
-const SERVICE_END_MIN = 17 * 60; // 17:00
+const SERVICE_END_MIN = 20 * 60; // 20:00
 function inServiceHours(now: Date = new Date()): boolean {
   const m = now.getHours() * 60 + now.getMinutes();
   return m >= SERVICE_START_MIN && m <= SERVICE_END_MIN;
@@ -242,11 +242,11 @@ function inServiceHours(now: Date = new Date()): boolean {
 // Operating hours: during the day the live map must stay live no matter what, so
 // a brief stop (a tire change, a layover, heavy traffic) can never let the
 // viewer's tab quietly auto-pause and freeze on a stale frame. Between 06:00 and
-// 17:00 the inactivity pause is disabled outright. Only applies in production —
+// 20:00 the inactivity pause is disabled outright. Only applies in production —
 // dev keeps the fast pause so a forgotten `next dev` tab still stops. Outside
 // these hours the normal idle-pause returns to cap request cost.
 const NO_IDLE_START_MIN = 6 * 60; // 06:00
-const NO_IDLE_END_MIN = 17 * 60; // 17:00
+const NO_IDLE_END_MIN = 20 * 60; // 20:00
 function inNoIdleHours(now: Date = new Date()): boolean {
   if (process.env.NODE_ENV !== "production") return false;
   const m = now.getHours() * 60 + now.getMinutes();
