@@ -205,16 +205,43 @@ export function userPath(
   return `/${encodeURIComponent(slug)}`;
 }
 
-// Rewrites a Supabase storage URL to go through the Cloudflare CDN
-// (env: NEXT_PUBLIC_CDN_HOST, e.g. "cdn.mojprilep.mk"). Falls back to the
-// original URL when the env var is not set, so this is safe to deploy before
-// DNS is live.
+// Rewrites a Supabase storage URL to go through an image CDN in front of Storage.
+//
+// Two tiers, in priority order:
+//   1. ImageKit (env: NEXT_PUBLIC_IMAGEKIT_URL, e.g. "https://ik.imagekit.io/xxxx")
+//      — a web-proxy origin pointed at our Supabase Storage public base. It pulls
+//      each original from Supabase ONCE, then caches + resizes on its own
+//      bandwidth, so Supabase cached egress drops toward zero. Also unlocks
+//      per-view resizing (`w`), which Supabase Free denies. Only `object/public`
+//      URLs are routed here (signed URLs carry an expiring token we must not strip).
+//   2. Cloudflare (env: NEXT_PUBLIC_CDN_HOST, e.g. "cdn.mojprilep.mk") — the
+//      original proxy; still the fallback and still used for signed URLs.
+//
+// Both fall back to the untouched URL when their env var is unset, so this is
+// safe to deploy before either is live.
 const CDN_HOST = process.env.NEXT_PUBLIC_CDN_HOST;
+const IMAGEKIT_URL = process.env.NEXT_PUBLIC_IMAGEKIT_URL;
 const SUPABASE_STORAGE_RE =
   /https:\/\/[a-z0-9]+\.supabase\.co(\/storage\/v1\/object\/(?:public|sign)\/[^?#]+)/;
+// Captures just the bucket+path after `/object/public/` — that's what ImageKit's
+// origin base URL is mapped to, so the proxied path is simply `<IMAGEKIT_URL>/<1>`.
+const SUPABASE_PUBLIC_RE =
+  /https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/object\/public\/([^?#]+)/;
 
-export function cdnUrl(url: string | null | undefined): string {
+export function cdnUrl(
+  url: string | null | undefined,
+  opts?: { w?: number },
+): string {
   if (!url) return "";
+  if (IMAGEKIT_URL) {
+    const m = url.match(SUPABASE_PUBLIC_RE);
+    if (m) {
+      const tr = ["f-auto", "q-80"];
+      if (opts?.w) tr.push(`w-${opts.w}`);
+      return `${IMAGEKIT_URL}/${m[1]}?tr=${tr.join(",")}`;
+    }
+    // Not a public Storage URL (Sanity/Google/signed/data:) — fall through.
+  }
   if (!CDN_HOST) return url;
   return url.replace(SUPABASE_STORAGE_RE, `https://${CDN_HOST}$1`);
 }
