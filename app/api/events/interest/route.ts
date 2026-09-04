@@ -23,7 +23,7 @@ export const runtime = "nodejs";
 
 // Counts change on every click but are pure social proof — a short shared edge
 // cache keeps origin cost near zero while staying fresh enough.
-const GET_CACHE = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
+const GET_CACHE = { "Cache-Control": "public, s-maxage=5, stale-while-revalidate=30" };
 
 // Count interest rows grouped by event. Returns {} on any error (e.g. the table
 // doesn't exist yet) so the UI degrades to "no number" instead of breaking.
@@ -41,6 +41,55 @@ export async function GET() {
     return NextResponse.json({ counts }, { headers: GET_CACHE });
   } catch {
     return NextResponse.json({ counts: {} }, { headers: GET_CACHE });
+  }
+}
+
+/**
+ * Couple interest → reminder for a signed-in user, across ALL their devices.
+ *
+ * The mobile app registers a per-device reminder when you tap "Заинтересиран",
+ * but a tap on the WEBSITE has no device token of its own. So for a logged-in
+ * user we fan the reminder out to every Expo push token they've registered
+ * (push_subscriptions): mark interest on the web at your desk, get the push on
+ * your phone. Upsert on (event_id, expo_token) makes it idempotent and dedupes
+ * against the token the mobile app may have already opted in with.
+ *
+ * Best-effort: a failure here must never fail the interest click itself, so the
+ * caller runs it un-awaited-for-correctness (errors are swallowed and logged).
+ */
+async function syncUserReminders(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  eventId: string,
+  action: "add" | "remove",
+): Promise<void> {
+  try {
+    if (action === "remove") {
+      await admin
+        .from("event_reminders")
+        .delete()
+        .eq("event_id", eventId)
+        .eq("user_id", userId);
+      return;
+    }
+
+    const { data: subs } = await admin
+      .from("push_subscriptions")
+      .select("expo_token")
+      .eq("user_id", userId)
+      .eq("enabled", true);
+
+    const tokens = (subs ?? [])
+      .map((s) => (s as { expo_token: string }).expo_token)
+      .filter((t) => typeof t === "string" && t.startsWith("ExponentPushToken"));
+    if (tokens.length === 0) return;
+
+    await admin.from("event_reminders").upsert(
+      tokens.map((expo_token) => ({ event_id: eventId, expo_token, user_id: userId })),
+      { onConflict: "event_id,expo_token" },
+    );
+  } catch (e) {
+    console.error("[events/interest] reminder sync", e);
   }
 }
 
@@ -103,6 +152,10 @@ export async function POST(req: Request) {
           .eq("event_id", eventId)
           .eq("visitor_id", visitorId);
       }
+
+      // Signed in → also opt every one of their devices into the reminder, so a
+      // web click still pushes to their phone.
+      if (user) await syncUserReminders(admin, user.id, eventId, "add");
     } else {
       // remove
       if (user) {
@@ -111,6 +164,7 @@ export async function POST(req: Request) {
           .delete()
           .eq("event_id", eventId)
           .eq("user_id", user.id);
+        await syncUserReminders(admin, user.id, eventId, "remove");
       }
       if (visitorId) {
         await admin

@@ -155,13 +155,26 @@ export default function EventsExplorer({ events }: Props) {
   // Server-side interest counts (fail-soft: no counter shown if unavailable).
   useEffect(() => {
     let alive = true;
-    fetch("/api/events/interest")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (alive && data?.counts) setCounts(data.counts as Record<string, number>);
-      })
-      .catch(() => { /* ignore */ });
-    return () => { alive = false; };
+    const load = () => {
+      fetch("/api/events/interest")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (alive && data?.counts) setCounts(data.counts as Record<string, number>);
+        })
+        .catch(() => { /* ignore */ });
+    };
+    load();
+    // Counts change on other devices (e.g. a tap in the mobile app), so re-pull
+    // whenever this tab regains focus rather than only once on mount — the short
+    // edge cache keeps the extra fetches cheap.
+    const onFocus = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      alive = false;
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
 
   // Reflect the open event in the address bar (shallow — no navigation/refetch)
