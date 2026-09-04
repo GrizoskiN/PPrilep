@@ -23,6 +23,14 @@ const nextConfig: NextConfig = {
         hostname: "cdn.mojprilep.mk",
       },
       {
+        // ImageKit web-proxy in front of Supabase Storage (see lib/utils.ts
+        // cdnUrl). Without this, next/image's optimizer 400s any ImageKit URL,
+        // breaking every image that renders through <Image> instead of a raw
+        // <img> (e.g. the issue detail hero).
+        protocol: "https",
+        hostname: "ik.imagekit.io",
+      },
+      {
         protocol: "https",
         hostname: "mojprilep.mk",
       },
