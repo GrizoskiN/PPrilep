@@ -5,9 +5,6 @@ import { createClient } from "../../lib/supabase/server";
 import { DISTRICT_LABELS, STATUS_LABELS, getIssuePath } from "../../lib/utils";
 import { STAGE_LABEL } from "../../lib/initiatives";
 import { fetchTopHeroes } from "../../lib/data/issues";
-import { fetchAllAnnouncements } from "../../lib/sanity/kindergarten";
-import { urlForImage } from "../../lib/sanity/image";
-import Image from "next/image";
 import type { AgencyPost } from "../../lib/types/database";
 
 type HomeIssue = {
@@ -92,9 +89,6 @@ export default async function HomePage() {
     count: h.points,
   }));
 
-  // Kindergarten announcements (Sanity) — surfaced on the home feed.
-  const announcements = (await fetchAllAnnouncements().catch(() => [])).slice(0, 3);
-
   const latestIssues = (issues as HomeIssue[] | null) ?? [];
   const latestInitiatives = (initiatives as HomeInitiative[] | null) ?? [];
   const posts = (agencyPosts as AgencyPost[] | null) ?? [];
@@ -110,56 +104,6 @@ export default async function HomePage() {
           одговорни.
         </p>
         <HomeAgencyFeed posts={posts} canManage={isAdmin} />
-
-        {announcements.length > 0 && (
-          <section className="mb-4 rounded-xl border border-theme bg-theme-surface p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-theme-heading">
-                🌸 Градинки — Соопштенија
-              </h2>
-              <Link
-                href="/kindergarten"
-                className="text-xs font-semibold text-theme-accent hover:text-primary/80">
-                Види повеќе
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {announcements.map((a) => {
-                // Only the single cover image (fallback to the first gallery
-                // image) — no gallery thumbnails; uniform-height cards.
-                const img = a.coverImage ?? a.gallery?.[0] ?? null;
-                return (
-                  <Link
-                    key={a._id}
-                    href={`/kindergarten/announcement/${a._id}`}
-                    className="group flex flex-col overflow-hidden rounded-xl border border-theme bg-theme-surface hover:border-[#cfe0da]">
-                    {img ? (
-                      <div className="relative h-40 w-full overflow-hidden">
-                        <Image
-                          src={urlForImage(img).width(600).height(320).url()}
-                          alt={a.title} fill sizes="(max-width: 640px) 100vw, 320px"
-                          className="object-cover transition-transform group-hover:scale-[1.02]"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex h-40 w-full items-center justify-center bg-zinc-100 text-4xl">
-                        🌸
-                      </div>
-                    )}
-                    <div className="flex flex-1 flex-col p-3">
-                      <p className="line-clamp-2 text-sm font-semibold text-theme-heading">
-                        {a.title}
-                      </p>
-                      <p className="mt-1 truncate text-xs text-theme-muted">
-                        {a.isGlobal ? "Сите установи" : a.institutionName}
-                      </p>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-        )}
 
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <section className="rounded-xl border border-theme bg-theme-surface p-4">
