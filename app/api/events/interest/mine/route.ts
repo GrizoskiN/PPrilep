@@ -20,24 +20,27 @@ import { createAdminClient } from "../../../../../lib/supabase/admin";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Personal + changes on every tap → must never be shared or cached.
-const NO_STORE = { "Cache-Control": "private, no-store" };
+// Personal, so never SHARED-cached — but a short private (per-browser) cache is
+// fine and keeps rapid tab-focus switching from re-hitting the function. Your
+// own tap updates the button optimistically, so a ~45s staleness on the
+// cross-device reflection is unnoticeable.
+const CACHE = { "Cache-Control": "private, max-age=45" };
 
 export async function GET(req: Request) {
   try {
     const user = await getRequestUser(req);
-    if (!user) return NextResponse.json({ ids: [] }, { headers: NO_STORE });
+    if (!user) return NextResponse.json({ ids: [] }, { headers: CACHE });
 
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("event_interest")
       .select("event_id")
       .eq("user_id", user.id);
-    if (error) return NextResponse.json({ ids: [] }, { headers: NO_STORE });
+    if (error) return NextResponse.json({ ids: [] }, { headers: CACHE });
 
     const ids = (data ?? []).map((r) => (r as { event_id: string }).event_id);
-    return NextResponse.json({ ids }, { headers: NO_STORE });
+    return NextResponse.json({ ids }, { headers: CACHE });
   } catch {
-    return NextResponse.json({ ids: [] }, { headers: NO_STORE });
+    return NextResponse.json({ ids: [] }, { headers: CACHE });
   }
 }

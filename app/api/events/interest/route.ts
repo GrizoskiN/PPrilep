@@ -23,7 +23,7 @@ export const runtime = "nodejs";
 
 // Counts change on every click but are pure social proof — a short shared edge
 // cache keeps origin cost near zero while staying fresh enough.
-const GET_CACHE = { "Cache-Control": "public, s-maxage=5, stale-while-revalidate=30" };
+const GET_CACHE = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
 
 // Count interest rows grouped by event. Returns {} on any error (e.g. the table
 // doesn't exist yet) so the UI degrades to "no number" instead of breaking.
