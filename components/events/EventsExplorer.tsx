@@ -152,56 +152,38 @@ export default function EventsExplorer({ events }: Props) {
     return () => clearTimeout(id);
   }, []);
 
-  // Both the public counts and this user's marked-set can change on another
-  // device (e.g. a tap in the mobile app), so re-pull them when the tab regains
-  // focus — but no more than once per throttle window, so rapid tab-switching
-  // can't spam the backend. Cross-device sync is intentionally eventual (~45s),
-  // not instant: your own tap already updates optimistically.
+  // Pull the public counts and this user's marked-set once, on load. Both can
+  // change on another device (e.g. a tap in the mobile app), so they're read
+  // fresh each page load rather than trusting localStorage alone — but we don't
+  // poll or refetch on focus, to keep backend requests to one per page view.
+  // Cross-device changes show up on the next refresh.
   useEffect(() => {
     let alive = true;
-    let lastLoad = 0;
-    const THROTTLE_MS = 45_000;
 
-    const load = () => {
-      // Public counts (fail-soft: no counter shown if unavailable).
-      fetch("/api/events/interest")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => {
-          if (alive && data?.counts) setCounts(data.counts as Record<string, number>);
-        })
-        .catch(() => { /* ignore */ });
+    // Public counts (fail-soft: no counter shown if unavailable).
+    fetch("/api/events/interest")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (alive && data?.counts) setCounts(data.counts as Record<string, number>);
+      })
+      .catch(() => { /* ignore */ });
 
-      // This user's marked events (union in — never removes, so an un-tap
-      // elsewhere just won't re-add). Empty for anonymous visitors.
-      fetch("/api/events/interest/mine")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => {
-          const ids = data?.ids as string[] | undefined;
-          if (!alive || !ids?.length) return;
-          setInterested((prev) => {
-            const next = new Set(prev);
-            for (const id of ids) next.add(id);
-            return next;
-          });
-        })
-        .catch(() => { /* ignore */ });
+    // This user's marked events (union in — never removes, so an un-tap
+    // elsewhere just won't re-add). Empty for anonymous visitors.
+    fetch("/api/events/interest/mine")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const ids = data?.ids as string[] | undefined;
+        if (!alive || !ids?.length) return;
+        setInterested((prev) => {
+          const next = new Set(prev);
+          for (const id of ids) next.add(id);
+          return next;
+        });
+      })
+      .catch(() => { /* ignore */ });
 
-      lastLoad = Date.now();
-    };
-
-    load();
-    const onFocus = () => {
-      if (document.visibilityState !== "visible") return;
-      if (Date.now() - lastLoad < THROTTLE_MS) return;
-      load();
-    };
-    document.addEventListener("visibilitychange", onFocus);
-    window.addEventListener("focus", onFocus);
-    return () => {
-      alive = false;
-      document.removeEventListener("visibilitychange", onFocus);
-      window.removeEventListener("focus", onFocus);
-    };
+    return () => { alive = false; };
   }, []);
 
   // Reflect the open event in the address bar (shallow — no navigation/refetch)
