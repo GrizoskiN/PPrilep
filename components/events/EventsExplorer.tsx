@@ -152,6 +152,37 @@ export default function EventsExplorer({ events }: Props) {
     return () => clearTimeout(id);
   }, []);
 
+  // Whether the button reads as "marked" is per-user, not per-device: if you're
+  // signed in and tapped on your phone, the website button should be lit too.
+  // localStorage above covers this device; this pulls the rest from the server
+  // and unions them in (never removes — an un-tap elsewhere just won't re-add).
+  useEffect(() => {
+    let alive = true;
+    const loadMine = () => {
+      fetch("/api/events/interest/mine")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          const ids = data?.ids as string[] | undefined;
+          if (!alive || !ids?.length) return;
+          setInterested((prev) => {
+            const next = new Set(prev);
+            for (const id of ids) next.add(id);
+            return next;
+          });
+        })
+        .catch(() => { /* ignore */ });
+    };
+    loadMine();
+    const onFocus = () => { if (document.visibilityState === "visible") loadMine(); };
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      alive = false;
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
+
   // Server-side interest counts (fail-soft: no counter shown if unavailable).
   useEffect(() => {
     let alive = true;
