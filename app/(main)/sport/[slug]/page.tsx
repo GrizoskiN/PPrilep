@@ -74,8 +74,10 @@ function Section({
 }
 
 function Tag({ children }: { children: React.ReactNode }) {
+  // White pill + hairline border so it reads against the gray section, matching
+  // the mobile app's club-profile tags (a bare bg-zinc-100 vanished on gray).
   return (
-    <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-600">
+    <span className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-600">
       {children}
     </span>
   );

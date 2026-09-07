@@ -364,6 +364,153 @@ export async function fetchDaySchedule(day: number): Promise<DaySlot[]> {
   return slots.sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
 
+// ── Лига (Распоред) ─────────────────────────────────────────────────────────
+
+export type LeagueMatch = {
+  home: string;
+  away: string;
+  homeScore: number | null;
+  awayScore: number | null;
+};
+
+export type LeagueRound = {
+  number: number;
+  date: string; // ISO date
+  dateLabel: string | null;
+  matches: LeagueMatch[];
+};
+
+export type SportLeague = {
+  _id: string;
+  title: string;
+  season: string | null;
+  part: string | null;
+  rounds: LeagueRound[];
+};
+
+const LEAGUE_QUERY = `
+  *[_type == "sportLeague" && active == true] | order(_updatedAt desc)[0]{
+    _id, title, season, part,
+    rounds[]{
+      number, date, dateLabel,
+      matches[]{ home, away, homeScore, awayScore }
+    }
+  }
+`;
+
+/** The one active league's fixtures, rounds sorted by round number. */
+export async function fetchActiveLeague(): Promise<SportLeague | null> {
+  const league = await sanityClient.fetch<SportLeague | null>(LEAGUE_QUERY, {}, SPORT_CACHE);
+  if (!league) return null;
+  const rounds = [...(league.rounds ?? [])].sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
+  return { ...league, rounds };
+}
+
+/** A match is played once BOTH scores are filled in. */
+export function isMatchPlayed(m: LeagueMatch): boolean {
+  return typeof m.homeScore === "number" && typeof m.awayScore === "number";
+}
+
+/** A round is played when it has matches and every one of them has a result. */
+export function isRoundPlayed(r: LeagueRound): boolean {
+  const matches = r.matches ?? [];
+  return matches.length > 0 && matches.every(isMatchPlayed);
+}
+
+/**
+ * The index of the round to feature — the first one not yet fully played, else
+ * the last round if the whole schedule is done. Returns -1 for an empty league.
+ */
+export function nextRoundIndex(rounds: LeagueRound[]): number {
+  if (rounds.length === 0) return -1;
+  const idx = rounds.findIndex((r) => !isRoundPlayed(r));
+  return idx === -1 ? rounds.length - 1 : idx;
+}
+
+// ── Таблица (standings, computed from results) ───────────────────────────────
+
+export type StandingRow = {
+  team: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDiff: number;
+  points: number;
+  /** Oldest → newest, one per played match: "W" | "D" | "L". */
+  form: ("W" | "D" | "L")[];
+};
+
+/**
+ * League table built purely from played matches (both scores filled). Win = 3,
+ * draw = 1. Every team that appears in any fixture gets a row, so the table is
+ * complete from round 1 even before a club has kicked a ball. Sorted the usual
+ * way: points, then goal difference, then goals scored, then name.
+ */
+export function computeStandings(rounds: LeagueRound[]): StandingRow[] {
+  const table = new Map<string, StandingRow>();
+  const row = (team: string): StandingRow => {
+    let r = table.get(team);
+    if (!r) {
+      r = {
+        team,
+        played: 0,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        goalDiff: 0,
+        points: 0,
+        form: [],
+      };
+      table.set(team, r);
+    }
+    return r;
+  };
+
+  for (const round of rounds) {
+    for (const m of round.matches ?? []) {
+      // Register both teams even for an unplayed fixture, so the table is full.
+      const home = row(m.home);
+      const away = row(m.away);
+      if (!isMatchPlayed(m)) continue;
+      const hs = m.homeScore as number;
+      const as = m.awayScore as number;
+
+      home.played++;
+      away.played++;
+      home.goalsFor += hs;
+      home.goalsAgainst += as;
+      away.goalsFor += as;
+      away.goalsAgainst += hs;
+
+      if (hs > as) {
+        home.won++; home.points += 3; home.form.push("W");
+        away.lost++; away.form.push("L");
+      } else if (hs < as) {
+        away.won++; away.points += 3; away.form.push("W");
+        home.lost++; home.form.push("L");
+      } else {
+        home.drawn++; home.points++; home.form.push("D");
+        away.drawn++; away.points++; away.form.push("D");
+      }
+    }
+  }
+
+  for (const r of table.values()) r.goalDiff = r.goalsFor - r.goalsAgainst;
+
+  return [...table.values()].sort(
+    (a, b) =>
+      b.points - a.points ||
+      b.goalDiff - a.goalDiff ||
+      b.goalsFor - a.goalsFor ||
+      a.team.localeCompare(b.team, "mk"),
+  );
+}
+
 /** The weekday in Prilep right now, as a JS getDay() value. */
 export function todayInPrilep(): number {
   const name = new Intl.DateTimeFormat("en-US", {

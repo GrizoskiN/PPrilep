@@ -6,6 +6,7 @@ import { fetchPositivePost } from "../../../../lib/sanity/queries";
 import { urlForImage } from "../../../../lib/sanity/image";
 import ClickableCover from "../../../../components/positive/ClickableCover";
 import PostGallery from "../../../../components/positive/PostGallery";
+import ShareSheet from "../../../../components/ui/ShareSheet";
 
 // Convert a YouTube/Vimeo watch URL into an embeddable URL.
 function getEmbedUrl(url: string): string | null {
@@ -121,16 +122,24 @@ export default async function PositivePostPage({ params }: Props) {
 
       <header className="space-y-3">
         <h1 className="text-2xl font-bold text-zinc-900 leading-tight">{post.title}</h1>
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
-          {post.author && <span className="font-medium text-zinc-700">{post.author.name}</span>}
-          {post.author && <span>·</span>}
-          <time dateTime={post.publishedAt}>
-            {new Date(post.publishedAt).toLocaleDateString("mk-MK", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          </time>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-zinc-500">
+            {post.author && <span className="font-medium text-zinc-700">{post.author.name}</span>}
+            {post.author && <span>·</span>}
+            <time dateTime={post.publishedAt}>
+              {new Date(post.publishedAt).toLocaleDateString("mk-MK", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </time>
+          </div>
+          <ShareSheet
+            url={`https://mojprilep.mk/positive/${slug}`}
+            title={post.title}
+            showLabel
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-200"
+          />
         </div>
       </header>
 

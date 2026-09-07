@@ -26,13 +26,26 @@ function slugOf(req: Request): string {
   return (new URL(req.url).searchParams.get("slug") ?? "").trim();
 }
 
+/** Public follower count for a club. Identities stay private (RLS); only the
+ *  total is exposed, via the service role. */
+async function followerCount(admin: ReturnType<typeof createAdminClient>, slug: string): Promise<number> {
+  if (!slug) return 0;
+  const { count } = await admin
+    .from("club_followers")
+    .select("user_id", { count: "exact", head: true })
+    .eq("club_slug", slug);
+  return count ?? 0;
+}
+
 export async function GET(req: Request) {
   const slug = slugOf(req);
-  const user = await getRequestUser(req);
-  if (!user) return NextResponse.json({ authed: false, following: false });
-  if (!slug) return NextResponse.json({ authed: true, following: false });
-
   const admin = createAdminClient();
+  const followers = await followerCount(admin, slug);
+
+  const user = await getRequestUser(req);
+  if (!user) return NextResponse.json({ authed: false, following: false, followers });
+  if (!slug) return NextResponse.json({ authed: true, following: false, followers });
+
   const { data } = await admin
     .from("club_followers")
     .select("club_slug")
@@ -40,7 +53,7 @@ export async function GET(req: Request) {
     .eq("club_slug", slug)
     .maybeSingle();
 
-  return NextResponse.json({ authed: true, following: Boolean(data) });
+  return NextResponse.json({ authed: true, following: Boolean(data), followers });
 }
 
 export async function POST(req: Request) {
@@ -63,7 +76,7 @@ export async function POST(req: Request) {
     console.error("[sport/follow] insert", error);
     return NextResponse.json({ error: "Не успеа следењето." }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, following: true });
+  return NextResponse.json({ ok: true, following: true, followers: await followerCount(admin, slug) });
 }
 
 export async function DELETE(req: Request) {
@@ -83,5 +96,5 @@ export async function DELETE(req: Request) {
     console.error("[sport/follow] delete", error);
     return NextResponse.json({ error: "Не успеа." }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, following: false });
+  return NextResponse.json({ ok: true, following: false, followers: await followerCount(admin, slug) });
 }

@@ -1,18 +1,17 @@
 // GET /api/cron/event-reminders
 //
-// Daily Vercel Cron at 07:00 UTC (see vercel.json) — 09:00 in Skopje through
-// summer, 08:00 in winter. Pushes "Потсети ме" reminders to every opted-in
-// device for events happening TODAY, then stamps notified_at so a device is
-// reminded exactly once.
+// HOURLY Vercel Cron (see vercel.json) — runs at the top of every hour. Pushes
+// "Потсети ме" reminders to every opted-in device for events happening TODAY at
+// their intended lead time, then stamps notified_at so a device is reminded
+// exactly once.
 //
-// One morning sweep, not a per-event countdown: the Hobby plan allows a single
-// daily cron, so there is no later run to catch an event whose ideal reminder
-// time hasn't arrived yet. Gating on "min(11:00, start − 3h)" under a daily
-// schedule would silently drop every evening event — the 09:00 run would judge
-// it not-yet-due and nothing would fire again that day. So the rule is simply:
-// remind about anything today that hasn't started yet. Most events clear the
-// intended 3h lead comfortably; something starting before ~09:00 gets less
-// notice, which is the honest trade for one run a day.
+// Reminder time per event = 11:00 Skopje, OR 3 hours before the start when the
+// event begins before 11:00 (so an early event still gets a real heads-up). An
+// all-day event (no parseable time) reminds at 11:00. Each hourly run fires
+// every reminder whose time has now arrived and whose event hasn't started yet,
+// which is why an hourly schedule is required: a once-daily run couldn't honour
+// "min(11:00, start − 3h)" without dropping events on the wrong side of its
+// single firing.
 //
 // Auth: Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`. Required, so the
 // endpoint can't be triggered by the public. The same secret triggers a manual
@@ -171,8 +170,15 @@ export async function GET(req: Request) {
   for (const ev of todays) {
     const startMin = parseStartMinutes(ev.time);
 
-    // An all-day event (no parseable time) is always still "ahead" of the
-    // morning run; a timed one only counts if it hasn't started.
+    // Remind at 11:00, or 3h before the start when it begins before 11:00.
+    // All-day events (no parseable time) remind at 11:00.
+    const reminderMin =
+      startMin !== null && startMin < 660 ? Math.max(0, startMin - 180) : 660;
+
+    // Not yet time for this event's reminder — a later hourly run will catch it.
+    if (now.minutes < reminderMin) continue;
+
+    // Never remind after the event has already started.
     const beforeStart = startMin === null ? true : now.minutes < startMin;
     if (!beforeStart) continue;
 
@@ -197,7 +203,16 @@ export async function GET(req: Request) {
   try {
     const poll = await loadPoll(null);
     const at = poll?.screening_at ? skopjeAt(poll.screening_at) : null;
-    if (poll && isLive(poll) && at && at.date === now.date && now.minutes < at.minutes) {
+    const pollReminderMin =
+      at && at.minutes < 660 ? Math.max(0, at.minutes - 180) : 660;
+    if (
+      poll &&
+      isLive(poll) &&
+      at &&
+      at.date === now.date &&
+      now.minutes >= pollReminderMin &&
+      now.minutes < at.minutes
+    ) {
       const hh = String(Math.floor(at.minutes / 60)).padStart(2, "0");
       const mm = String(at.minutes % 60).padStart(2, "0");
       const res = await pushReminder(admin, poll.id, {

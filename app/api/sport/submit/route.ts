@@ -70,6 +70,32 @@ function rateLimited(key: string): boolean {
   return recent.length > RATE_MAX;
 }
 
+/**
+ * A clean, human slug for the club URL: just the name slugified. A numeric
+ * suffix (-2, -3, …) is added ONLY when that bare slug already belongs to
+ * another club — no gratuitous `-a1b2` on every club. Checks published docs and
+ * drafts so two pending submissions can't collide either. The slug is stable for
+ * life (it's the URL and the profiles.club_id binding), so uniqueness matters.
+ */
+async function uniqueClubSlug(
+  sanity: ReturnType<typeof getSanityClient>,
+  name: string,
+): Promise<string> {
+  const base = slugify(name) || "klub";
+  // All existing slugs that are `base` or `base-<n>`, drafts included.
+  const taken = new Set(
+    (await sanity.fetch<string[]>(
+      `*[_type == "sportClub" && (slug.current == $base || slug.current match $pat)].slug.current`,
+      { base, pat: `${base}-*` },
+    )) ?? [],
+  );
+  if (!taken.has(base)) return base;
+  for (let n = 2; ; n++) {
+    const candidate = `${base}-${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
 /** cleanUrl() against a form field, keeping the call sites below short. */
 function url(form: FormData, key: string): string | undefined {
   return cleanUrl(form.get(key) as string | null);
@@ -250,7 +276,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const slug = `${slugify(name) || "klub"}-${Date.now().toString(36).slice(-4)}`;
+    const slug = await uniqueClubSlug(sanity, name);
 
     const doc = {
       _type: "sportClub",

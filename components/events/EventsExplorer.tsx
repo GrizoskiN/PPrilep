@@ -80,6 +80,26 @@ function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+// First "HH:MM" in the free-text time field → minutes since midnight. Events
+// with no parseable time sort after timed ones on the same day (an all-day or
+// time-TBD entry shouldn't jump ahead of a 17:00 start).
+function timeMinutes(time: string | null | undefined): number {
+  if (!time) return Number.POSITIVE_INFINITY;
+  const m = time.match(/(\d{1,2}):(\d{2})/);
+  if (!m) return Number.POSITIVE_INFINITY;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return Number.POSITIVE_INFINITY;
+  return h * 60 + min;
+}
+
+// GROQ orders by startDate (day granularity) only, so same-day events come back
+// in arbitrary order. Sort them chronologically by their start time here.
+function byDateThenTime(a: SanityEvent, b: SanityEvent): number {
+  if (a.startDate !== b.startDate) return a.startDate < b.startDate ? -1 : 1;
+  return timeMinutes(a.time) - timeMinutes(b.time);
+}
+
 function formatWhen(ev: SanityEvent): string {
   const startStr = fmtDate(ev.startDate);
   if (ev.endDate && ev.endDate !== ev.startDate) {
@@ -253,23 +273,25 @@ export default function EventsExplorer({ events }: Props) {
     const weekAhead = new Date(today);
     weekAhead.setDate(weekAhead.getDate() + 7);
 
-    return events.filter((ev) => {
-      if (category !== "all" && ev.category !== category) return false;
+    return events
+      .filter((ev) => {
+        if (category !== "all" && ev.category !== category) return false;
 
-      const start = startOfDay(new Date(ev.startDate));
-      const end = startOfDay(new Date(ev.endDate ?? ev.startDate));
+        const start = startOfDay(new Date(ev.startDate));
+        const end = startOfDay(new Date(ev.endDate ?? ev.startDate));
 
-      if (dateFilter === "upcoming") return end >= today;
-      if (dateFilter === "week") return end >= today && start <= weekAhead;
-      if (dateFilter === "month")
-        return (
-          end >= today &&
-          start.getFullYear() === today.getFullYear() &&
-          start.getMonth() === today.getMonth()
-        );
-      return true;
-    });
-    // already sorted by startDate asc from GROQ
+        if (dateFilter === "upcoming") return end >= today;
+        if (dateFilter === "week") return end >= today && start <= weekAhead;
+        if (dateFilter === "month")
+          return (
+            end >= today &&
+            start.getFullYear() === today.getFullYear() &&
+            start.getMonth() === today.getMonth()
+          );
+        return true;
+      })
+      // GROQ sorts by startDate (day) only; break same-day ties by start time.
+      .sort(byDateThenTime);
   }, [events, category, dateFilter]);
 
   const featured = filtered[0];
