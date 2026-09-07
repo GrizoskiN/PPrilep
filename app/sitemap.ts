@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
+import { fetchSportClubSlugs } from "../lib/sanity/sport";
 
 const SITE_URL = "https://mojprilep.mk";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
   // Public, indexable routes. Dynamic content pages (issues, initiatives,
@@ -21,6 +22,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/communities", changeFrequency: "weekly", priority: 0.6 },
     { path: "/events", changeFrequency: "daily", priority: 0.7 },
     { path: "/positive", changeFrequency: "daily", priority: 0.7 },
+    { path: "/sport", changeFrequency: "weekly", priority: 0.6 },
+    { path: "/sport/ce-trcame", changeFrequency: "weekly", priority: 0.6 },
+    { path: "/sport/raspored", changeFrequency: "daily", priority: 0.6 },
     { path: "/projects", changeFrequency: "weekly", priority: 0.6 },
     { path: "/about", changeFrequency: "monthly", priority: 0.5 },
     { path: "/sponsors", changeFrequency: "monthly", priority: 0.5 },
@@ -30,10 +34,31 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
   ];
 
-  return routes.map(({ path, changeFrequency, priority }) => ({
-    url: `${SITE_URL}${path}`,
-    lastModified: now,
-    changeFrequency,
-    priority,
-  }));
+  const staticEntries: MetadataRoute.Sitemap = routes.map(
+    ({ path, changeFrequency, priority }) => ({
+      url: `${SITE_URL}${path}`,
+      lastModified: now,
+      changeFrequency,
+      priority,
+    }),
+  );
+
+  // Each approved club profile is its own indexable page. The slug query is
+  // already gated to public clubs (reviewed submissions + non-submissions), so
+  // pending ones never leak in. Fail soft: a Sanity hiccup drops the club URLs
+  // for this build rather than breaking the whole sitemap.
+  let clubEntries: MetadataRoute.Sitemap = [];
+  try {
+    const slugs = await fetchSportClubSlugs();
+    clubEntries = slugs.map((slug) => ({
+      url: `${SITE_URL}/sport/${slug}`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.5,
+    }));
+  } catch {
+    /* keep the static sitemap even if the club query fails */
+  }
+
+  return [...staticEntries, ...clubEntries];
 }
