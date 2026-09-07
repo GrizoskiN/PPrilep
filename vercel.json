@@ -3,10 +3,6 @@
     {
       "path": "/api/cron/cleanup-orphans",
       "schedule": "0 3 * * 1"
-    },
-    {
-      "path": "/api/cron/event-reminders",
-      "schedule": "0 * * * *"
     }
   ]
 }

@@ -1,0 +1,31 @@
+name: Event reminders (hourly)
+
+# The reminder sweep must run every hour to honour "min(11:00 Skopje, start − 3h)"
+# per event. Vercel Cron can't do sub-daily on the Hobby plan (and an hourly entry
+# in vercel.json silently blocks ALL deploys there), so GitHub Actions drives it
+# instead by hitting the existing cron endpoint with the shared CRON_SECRET.
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: event-reminders
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger event-reminders sweep
+        run: |
+          code=$(curl -sS -o /tmp/out.txt -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://mojprilep.mk/api/cron/event-reminders)
+          echo "HTTP $code"
+          cat /tmp/out.txt
+          echo
+          test "$code" = "200"

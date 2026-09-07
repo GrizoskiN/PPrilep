@@ -1,6 +1,9 @@
 // GET /api/cron/event-reminders
 //
-// HOURLY Vercel Cron (see vercel.json) — runs at the top of every hour. Pushes
+// HOURLY cron — driven by GitHub Actions (.github/workflows/event-reminders.yml),
+// NOT Vercel Cron: the Hobby plan rejects sub-daily schedules, and an hourly entry
+// in vercel.json silently blocks every deploy. The Action curls this endpoint with
+// CRON_SECRET at the top of every hour. Pushes
 // "Потсети ме" reminders to every opted-in device for events happening TODAY at
 // their intended lead time, then stamps notified_at so a device is reminded
 // exactly once.
@@ -13,9 +16,8 @@
 // "min(11:00, start − 3h)" without dropping events on the wrong side of its
 // single firing.
 //
-// Auth: Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`. Required, so the
-// endpoint can't be triggered by the public. The same secret triggers a manual
-// run.
+// Auth: the caller sends `Authorization: Bearer <CRON_SECRET>` (the GitHub Action,
+// or a manual run). Required, so the endpoint can't be triggered by the public.
 
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
